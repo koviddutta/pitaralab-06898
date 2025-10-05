@@ -6,7 +6,7 @@ import { getSupabase, isBackendReady } from "@/integrations/supabase/safeClient"
 import { Session, User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import RecipeCalculator from "@/components/RecipeCalculator";
+import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
 import BaseRecipeSelector from "@/components/BaseRecipeSelector";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
@@ -219,7 +219,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="calculator" className="mt-4 md:mt-6">
-            <RecipeCalculator />
+            <RecipeCalculatorV2 />
           </TabsContent>
 
           <TabsContent value="enhanced" className="mt-4 md:mt-6">
