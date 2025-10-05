@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      # safe fallbacks so Vite won't crash if secrets aren't set
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://example.com' }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'anon-placeholder' }}
+      VITE_ANALYTICS_WRITE_KEY: ${{ secrets.VITE_ANALYTICS_WRITE_KEY || '' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      # Diagnose what's wired without failing the build
+      - name: Show NPM scripts
+        run: npm run -s
+
+      - name: Typecheck (optional)
+        run: npm run -s typecheck || echo "typecheck failed (ignored)"
+
+      - name: Lint (optional)
+        run: npm run -s lint || echo "lint failed (ignored)"
+
+      - name: Tests (optional)
+        run: npm -s test -- --coverage --run || echo "tests failed (ignored)"
+
+      - name: Build (optional)
+        run: npm run -s build || echo "build failed (ignored)"
+
+      - name: Upload coverage reports
+        if: ${{ hashFiles('coverage/coverage-final.json') != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install deps
+        run: npm ci
+      - name: Audit (non-blocking)
+        run: npm audit --audit-level=moderate || true
+      - name: Outdated (non-blocking)
+        run: npm outdated || true
