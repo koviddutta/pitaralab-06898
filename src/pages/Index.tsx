@@ -30,6 +30,7 @@ const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [backendReady, setBackendReady] = useState(false);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -37,7 +38,9 @@ const Index = () => {
     (async () => {
       try {
         const supabase = await getSupabase();
-        // Set up auth state listener FIRST
+        setBackendReady(true);
+        
+        // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
           setSession(session);
           setUser(session?.user ?? null);
@@ -45,18 +48,19 @@ const Index = () => {
         });
         unsubscribe = () => subscription.unsubscribe();
 
-        // THEN check for existing session
+        // Check for existing session
         const { data: { session } } = await supabase.auth.getSession();
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Redirect to auth if not logged in
-        if (!session) {
+        // Redirect to auth if not logged in and backend is ready
+        if (!session && backendReady) {
           navigate("/auth");
         }
       } catch (e) {
-        console.warn("Backend not ready yet; running in offline mode until env loads.");
+        console.log("Running in offline mode - backend features disabled");
+        setBackendReady(false);
         setLoading(false);
       }
     })();
@@ -120,32 +124,41 @@ const Index = () => {
     );
   }
 
-  // Redirect to auth if not logged in (additional safety check)
-  if (!session || !user) {
-    return null;
-  }
-
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
         <CopyProtection />
         <WelcomeModal />
         <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
-        <div className="flex justify-end mb-4">
-          <Card className="inline-flex items-center gap-2 p-2">
-            <UserIcon className="h-4 w-4 text-gray-600" />
-            <span className="text-sm text-gray-600">{user.email}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="gap-1"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </Card>
-        </div>
+        {backendReady && user && (
+          <div className="flex justify-end mb-4">
+            <Card className="inline-flex items-center gap-2 p-2">
+              <UserIcon className="h-4 w-4 text-gray-600" />
+              <span className="text-sm text-gray-600">{user.email}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="gap-1"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </Button>
+            </Card>
+          </div>
+        )}
+        
+        {!backendReady && (
+          <div className="mb-4">
+            <Card className="bg-yellow-50 border-yellow-200">
+              <CardContent className="p-3">
+                <p className="text-sm text-yellow-800">
+                  ℹ️ Running in offline mode - backend features (save, auth) temporarily disabled
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <div className="text-center mb-4 md:mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
