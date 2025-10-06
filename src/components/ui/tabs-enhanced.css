@@ -1,0 +1,46 @@
+/* Enhanced Tab Styling for Better Contrast and Readability */
+
+/* Ensure tab triggers have proper contrast in all states */
+[role="tablist"] [role="tab"] {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Inactive tabs - subtle but readable */
+[role="tablist"] [role="tab"]:not([data-state="active"]) {
+  background-color: hsl(var(--muted) / 0.5);
+  color: hsl(var(--muted-foreground));
+}
+
+[role="tablist"] [role="tab"]:not([data-state="active"]):hover {
+  background-color: hsl(var(--muted) / 0.8);
+  color: hsl(var(--foreground));
+}
+
+/* Active tabs - high contrast, no content obscuring */
+[role="tablist"] [role="tab"][data-state="active"] {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.25);
+}
+
+/* Ensure text is never obscured */
+[role="tablist"] [role="tab"] * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  [role="tablist"] {
+    /* Add visual indicator for scrollability */
+    mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+  }
+  
+  [role="tablist"] [role="tab"] {
+    /* Ensure tabs don't get too small on mobile */
+    min-height: 44px; /* Apple's recommended touch target */
+  }
+}

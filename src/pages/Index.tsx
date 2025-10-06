@@ -175,10 +175,10 @@ const Index = () => {
             ML-powered recipe development tools with predictive analysis for artisan ice cream makers
           </p>
           {isMobile && (
-            <Card className="mt-4 mx-4">
+            <Card className="mt-4 mx-4 bg-info-light border-info/20">
               <CardContent className="p-3">
-                <p className="text-xs text-blue-600">
-                  📱 Mobile-optimized interface active. Swipe through tabs for the best experience.
+                <p className="text-xs text-info-foreground font-medium">
+                  📱 Mobile mode: Swipe left/right to see all tabs →
                 </p>
               </CardContent>
             </Card>
@@ -186,48 +186,82 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="calculator" className="w-full">
+          {/* Unified tab list - scrollable on mobile, wrapped on desktop */}
           <TabsList className={isMobile 
-            ? "w-full h-auto flex flex-nowrap gap-1 overflow-x-auto overflow-y-hidden scrollbar-hide p-2" 
-            : "w-full h-auto flex flex-wrap gap-2 p-2"
+            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden scrollbar-hide p-2 bg-background/80 backdrop-blur-sm" 
+            : "w-full h-auto flex flex-wrap gap-2 p-2 bg-background/80 backdrop-blur-sm"
           }>
             <TabsTrigger 
               value="calculator" 
-              className={isMobile ? 'text-xs px-3 py-2 flex-shrink-0 min-w-[100px]' : 'flex-1 min-w-[140px]'}
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
             >
-              {isMobile ? '📊' : '📊'} Calculator
+              📊 Calculator
             </TabsTrigger>
             <TabsTrigger 
               value="flavour-engine" 
-              className={isMobile ? 'text-xs px-3 py-2 flex-shrink-0 min-w-[100px]' : 'flex-1 min-w-[140px]'}
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
             >
-              {isMobile ? '🤖' : '🤖'} AI Engine
+              🤖 AI Engine
+            </TabsTrigger>
+            <TabsTrigger 
+              value="enhanced" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              🆕 Enhanced
+            </TabsTrigger>
+            <TabsTrigger 
+              value="paste-studio" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              ✨ Paste Studio
+            </TabsTrigger>
+            <TabsTrigger 
+              value="costing" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              💰 Costing
+            </TabsTrigger>
+            <TabsTrigger 
+              value="base-recipes" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              📚 Base Recipes
+            </TabsTrigger>
+            <TabsTrigger 
+              value="converter" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              🔄 Converter
+            </TabsTrigger>
+            <TabsTrigger 
+              value="cost" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                : 'flex-1 min-w-[140px] font-medium'}
+            >
+              💵 Cost Calc
             </TabsTrigger>
             {isMobile && (
-              <TabsTrigger value="mobile-input" className="text-xs px-3 py-2 flex-shrink-0 min-w-[100px]">
+              <TabsTrigger 
+                value="mobile-input" 
+                className="text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium"
+              >
                 ➕ Quick Add
               </TabsTrigger>
-            )}
-            {!isMobile && (
-              <>
-                <TabsTrigger value="enhanced" className="flex-1 min-w-[140px]">
-                  🆕 Enhanced
-                </TabsTrigger>
-                <TabsTrigger value="paste-studio" className="flex-1 min-w-[140px]">
-                  ✨ Paste Studio
-                </TabsTrigger>
-                <TabsTrigger value="costing" className="flex-1 min-w-[140px]">
-                  💰 Costing
-                </TabsTrigger>
-                <TabsTrigger value="base-recipes" className="flex-1 min-w-[140px]">
-                  📚 Base Recipes
-                </TabsTrigger>
-                <TabsTrigger value="converter" className="flex-1 min-w-[140px]">
-                  🔄 Converter
-                </TabsTrigger>
-                <TabsTrigger value="cost" className="flex-1 min-w-[140px]">
-                  💵 Cost Calc
-                </TabsTrigger>
-              </>
             )}
           </TabsList>
 
@@ -260,40 +294,37 @@ const Index = () => {
             <FlavourEngine />
           </TabsContent>
 
+          {/* All tab content available on all devices */}
+          <TabsContent value="base-recipes" className="mt-4 md:mt-6">
+            <BaseRecipeSelector />
+          </TabsContent>
+
+          <TabsContent value="converter" className="mt-4 md:mt-6">
+            <UnitConverter />
+          </TabsContent>
+
+          <TabsContent value="cost" className="mt-4 md:mt-6">
+            <CostCalculator />
+          </TabsContent>
+
           {isMobile && (
             <TabsContent value="mobile-input" className="mt-4">
               <MobileRecipeInput onRecipeCreated={handleMobileRecipeCreated} />
             </TabsContent>
           )}
-
-          {!isMobile && (
-            <>
-              <TabsContent value="base-recipes" className="mt-6">
-                <BaseRecipeSelector />
-              </TabsContent>
-
-              <TabsContent value="converter" className="mt-6">
-                <UnitConverter />
-              </TabsContent>
-
-              <TabsContent value="cost" className="mt-6">
-                <CostCalculator />
-              </TabsContent>
-            </>
-          )}
         </Tabs>
 
         {/* Mobile-specific navigation help */}
         {isMobile && (
-          <Card className="mt-6 mx-4">
+          <Card className="mt-6 mx-4 bg-card-secondary border-border/50">
             <CardContent className="p-4">
-              <h3 className="font-semibold text-sm mb-2">Mobile Features:</h3>
-              <div className="space-y-1 text-xs text-gray-600">
-                <p>• 📱 Touch-optimized ingredient input with quick adjustments</p>
-                <p>• 🎤 Voice input for hands-free recipe creation (Quick Add tab)</p>
-                <p>• 📸 Photo recognition for ingredient detection (coming soon)</p>
-                <p>• 🔄 Real-time parameter evaluation and validation</p>
-                <p>• 📊 Mobile-friendly charts and nutritional analysis</p>
+              <h3 className="font-semibold text-sm mb-2 text-foreground">📱 Mobile Features:</h3>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>• All 9 tabs available - swipe to access</p>
+                <p>• Touch-optimized ingredient input</p>
+                <p>• Voice input for hands-free recipe creation</p>
+                <p>• Real-time parameter evaluation</p>
+                <p>• Mobile-friendly charts and analysis</p>
               </div>
             </CardContent>
           </Card>
