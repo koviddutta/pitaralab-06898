@@ -188,77 +188,91 @@ const Index = () => {
         <Tabs defaultValue="calculator" className="w-full">
           {/* Unified tab list - scrollable on mobile, wrapped on desktop */}
           <TabsList className={isMobile 
-            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden scrollbar-hide p-2 bg-background/80 backdrop-blur-sm" 
+            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden p-3 pl-4 pr-8 bg-background/80 backdrop-blur-sm shadow-sm" 
             : "w-full h-auto flex flex-wrap gap-2 p-2 bg-background/80 backdrop-blur-sm"
-          }>
+          }
+          style={isMobile ? {
+            scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch'
+          } : undefined}
+          >
             <TabsTrigger 
               value="calculator" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               📊 Calculator
             </TabsTrigger>
             <TabsTrigger 
               value="flavour-engine" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               🤖 AI Engine
             </TabsTrigger>
             <TabsTrigger 
               value="enhanced" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               🆕 Enhanced
             </TabsTrigger>
             <TabsTrigger 
               value="paste-studio" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               ✨ Paste Studio
             </TabsTrigger>
             <TabsTrigger 
               value="costing" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               💰 Costing
             </TabsTrigger>
             <TabsTrigger 
               value="base-recipes" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               📚 Base Recipes
             </TabsTrigger>
             <TabsTrigger 
               value="converter" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               🔄 Converter
             </TabsTrigger>
             <TabsTrigger 
               value="cost" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
               💵 Cost Calc
             </TabsTrigger>
             {isMobile && (
               <TabsTrigger 
                 value="mobile-input" 
-                className="text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium"
+                className="text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start"
+                style={{ scrollSnapAlign: 'start' }}
               >
                 ➕ Quick Add
               </TabsTrigger>

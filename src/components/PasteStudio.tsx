@@ -207,14 +207,14 @@ export default function PasteStudio() {
         </div>
 
         <Tabs defaultValue="formulation" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="formulation">Formulation</TabsTrigger>
-            <TabsTrigger value="viscosity">Spreadability</TabsTrigger>
-            <TabsTrigger value="reverse">Reverse</TabsTrigger>
-            <TabsTrigger value="scientific">AI Recipe</TabsTrigger>
-            <TabsTrigger value="preservation">Preservation</TabsTrigger>
-            <TabsTrigger value="fd-powder">FD Powder</TabsTrigger>
-            <TabsTrigger value="export">Export</TabsTrigger>
+          <TabsList className="w-full h-auto flex flex-wrap md:grid md:grid-cols-7 gap-1 md:gap-2 p-2 overflow-x-auto bg-background/80 backdrop-blur-sm">
+            <TabsTrigger value="formulation" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">Formulation</TabsTrigger>
+            <TabsTrigger value="viscosity" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">Spreadability</TabsTrigger>
+            <TabsTrigger value="reverse" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">Reverse</TabsTrigger>
+            <TabsTrigger value="scientific" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">AI Recipe</TabsTrigger>
+            <TabsTrigger value="preservation" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">Preservation</TabsTrigger>
+            <TabsTrigger value="fd-powder" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">FD Powder</TabsTrigger>
+            <TabsTrigger value="export" className="flex-1 min-w-[100px] text-xs md:text-sm whitespace-nowrap">Export</TabsTrigger>
           </TabsList>
 
           <TabsContent value="formulation" className="space-y-6">

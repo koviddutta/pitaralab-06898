@@ -1,20 +1,30 @@
 /* Enhanced Tab Styling for Better Contrast and Readability */
 
 /* Ensure tab triggers have proper contrast in all states */
+[role="tablist"] {
+  position: relative;
+}
+
 [role="tablist"] [role="tab"] {
   position: relative;
   transition: all 0.2s ease-in-out;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Inactive tabs - subtle but readable */
 [role="tablist"] [role="tab"]:not([data-state="active"]) {
   background-color: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground));
+  border: 1px solid transparent;
 }
 
 [role="tablist"] [role="tab"]:not([data-state="active"]):hover {
   background-color: hsl(var(--muted) / 0.8);
   color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
 }
 
 /* Active tabs - high contrast, no content obscuring */
@@ -23,24 +33,51 @@
   color: hsl(var(--primary-foreground));
   font-weight: 600;
   box-shadow: 0 2px 8px hsl(var(--primary) / 0.25);
+  border: 1px solid hsl(var(--primary));
 }
 
 /* Ensure text is never obscured */
 [role="tablist"] [role="tab"] * {
   position: relative;
   z-index: 1;
+  color: inherit;
 }
 
 /* Mobile-specific improvements */
 @media (max-width: 768px) {
   [role="tablist"] {
-    /* Add visual indicator for scrollability */
-    mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
+    /* Proper padding for scrollable tabs */
+    padding-left: 1rem !important;
+    padding-right: 2rem !important;
+    
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    
+    /* Visual indicator for scrollability on right edge */
+    mask-image: linear-gradient(to right, black 0%, black calc(100% - 48px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 48px), transparent 100%);
+  }
+  
+  /* Ensure first and last tabs are fully visible */
+  [role="tablist"] [role="tab"]:first-child {
+    margin-left: 0;
+  }
+  
+  [role="tablist"] [role="tab"]:last-child {
+    margin-right: 16px;
   }
   
   [role="tablist"] [role="tab"] {
     /* Ensure tabs don't get too small on mobile */
     min-height: 44px; /* Apple's recommended touch target */
+    scroll-snap-align: start;
+  }
+}
+
+/* Desktop improvements */
+@media (min-width: 769px) {
+  [role="tablist"] [role="tab"] {
+    min-height: 48px;
   }
 }
