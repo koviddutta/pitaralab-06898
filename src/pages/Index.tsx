@@ -54,8 +54,8 @@ const Index = () => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Redirect to auth if not logged in and backend is ready
-        if (!session && backendReady) {
+        // Redirect to auth if not logged in
+        if (!session) {
           navigate("/auth");
         }
       } catch (e) {
