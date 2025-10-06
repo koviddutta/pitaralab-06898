@@ -1,20 +1,3 @@
-export interface IngredientData {
-  id: string;
-  name: string;
-  category: string;
-  pac: number;
-  pod: number;
-  afp: number;
-  fat: number;
-  msnf: number;
-  cost: number;
-  confidence: 'high' | 'medium' | 'low';
-  embeddings?: number[];
-  flavorNotes: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface TrainingData {
   id: string;
   recipe: { [key: string]: number };
@@ -38,7 +21,6 @@ export interface RecipeHistory {
 }
 
 class DatabaseService {
-  private ingredients: IngredientData[] = [];
   private trainingData: TrainingData[] = [];
   private recipeHistory: RecipeHistory[] = [];
 
@@ -48,15 +30,8 @@ class DatabaseService {
 
   private loadInitialData() {
     // Load from localStorage if available
-    const storedIngredients = localStorage.getItem('meetha_ingredients');
     const storedTraining = localStorage.getItem('meetha_training_data');
     const storedHistory = localStorage.getItem('meetha_recipe_history');
-
-    if (storedIngredients) {
-      this.ingredients = JSON.parse(storedIngredients);
-    } else {
-      this.initializeDefaultIngredients();
-    }
 
     if (storedTraining) {
       this.trainingData = JSON.parse(storedTraining);
@@ -65,151 +40,6 @@ class DatabaseService {
     if (storedHistory) {
       this.recipeHistory = JSON.parse(storedHistory);
     }
-  }
-
-  private initializeDefaultIngredients() {
-    this.ingredients = [
-      {
-        id: '1',
-        name: 'Heavy Cream',
-        category: 'dairy',
-        pac: 2.8,
-        pod: 0.2,
-        afp: 0.1,
-        fat: 35,
-        msnf: 5.5,
-        cost: 4.5,
-        confidence: 'high',
-        flavorNotes: ['rich', 'creamy', 'neutral'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '2',
-        name: 'Whole Milk',
-        category: 'dairy',
-        pac: 2.7,
-        pod: 0.3,
-        afp: 0.05,
-        fat: 3.5,
-        msnf: 8.5,
-        cost: 2.2,
-        confidence: 'high',
-        flavorNotes: ['mild', 'creamy', 'sweet'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '3',
-        name: 'Sugar',
-        category: 'sweetener',
-        pac: 0,
-        pod: 0,
-        afp: 0,
-        fat: 0,
-        msnf: 0,
-        cost: 3.0,
-        confidence: 'high',
-        flavorNotes: ['sweet', 'neutral'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '4',
-        name: 'Egg Yolks',
-        category: 'protein',
-        pac: 15.7,
-        pod: 0.8,
-        afp: 0.3,
-        fat: 31.9,
-        msnf: 1.1,
-        cost: 8.0,
-        confidence: 'medium',
-        flavorNotes: ['rich', 'custardy', 'smooth'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '5',
-        name: 'Stabilizer',
-        category: 'additive',
-        pac: 0,
-        pod: 85,
-        afp: 2.5,
-        fat: 0,
-        msnf: 0,
-        cost: 12.0,
-        confidence: 'medium',
-        flavorNotes: ['neutral'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '6',
-        name: 'Vanilla Extract',
-        category: 'flavoring',
-        pac: 0,
-        pod: 0,
-        afp: 0,
-        fat: 0,
-        msnf: 0,
-        cost: 25.0,
-        confidence: 'high',
-        flavorNotes: ['vanilla', 'sweet', 'aromatic'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: '7',
-        name: 'Cocoa Powder',
-        category: 'flavoring',
-        pac: 19.6,
-        pod: 1.2,
-        afp: 0.2,
-        fat: 10.8,
-        msnf: 3.4,
-        cost: 15.0,
-        confidence: 'medium',
-        flavorNotes: ['chocolate', 'bitter', 'rich'],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-    this.saveIngredients();
-  }
-
-  // Ingredient Management
-  addIngredient(ingredient: Omit<IngredientData, 'id' | 'createdAt' | 'updatedAt'>): IngredientData {
-    const newIngredient: IngredientData = {
-      ...ingredient,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.ingredients.push(newIngredient);
-    this.saveIngredients();
-    return newIngredient;
-  }
-
-  updateIngredient(id: string, updates: Partial<IngredientData>): IngredientData | null {
-    const index = this.ingredients.findIndex(ing => ing.id === id);
-    if (index === -1) return null;
-
-    this.ingredients[index] = {
-      ...this.ingredients[index],
-      ...updates,
-      updatedAt: new Date()
-    };
-    this.saveIngredients();
-    return this.ingredients[index];
-  }
-
-  getIngredients(): IngredientData[] {
-    return [...this.ingredients];
-  }
-
-  getIngredientByName(name: string): IngredientData | null {
-    return this.ingredients.find(ing => ing.name.toLowerCase() === name.toLowerCase()) || null;
   }
 
   // Training Data Management
@@ -261,25 +91,15 @@ class DatabaseService {
     }
   }
 
-  getRecipes() {
-    const stored = localStorage.getItem('recipes');
-    return stored ? JSON.parse(stored) : [];
-  }
-
   // Data Export/Import
-  exportData(): { ingredients: IngredientData[], trainingData: TrainingData[], recipeHistory: RecipeHistory[] } {
+  exportData(): { trainingData: TrainingData[], recipeHistory: RecipeHistory[] } {
     return {
-      ingredients: this.ingredients,
       trainingData: this.trainingData,
       recipeHistory: this.recipeHistory
     };
   }
 
-  importData(data: { ingredients?: IngredientData[], trainingData?: TrainingData[], recipeHistory?: RecipeHistory[] }): void {
-    if (data.ingredients) {
-      this.ingredients = data.ingredients;
-      this.saveIngredients();
-    }
+  importData(data: { trainingData?: TrainingData[], recipeHistory?: RecipeHistory[] }): void {
     if (data.trainingData) {
       this.trainingData = data.trainingData;
       this.saveTrainingData();
@@ -290,17 +110,38 @@ class DatabaseService {
     }
   }
 
-  // Storage methods
-  private saveIngredients(): void {
-    localStorage.setItem('meetha_ingredients', JSON.stringify(this.ingredients));
-  }
-
+  // Storage methods for draft autosave only
   private saveTrainingData(): void {
     localStorage.setItem('meetha_training_data', JSON.stringify(this.trainingData));
   }
 
   private saveRecipeHistory(): void {
     localStorage.setItem('meetha_recipe_history', JSON.stringify(this.recipeHistory));
+  }
+
+  // Draft autosave helpers (30-second autosave only)
+  saveDraftRecipe(draft: any): void {
+    localStorage.setItem('meetha_recipe_draft', JSON.stringify({
+      ...draft,
+      timestamp: Date.now()
+    }));
+  }
+
+  loadDraftRecipe(): any | null {
+    const stored = localStorage.getItem('meetha_recipe_draft');
+    if (!stored) return null;
+    
+    const draft = JSON.parse(stored);
+    // Auto-expire drafts older than 24 hours
+    if (Date.now() - draft.timestamp > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem('meetha_recipe_draft');
+      return null;
+    }
+    return draft;
+  }
+
+  clearDraftRecipe(): void {
+    localStorage.removeItem('meetha_recipe_draft');
   }
 
   // Analytics

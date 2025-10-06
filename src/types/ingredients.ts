@@ -36,6 +36,7 @@ export type IngredientData = {
   allergens?: { milk?: boolean; nuts?: boolean; gluten?: boolean };
   veg_flag?: 'veg' | 'non-veg';
   notes?: string[];
+  tags?: string[];
 };
 
 export interface Ingredient {

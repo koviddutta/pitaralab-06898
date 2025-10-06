@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Database, Plus, Download, Upload, Trash2, Edit, Save, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,98 +10,29 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { databaseService, IngredientData as LegacyIngredientData } from '@/services/databaseService';
+import { IngredientService } from '@/services/ingredientService';
+import { databaseService } from '@/services/databaseService';
 import { mlService } from '@/services/mlService';
-import { getSeedIngredients } from '@/lib/ingredientLibrary';
-import { IngredientData as NewIngredientData } from '@/types/ingredients';
+import { IngredientData } from '@/types/ingredients';
 
 const DatabaseManager = () => {
   const { toast } = useToast();
   const [tab, setTab] = useState<'all'|'dairy'|'sugar'|'fruit'|'stabilizer'|'flavor'|'fat'|'other'>('all');
-  const [ingredients, setIngredients] = useState<LegacyIngredientData[]>([]);
-  const [newIngredients, setNewIngredients] = useState<NewIngredientData[]>(getSeedIngredients());
   const [isAddingIngredient, setIsAddingIngredient] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newIngredient, setNewIngredient] = useState({
-    name: '',
-    category: 'dairy',
-    pac: 0,
-    pod: 0,
-    afp: 0,
-    fat: 0,
-    msnf: 0,
-    cost: 0,
-    confidence: 'medium' as 'high' | 'medium' | 'low',
-    flavorNotes: ['']
-  });
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
   const [modelPerformance, setModelPerformance] = useState<any>(null);
+  
+  // Fetch ingredients from Supabase
+  const { data: ingredients = [], refetch: refetchIngredients } = useQuery({
+    queryKey: ['ingredients'],
+    queryFn: () => IngredientService.getIngredients()
+  });
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = () => {
-    setIngredients(databaseService.getIngredients());
     setPerformanceMetrics(databaseService.getPerformanceMetrics());
     setModelPerformance(mlService.getModelPerformance());
-  };
-
-  const handleAddIngredient = () => {
-    if (!newIngredient.name.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Ingredient name is required",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const ingredient = databaseService.addIngredient({
-        ...newIngredient,
-        flavorNotes: newIngredient.flavorNotes.filter(note => note.trim())
-      });
-      
-      setIngredients(prev => [...prev, ingredient]);
-      setNewIngredient({
-        name: '',
-        category: 'dairy',
-        pac: 0,
-        pod: 0,
-        afp: 0,
-        fat: 0,
-        msnf: 0,
-        cost: 0,
-        confidence: 'medium',
-        flavorNotes: ['']
-      });
-      setIsAddingIngredient(false);
-      
-      toast({
-        title: "Ingredient Added",
-        description: `${ingredient.name} has been added to the database`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add ingredient",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleUpdateIngredient = (id: string, updates: Partial<LegacyIngredientData>) => {
-    const updated = databaseService.updateIngredient(id, updates);
-    if (updated) {
-      setIngredients(prev => prev.map(ing => ing.id === id ? updated : ing));
-      setEditingId(null);
-      toast({
-        title: "Ingredient Updated",
-        description: "Changes have been saved successfully",
-      });
-    }
-  };
+  }, []);
 
   const exportData = () => {
     const data = databaseService.exportData();

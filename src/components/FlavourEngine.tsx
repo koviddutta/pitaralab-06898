@@ -102,24 +102,29 @@ const FlavourEngine = () => {
     });
   }, [selectedProduct]);
 
-  useEffect(() => {
-    const dbIngredients = databaseService.getIngredients();
-    const formattedIngredients = dbIngredients.map(ing => ({
+  // Load ingredients from Supabase
+  const { data: dbIngredients = [] } = useQuery({
+    queryKey: ['ingredients'],
+    queryFn: () => IngredientService.getIngredients()
+  });
+
+  const formattedIngredients = useMemo(() => 
+    dbIngredients.map(ing => ({
       name: ing.name,
-      pac: ing.pac,
-      pod: ing.pod,
-      sp: ing.pac || 1.0, // Use PAC as SP for now, or default to 1.0
-      fat: ing.fat,
-      msnf: ing.msnf,
-      cost: ing.cost,
-      confidence: ing.confidence
-    }));
+      pac: ing.pac_coeff || 100,
+      pod: 0, // Not stored in new schema
+      sp: ing.sp_coeff || 1.0,
+      fat: ing.fat_pct,
+      msnf: ing.msnf_pct || 0,
+      cost: ing.cost_per_kg || 0,
+      confidence: 'high' as const
+    })),
+    [dbIngredients]
+  );
+
+  useEffect(() => {
     setIngredients(formattedIngredients);
-    
-    // Also set modern ingredient format for new components
-    const seedIngredients = getSeedIngredients();
-    setAvailableIngredients(seedIngredients);
-  }, []);
+  }, [formattedIngredients]);
 
   const addIngredientToRecipe = (ingredientName: string) => {
     if (!recipe[ingredientName]) {

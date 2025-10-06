@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calculator, Plus, Minus, Save, Download, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,94 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
 import { IngredientData } from '@/types/ingredients';
+import { IngredientService } from '@/services/ingredientService';
+import { RecipeService } from '@/services/recipeService';
+import { databaseService } from '@/services/databaseService';
 import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
 import { CompositionBar } from './CompositionBar';
-
-// Sample ingredient library (in production, this would come from the database)
-const INGREDIENT_LIBRARY: Record<string, IngredientData> = {
-  'milk_3pct': {
-    id: 'milk_3pct',
-    name: 'Milk 3% Fat',
-    category: 'dairy',
-    water_pct: 88.5,
-    fat_pct: 3,
-    msnf_pct: 8.5,
-    sugars_pct: 0,
-    other_solids_pct: 0
-  },
-  'cream_35pct': {
-    id: 'cream_35pct',
-    name: 'Heavy Cream 35%',
-    category: 'dairy',
-    water_pct: 58,
-    fat_pct: 35,
-    msnf_pct: 5.5,
-    sugars_pct: 0,
-    other_solids_pct: 1.5
-  },
-  'smp': {
-    id: 'smp',
-    name: 'Skim Milk Powder',
-    category: 'dairy',
-    water_pct: 3.5,
-    fat_pct: 1,
-    msnf_pct: 93,
-    sugars_pct: 0,
-    other_solids_pct: 2.5
-  },
-  'sucrose': {
-    id: 'sucrose',
-    name: 'Sucrose (White Sugar)',
-    category: 'sugar',
-    water_pct: 0,
-    fat_pct: 0,
-    msnf_pct: 0,
-    sugars_pct: 100,
-    other_solids_pct: 0
-  },
-  'dextrose': {
-    id: 'dextrose',
-    name: 'Dextrose',
-    category: 'sugar',
-    water_pct: 0,
-    fat_pct: 0,
-    msnf_pct: 0,
-    sugars_pct: 100,
-    other_solids_pct: 0
-  },
-  'glucose_de60': {
-    id: 'glucose_de60',
-    name: 'Glucose Syrup DE60',
-    category: 'sugar',
-    water_pct: 20,
-    fat_pct: 0,
-    msnf_pct: 0,
-    sugars_pct: 80,
-    other_solids_pct: 0
-  },
-  'stabilizer': {
-    id: 'stabilizer',
-    name: 'Stabilizer',
-    category: 'other',
-    water_pct: 0,
-    fat_pct: 0,
-    msnf_pct: 0,
-    sugars_pct: 0,
-    other_solids_pct: 100
-  },
-  'emulsifier': {
-    id: 'emulsifier',
-    name: 'Emulsifier',
-    category: 'other',
-    water_pct: 0,
-    fat_pct: 0,
-    msnf_pct: 0,
-    sugars_pct: 0,
-    other_solids_pct: 100
-  }
-};
 
 interface RecipeRow {
   ingredientId: string;
@@ -105,16 +25,65 @@ interface RecipeRow {
 const RecipeCalculatorV2 = () => {
   const [mode, setMode] = useState<'gelato' | 'kulfi'>('gelato');
   const [recipeName, setRecipeName] = useState('');
-  const [rows, setRows] = useState<RecipeRow[]>([
-    { ingredientId: 'milk_3pct', grams: 600 },
-    { ingredientId: 'cream_35pct', grams: 200 },
-    { ingredientId: 'smp', grams: 40 },
-    { ingredientId: 'sucrose', grams: 140 },
-    { ingredientId: 'dextrose', grams: 20 },
-    { ingredientId: 'stabilizer', grams: 3 }
-  ]);
+  const [rows, setRows] = useState<RecipeRow[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   const { toast } = useToast();
+
+  // Fetch ingredients from Supabase
+  const { data: ingredientsArray = [], isLoading: isLoadingIngredients } = useQuery({
+    queryKey: ['ingredients'],
+    queryFn: () => IngredientService.getIngredients(),
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
+  });
+
+  // Convert array to lookup object
+  const INGREDIENT_LIBRARY = useMemo(() => {
+    return ingredientsArray.reduce((acc, ing) => {
+      acc[ing.id] = ing;
+      return acc;
+    }, {} as Record<string, IngredientData>);
+  }, [ingredientsArray]);
+
+  // Load draft from localStorage or set defaults
+  useEffect(() => {
+    if (isLoadingIngredients || ingredientsArray.length === 0) return;
+
+    const draft = databaseService.loadDraftRecipe();
+    if (draft && draft.rows && draft.rows.length > 0) {
+      setRows(draft.rows);
+      setRecipeName(draft.name || '');
+      setMode(draft.mode || 'gelato');
+      toast({
+        title: "Draft Restored",
+        description: "Your previous draft has been restored"
+      });
+    } else {
+      // Set default ingredients
+      const findIngredientByTag = (tag: string) => 
+        ingredientsArray.find(ing => ing.tags?.includes(tag));
+
+      setRows([
+        { ingredientId: findIngredientByTag('id:milk_3')?.id || ingredientsArray[0]?.id || '', grams: 600 },
+        { ingredientId: findIngredientByTag('id:heavy_cream')?.id || ingredientsArray[1]?.id || '', grams: 200 },
+        { ingredientId: findIngredientByTag('id:smp')?.id || ingredientsArray[2]?.id || '', grams: 40 },
+        { ingredientId: findIngredientByTag('id:sucrose')?.id || ingredientsArray[3]?.id || '', grams: 140 },
+        { ingredientId: findIngredientByTag('id:dextrose')?.id || ingredientsArray[4]?.id || '', grams: 20 },
+        { ingredientId: findIngredientByTag('id:stabilizer')?.id || ingredientsArray[5]?.id || '', grams: 3 }
+      ].filter(row => row.ingredientId)); // Filter out any missing IDs
+    }
+  }, [isLoadingIngredients, ingredientsArray, toast]);
+
+  // Autosave draft every 30 seconds
+  useEffect(() => {
+    if (rows.length === 0) return;
+    
+    const autosaveInterval = setInterval(() => {
+      databaseService.saveDraftRecipe({ name: recipeName, rows, mode });
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autosaveInterval);
+  }, [recipeName, rows, mode]);
 
   // Calculate metrics using v2.1 engine
   const metrics = useMemo(() => {
@@ -162,7 +131,7 @@ const RecipeCalculatorV2 = () => {
     });
   };
 
-  const saveRecipe = () => {
+  const saveRecipe = async () => {
     if (!recipeName.trim()) {
       toast({
         title: "Recipe Name Required",
@@ -172,23 +141,46 @@ const RecipeCalculatorV2 = () => {
       return;
     }
 
-    // Save to localStorage for now (in production, save to Supabase)
-    const savedRecipes = JSON.parse(localStorage.getItem('recipes') || '[]');
-    savedRecipes.push({
-      name: recipeName,
-      mode,
-      rows,
-      metrics,
-      savedAt: new Date().toISOString()
-    });
-    localStorage.setItem('recipes', JSON.stringify(savedRecipes));
+    if (!metrics) {
+      toast({
+        title: "No Metrics",
+        description: "Add ingredients to calculate metrics before saving",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    toast({
-      title: "Recipe Saved",
-      description: `${recipeName} has been saved successfully`
-    });
-    
-    setRecipeName('');
+    setIsSaving(true);
+    try {
+      const { recipeId, versionNumber } = await RecipeService.saveRecipe({
+        name: recipeName,
+        rows,
+        metrics,
+        product_type: mode,
+        change_notes: 'Initial version'
+      });
+
+      // Clear draft after successful save
+      databaseService.clearDraftRecipe();
+
+      toast({
+        title: "Recipe Saved",
+        description: `${recipeName} saved successfully (v${versionNumber})`,
+        duration: 5000
+      });
+      
+      setRecipeName('');
+      setRows([]);
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      toast({
+        title: "Save Failed",
+        description: error instanceof Error ? error.message : "Failed to save recipe",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const exportToCsv = () => {
@@ -248,6 +240,17 @@ const RecipeCalculatorV2 = () => {
     });
   };
 
+  if (isLoadingIngredients) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading ingredients...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -269,9 +272,12 @@ const RecipeCalculatorV2 = () => {
               />
             </div>
             <div className="flex gap-2 items-end">
-              <Button onClick={saveRecipe} disabled={!recipeName.trim()}>
+              <Button 
+                onClick={saveRecipe} 
+                disabled={!recipeName.trim() || isSaving || !metrics}
+              >
                 <Save className="h-4 w-4 mr-2" />
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
               <Button onClick={exportToCsv} variant="outline" disabled={!metrics}>
                 <Download className="h-4 w-4 mr-2" />

@@ -249,6 +249,59 @@ export type Database = {
         }
         Relationships: []
       }
+      recipe_versions: {
+        Row: {
+          change_notes: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          metrics: Json | null
+          name: string
+          product_type: string | null
+          profile_id: string | null
+          profile_version: string | null
+          recipe_id: string
+          rows_json: Json
+          version_number: number
+        }
+        Insert: {
+          change_notes?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metrics?: Json | null
+          name: string
+          product_type?: string | null
+          profile_id?: string | null
+          profile_version?: string | null
+          recipe_id: string
+          rows_json: Json
+          version_number: number
+        }
+        Update: {
+          change_notes?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          metrics?: Json | null
+          name?: string
+          product_type?: string | null
+          profile_id?: string | null
+          profile_version?: string | null
+          recipe_id?: string
+          rows_json?: Json
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_versions_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipes: {
         Row: {
           created_at: string | null
