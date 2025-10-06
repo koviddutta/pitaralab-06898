@@ -1,7 +1,9 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('SUPABASE_URL') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
@@ -13,9 +15,80 @@ serve(async (req) => {
   }
 
   try {
-    const { pasteType, category, mode, knownIngredients, constraints, targets } = await req.json();
-    
-    console.log('Formulation request:', { pasteType, category, mode, targets });
+    // SECURITY: Authenticate the user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Validate input
+    const body = await req.json();
+    const { pasteType, category, mode, knownIngredients, constraints, targets } = body;
+
+    // Validate required fields and lengths
+    if (!pasteType || typeof pasteType !== 'string' || pasteType.length > 100) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid pasteType: must be string under 100 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const validCategories = ['dairy', 'fruit', 'confection', 'spice', 'nut', 'mixed'];
+    if (!category || !validCategories.includes(category)) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Invalid category: must be one of ${validCategories.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const validModes = ['standard', 'ai_discovery', 'reverse_engineer'];
+    if (mode && !validModes.includes(mode)) {
+      return new Response(
+        JSON.stringify({ success: false, error: `Invalid mode: must be one of ${validModes.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (knownIngredients && (typeof knownIngredients !== 'string' || knownIngredients.length > 500)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'knownIngredients too long: max 500 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (constraints && (typeof constraints !== 'string' || constraints.length > 500)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'constraints too long: max 500 characters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Log only non-sensitive metadata (no targets, constraints, or specific paste types)
+    console.log('AI formulation requested', { 
+      user_id: user.id,
+      mode: mode || 'standard',
+      category,
+      timestamp: new Date().toISOString()
+    });
 
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY not configured');
@@ -249,7 +322,8 @@ Provide complete scientific formulation with step-by-step process and full refer
           recipe = JSON.parse(jsonContent);
         } catch (parseError) {
           console.error('JSON parse error:', parseError);
-          throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+          const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parse error';
+          throw new Error(`Failed to parse AI response as JSON: ${errorMessage}`);
         }
         
         // ENHANCED: Validate recipe structure
@@ -267,10 +341,10 @@ Provide complete scientific formulation with step-by-step process and full refer
         );
         
       } catch (error) {
-        lastError = error;
+        lastError = error instanceof Error ? error : new Error('Unknown error');
         
         // If it's a timeout, retry
-        if (error.name === 'AbortError') {
+        if (error instanceof Error && error.name === 'AbortError') {
           console.warn(`Timeout on attempt ${attempt}, retrying...`);
           if (attempt < MAX_RETRIES) {
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
@@ -280,7 +354,8 @@ Provide complete scientific formulation with step-by-step process and full refer
         
         // If it's not the last attempt, retry
         if (attempt < MAX_RETRIES) {
-          console.warn(`Error on attempt ${attempt}, retrying...`, error.message);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.warn(`Error on attempt ${attempt}, retrying...`, errorMessage);
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           continue;
         }
@@ -294,11 +369,21 @@ Provide complete scientific formulation with step-by-step process and full refer
     throw lastError || new Error('All AI retry attempts failed');
 
   } catch (error) {
-    console.error('Error in paste-formulator:', error);
+    // SECURITY: Don't leak detailed error messages to client
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorName = error instanceof Error ? error.name : 'Error';
+    
+    console.error('Error in paste-formulator:', {
+      message: errorMessage,
+      name: errorName,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Return generic error to client
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: 'An error occurred processing your request. Please try again.' 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
