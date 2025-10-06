@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase, isBackendReady } from '@/integrations/supabase/safeClient';
 import { MetricsV2 } from '@/lib/calc.v2';
 
 export interface RecipeRow {
@@ -44,6 +44,10 @@ export class RecipeService {
     profile_id?: string;
     change_notes?: string;
   }): Promise<{ recipeId: string; versionNumber: number }> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     // Insert recipe into recipes table
     const { data: recipeData, error: recipeError } = await supabase
       .from('recipes')
@@ -103,6 +107,10 @@ export class RecipeService {
       change_notes?: string;
     }
   ): Promise<{ versionNumber: number }> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     // Update the main recipe record
     const { error: updateError } = await supabase
       .from('recipes')
@@ -147,6 +155,10 @@ export class RecipeService {
    * Get all recipes
    */
   static async getRecipes(): Promise<Recipe[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('recipes')
       .select('*')
@@ -168,6 +180,10 @@ export class RecipeService {
    * Get a single recipe by ID
    */
   static async getRecipe(id: string): Promise<Recipe | null> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('recipes')
       .select('*')
@@ -192,6 +208,11 @@ export class RecipeService {
    * Get all versions of a recipe
    */
   static async getRecipeVersions(recipeId: string): Promise<RecipeVersion[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('recipe_versions')
       .select('*')
@@ -214,6 +235,10 @@ export class RecipeService {
    * Get a specific version of a recipe
    */
   static async getRecipeVersion(recipeId: string, versionNumber: number): Promise<RecipeVersion | null> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('recipe_versions')
       .select('*')
@@ -239,6 +264,10 @@ export class RecipeService {
    * Delete a recipe
    */
   static async deleteRecipe(id: string): Promise<void> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from('recipes')
       .delete()
@@ -254,6 +283,10 @@ export class RecipeService {
    * Search recipes by name
    */
   static async searchRecipes(query: string): Promise<Recipe[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('recipes')
       .select('*')

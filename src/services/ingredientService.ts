@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase, isBackendReady } from '@/integrations/supabase/safeClient';
 import { IngredientData } from '@/types/ingredients';
 
 export class IngredientService {
@@ -6,6 +6,10 @@ export class IngredientService {
    * Fetch all ingredients from Supabase
    */
   static async getIngredients(): Promise<IngredientData[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .select('*')
@@ -40,6 +44,10 @@ export class IngredientService {
    * Get ingredient by ID
    */
   static async getIngredientById(id: string): Promise<IngredientData | null> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .select('*')
@@ -75,6 +83,10 @@ export class IngredientService {
    * Get ingredients by category
    */
   static async getIngredientsByCategory(category: string): Promise<IngredientData[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .select('*')
@@ -108,6 +120,10 @@ export class IngredientService {
    * Search ingredients by name
    */
   static async searchIngredients(query: string): Promise<IngredientData[]> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .select('*')
@@ -142,6 +158,10 @@ export class IngredientService {
    * Add a new ingredient
    */
   static async addIngredient(ingredient: Omit<IngredientData, 'id'>): Promise<IngredientData> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .insert({
@@ -189,6 +209,10 @@ export class IngredientService {
    * Update an ingredient
    */
   static async updateIngredient(id: string, updates: Partial<IngredientData>): Promise<IngredientData> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from('ingredients')
       .update({
@@ -237,6 +261,10 @@ export class IngredientService {
    * Delete an ingredient
    */
   static async deleteIngredient(id: string): Promise<void> {
+    if (!isBackendReady()) {
+      throw new Error('Backend not available');
+    }
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from('ingredients')
       .delete()
