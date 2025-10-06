@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calculator, Plus, Minus, Save, Download, Trash2 } from 'lucide-react';
+import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,15 +8,20 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
+import { optimizeRecipe } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
 import { IngredientService } from '@/services/ingredientService';
 import { RecipeService } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
+import { getSupabase } from '@/integrations/supabase/safeClient';
 import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
 import { CompositionBar } from './CompositionBar';
 import { ScienceMetricsPanel } from './ScienceMetricsPanel';
+import { AISuggestionDialog } from './AISuggestionDialog';
+import { OptimizeDialog } from './OptimizeDialog';
+import { WarningTooltip } from './WarningTooltip';
 
 interface RecipeRow {
   ingredientId: string;
@@ -28,6 +33,11 @@ const RecipeCalculatorV2 = () => {
   const [recipeName, setRecipeName] = useState('');
   const [rows, setRows] = useState<RecipeRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [aiSuggestionsOpen, setAiSuggestionsOpen] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [optimizeDialogOpen, setOptimizeDialogOpen] = useState(false);
+  const [optimizedRows, setOptimizedRows] = useState<RecipeRow[]>([]);
   
   const { toast } = useToast();
 
@@ -234,6 +244,113 @@ const RecipeCalculatorV2 = () => {
     }
   };
 
+  const handleAISuggest = async () => {
+    if (rows.length === 0) {
+      toast({
+        title: "No Recipe",
+        description: "Add ingredients first before getting AI suggestions",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoadingSuggestions(true);
+    setAiSuggestionsOpen(true);
+    setAiSuggestions([]);
+
+    try {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase.functions.invoke('suggest-ingredient', {
+        body: { rows, mode }
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        if (data.error.includes('Rate limit')) {
+          toast({
+            title: "Too Many Requests",
+            description: "Please wait a moment before trying again (5 requests per minute)",
+            variant: "destructive"
+          });
+        } else {
+          throw new Error(data.error);
+        }
+        setAiSuggestionsOpen(false);
+        return;
+      }
+
+      setAiSuggestions(data.suggestions || []);
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+      toast({
+        title: "AI Suggestion Failed",
+        description: error instanceof Error ? error.message : "Failed to get suggestions",
+        variant: "destructive"
+      });
+      setAiSuggestionsOpen(false);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  const handleAddSuggestion = (suggestion: any) => {
+    // Try to find matching ingredient
+    const matchingIng = Object.values(INGREDIENT_LIBRARY).find(
+      ing => ing.name.toLowerCase().includes(suggestion.ingredient.toLowerCase()) ||
+             suggestion.ingredient.toLowerCase().includes(ing.name.toLowerCase())
+    );
+
+    if (matchingIng) {
+      setRows(prev => [...prev, { ingredientId: matchingIng.id, grams: suggestion.grams }]);
+      toast({
+        title: "Ingredient Added",
+        description: `Added ${matchingIng.name} (${suggestion.grams}g)`
+      });
+    } else {
+      toast({
+        title: "Ingredient Not Found",
+        description: `Could not find "${suggestion.ingredient}" in library. Add it manually.`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleOptimize = () => {
+    if (!metrics || rows.length === 0) {
+      toast({
+        title: "Cannot Optimize",
+        description: "Add ingredients first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Convert to optimize format
+    const optimizeRows = rows.map(row => ({
+      ing: INGREDIENT_LIBRARY[row.ingredientId],
+      grams: row.grams
+    }));
+
+    // Set targets based on mode
+    const targets = mode === 'gelato' 
+      ? { fat_pct: 7.5, msnf_pct: 11, sugars_pct: 19, ts_add_pct: 40 }
+      : { fat_pct: 11, msnf_pct: 21.5, sugars_pct: 19, ts_add_pct: 40 };
+
+    const optimized = optimizeRecipe(optimizeRows, targets, 100, 1);
+    
+    setOptimizedRows(optimized.map(r => ({ ingredientId: r.ing.id, grams: r.grams })));
+    setOptimizeDialogOpen(true);
+  };
+
+  const applyOptimization = () => {
+    setRows(optimizedRows);
+    toast({
+      title: "Recipe Optimized",
+      description: "Applied AI optimization to your recipe"
+    });
+  };
+
   const exportToCsv = () => {
     if (!metrics) return;
     
@@ -322,7 +439,7 @@ const RecipeCalculatorV2 = () => {
                 onChange={(e) => setRecipeName(e.target.value)}
               />
             </div>
-            <div className="flex gap-2 items-end">
+            <div className="flex flex-wrap gap-2 items-end">
               <Button 
                 onClick={saveRecipe} 
                 disabled={!recipeName.trim() || isSaving || !metrics}
@@ -333,6 +450,22 @@ const RecipeCalculatorV2 = () => {
               <Button onClick={exportToCsv} variant="outline" disabled={!metrics}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+              <Button 
+                onClick={handleAISuggest} 
+                variant="secondary"
+                disabled={rows.length === 0}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Suggest
+              </Button>
+              <Button 
+                onClick={handleOptimize} 
+                variant="secondary"
+                disabled={!metrics}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Optimize
               </Button>
             </div>
           </div>
@@ -456,6 +589,24 @@ const RecipeCalculatorV2 = () => {
           }}
         />
       )}
+
+      {/* AI Dialogs */}
+      <AISuggestionDialog
+        open={aiSuggestionsOpen}
+        onOpenChange={setAiSuggestionsOpen}
+        suggestions={aiSuggestions}
+        onAddSuggestion={handleAddSuggestion}
+        isLoading={isLoadingSuggestions}
+      />
+
+      <OptimizeDialog
+        open={optimizeDialogOpen}
+        onOpenChange={setOptimizeDialogOpen}
+        originalRows={rows}
+        optimizedRows={optimizedRows}
+        onApply={applyOptimization}
+        getIngredientName={(id) => INGREDIENT_LIBRARY[id]?.name || id}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Info, Wrench, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WarningTooltip } from "./WarningTooltip";
 
 interface EnhancedWarningsPanelProps {
   warnings: string[];
@@ -40,7 +41,10 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
             <AlertDescription>
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {critical.map((w, i) => (
-                  <li key={i} className="text-sm">{w.replace('⚠️', '').trim()}</li>
+                  <li key={i} className="text-sm flex items-center gap-2">
+                    <span className="flex-1">{w.replace('⚠️', '').trim()}</span>
+                    <WarningTooltip warning={w} />
+                  </li>
                 ))}
               </ul>
             </AlertDescription>
@@ -54,7 +58,10 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
             <AlertDescription className="text-blue-800 dark:text-blue-200">
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {troubleshooting.map((w, i) => (
-                  <li key={i} className="text-sm">{w.replace('🔧', '').trim()}</li>
+                  <li key={i} className="text-sm flex items-center gap-2">
+                    <span className="flex-1">{w.replace('🔧', '').trim()}</span>
+                    <WarningTooltip warning={w} />
+                  </li>
                 ))}
               </ul>
             </AlertDescription>
@@ -68,7 +75,10 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
             <AlertDescription className="text-yellow-800 dark:text-yellow-200">
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {info.map((w, i) => (
-                  <li key={i} className="text-sm">{w}</li>
+                  <li key={i} className="text-sm flex items-center gap-2">
+                    <span className="flex-1">{w}</span>
+                    <WarningTooltip warning={w} />
+                  </li>
                 ))}
               </ul>
             </AlertDescription>

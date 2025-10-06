@@ -1,1 +1,24 @@
 project_id = "upugwezzqpxzjxpdxuar"
+
+[api]
+enabled = true
+port = 54321
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+
+[functions.paste-formulator]
+verify_jwt = true
+
+[functions.suggest-ingredient]
+verify_jwt = true
