@@ -46,13 +46,10 @@
 /* Mobile-specific improvements */
 @media (max-width: 768px) {
   [role="tablist"] {
-    /* Proper padding for scrollable tabs */
-    padding-left: 1rem !important;
-    padding-right: 2rem !important;
-    
     /* Smooth scrolling */
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    scroll-padding-left: 1rem;
     
     /* Visual indicator for scrollability on right edge */
     mask-image: linear-gradient(to right, black 0%, black calc(100% - 48px), transparent 100%);
@@ -62,10 +59,12 @@
   /* Ensure first and last tabs are fully visible */
   [role="tablist"] [role="tab"]:first-child {
     margin-left: 0;
+    scroll-snap-align: start;
   }
   
   [role="tablist"] [role="tab"]:last-child {
     margin-right: 16px;
+    scroll-snap-align: end;
   }
   
   [role="tablist"] [role="tab"] {

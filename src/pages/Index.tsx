@@ -188,12 +188,13 @@ const Index = () => {
         <Tabs defaultValue="calculator" className="w-full">
           {/* Unified tab list - scrollable on mobile, wrapped on desktop */}
           <TabsList className={isMobile 
-            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden p-3 pl-4 pr-8 bg-background/80 backdrop-blur-sm shadow-sm" 
+            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden py-3 px-4 bg-background/80 backdrop-blur-sm shadow-sm" 
             : "w-full h-auto flex flex-wrap gap-2 p-2 bg-background/80 backdrop-blur-sm"
           }
           style={isMobile ? {
             scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            scrollPaddingLeft: '1rem'
           } : undefined}
           >
             <TabsTrigger 
