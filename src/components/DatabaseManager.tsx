@@ -1,38 +1,25 @@
-
-import React, { useState, useEffect } from 'react';
-import { Database, Plus, Download, Upload, Trash2, Edit, Save, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Database, Download, Upload } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { IngredientService } from '@/services/ingredientService';
 import { databaseService } from '@/services/databaseService';
-import { mlService } from '@/services/mlService';
-import { IngredientData } from '@/types/ingredients';
 
 const DatabaseManager = () => {
   const { toast } = useToast();
   const [tab, setTab] = useState<'all'|'dairy'|'sugar'|'fruit'|'stabilizer'|'flavor'|'fat'|'other'>('all');
-  const [isAddingIngredient, setIsAddingIngredient] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [performanceMetrics, setPerformanceMetrics] = useState<any>(null);
-  const [modelPerformance, setModelPerformance] = useState<any>(null);
   
   // Fetch ingredients from Supabase
-  const { data: ingredients = [], refetch: refetchIngredients } = useQuery({
+  const { data: ingredients = [] } = useQuery({
     queryKey: ['ingredients'],
     queryFn: () => IngredientService.getIngredients()
   });
 
-  useEffect(() => {
-    setPerformanceMetrics(databaseService.getPerformanceMetrics());
-    setModelPerformance(mlService.getModelPerformance());
-  }, []);
+  const performanceMetrics = databaseService.getPerformanceMetrics();
 
   const exportData = () => {
     const data = databaseService.exportData();
@@ -46,7 +33,7 @@ const DatabaseManager = () => {
     
     toast({
       title: "Database Exported",
-      description: "Database has been exported successfully",
+      description: "Training data and recipe history exported",
     });
   };
 
@@ -58,10 +45,9 @@ const DatabaseManager = () => {
         try {
           const data = JSON.parse(e.target?.result as string);
           databaseService.importData(data);
-          loadData();
           toast({
             title: "Database Imported",
-            description: "Database has been imported successfully",
+            description: "Training data and recipe history imported",
           });
         } catch (error) {
           toast({
@@ -76,7 +62,7 @@ const DatabaseManager = () => {
   };
 
   const categories = ['all', 'dairy', 'sugar', 'fruit', 'stabilizer', 'flavor', 'fat', 'other'];
-  const filteredNewIngredients = newIngredients.filter(i => tab === 'all' ? true : i.category === tab);
+  const filteredIngredients = ingredients.filter(i => tab === 'all' ? true : i.category === tab);
 
   return (
     <div className="space-y-6">
@@ -106,24 +92,15 @@ const DatabaseManager = () => {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-gray-600">ML Performance</CardTitle>
+            <CardTitle className="text-sm text-gray-600">Categories</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">Accuracy:</span>
-                <Badge variant={modelPerformance?.accuracy > 0.8 ? "default" : "secondary"}>
-                  {((modelPerformance?.accuracy || 0) * 100).toFixed(1)}%
+            <div className="flex flex-wrap gap-1">
+              {categories.slice(1).map(cat => (
+                <Badge key={cat} variant="outline" className="text-xs">
+                  {cat}: {ingredients.filter(i => i.category === cat).length}
                 </Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Predictions:</span>
-                <Badge variant="secondary">{modelPerformance?.totalPredictions || 0}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Model Version:</span>
-                <Badge variant="outline">{modelPerformance?.modelVersion || 'N/A'}</Badge>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -134,12 +111,6 @@ const DatabaseManager = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">High Confidence:</span>
-                <Badge variant="default">
-                  {ingredients.filter(ing => ing.confidence === 'high').length}
-                </Badge>
-              </div>
               <div className="flex justify-between">
                 <span className="text-sm">Avg Success Rate:</span>
                 <Badge variant="secondary">
@@ -157,199 +128,82 @@ const DatabaseManager = () => {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Database className="h-5 w-5" />
-              Ingredient Database Management
+              Ingredient Database ({ingredients.length} items)
             </CardTitle>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAddingIngredient(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Ingredient
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportData}
-              >
+              <Button variant="outline" size="sm" onClick={exportData}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>
-              <label className="cursor-pointer">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={importData}
-                  className="hidden"
-                />
-                <Button variant="outline" size="sm" asChild>
-                  <span>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                  </span>
-                </Button>
-              </label>
+              <Button variant="outline" size="sm" asChild>
+                <label>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import
+                  <input
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={importData}
+                  />
+                </label>
+              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs value={tab} onValueChange={(value) => setTab(value as any)}>
-            <TabsList className="grid grid-cols-4 lg:grid-cols-8">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+            <TabsList className="grid grid-cols-8 w-full">
               {categories.map(cat => (
                 <TabsTrigger key={cat} value={cat} className="text-xs">
-                  {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  {cat}
                 </TabsTrigger>
               ))}
             </TabsList>
             
-            <div className="mt-4 space-y-4">
-              {/* New Ingredient Schema Display */}
-              <div className="grid gap-2">
-                <h3 className="font-semibold">Enhanced Ingredient Library ({filteredNewIngredients.length})</h3>
-                <div className="max-h-64 overflow-y-auto space-y-1">
-                  {filteredNewIngredients.map((ingredient) => (
-                    <div key={ingredient.id} className="flex items-center justify-between p-2 border rounded text-sm">
-                      <div className="flex-1">
-                        <span className="font-medium">{ingredient.name}</span>
-                        <div className="text-xs text-gray-500 flex gap-4">
-                          <span>Water: {ingredient.water_pct}%</span>
-                          {ingredient.sugars_pct && <span>Sugar: {ingredient.sugars_pct}%</span>}
-                          <span>Fat: {ingredient.fat_pct}%</span>
-                          {ingredient.msnf_pct && <span>MSNF: {ingredient.msnf_pct}%</span>}
-                          {ingredient.other_solids_pct && <span>Other: {ingredient.other_solids_pct}%</span>}
+            {categories.map(cat => (
+              <TabsContent key={cat} value={cat} className="mt-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Showing {filteredIngredients.length} ingredients from Supabase
+                  </p>
+                  
+                  {filteredIngredients.map((ingredient) => (
+                    <div
+                      key={ingredient.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1 grid md:grid-cols-5 gap-4 items-center">
+                        <div>
+                          <span className="font-medium">{ingredient.name}</span>
+                          <div className="text-sm text-gray-500">{ingredient.category}</div>
                         </div>
-                        {ingredient.category === 'fruit' && ingredient.brix_estimate && (
-                          <div className="text-xs text-purple-600">Brix: {ingredient.brix_estimate}°</div>
-                        )}
+                        <div className="text-sm">
+                          <div>Water: {ingredient.water_pct}%</div>
+                          <div>Fat: {ingredient.fat_pct}%</div>
+                        </div>
+                        <div className="text-sm">
+                          {ingredient.sugars_pct && <div>Sugars: {ingredient.sugars_pct}%</div>}
+                          {ingredient.msnf_pct && <div>MSNF: {ingredient.msnf_pct}%</div>}
+                        </div>
+                        <div className="text-sm">
+                          {ingredient.sp_coeff && <div>SP: {ingredient.sp_coeff}</div>}
+                          {ingredient.pac_coeff && <div>PAC: {ingredient.pac_coeff}</div>}
+                        </div>
+                        <div className="text-sm">
+                          {ingredient.cost_per_kg && <div>₹{ingredient.cost_per_kg}/kg</div>}
+                        </div>
                       </div>
-                      <Badge variant="outline" className="ml-2">{ingredient.category}</Badge>
                     </div>
                   ))}
+                  
+                  {filteredIngredients.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No ingredients in this category
+                    </div>
+                  )}
                 </div>
-              </div>
-              
-              {/* Legacy Ingredients */}
-              <div className="space-y-2">
-                <h3 className="font-semibold">Legacy Database ({ingredients.length})</h3>
-            
-            {/* Add New Ingredient Form */}
-            {isAddingIngredient && (
-              <Card className="border-dashed">
-                <CardContent className="pt-6">
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div>
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        value={newIngredient.name}
-                        onChange={(e) => setNewIngredient(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Ingredient name"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">Category</Label>
-                      <Select value={newIngredient.category} onValueChange={(value) => 
-                        setNewIngredient(prev => ({ ...prev, category: value }))
-                      }>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map(cat => (
-                            <SelectItem key={cat} value={cat}>
-                              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="fat">Fat (%)</Label>
-                      <Input
-                        id="fat"
-                        type="number"
-                        value={newIngredient.fat}
-                        onChange={(e) => setNewIngredient(prev => ({ ...prev, fat: Number(e.target.value) }))}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cost">Cost (₹/kg)</Label>
-                      <Input
-                        id="cost"
-                        type="number"
-                        value={newIngredient.cost}
-                        onChange={(e) => setNewIngredient(prev => ({ ...prev, cost: Number(e.target.value) }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <Button onClick={handleAddIngredient}>
-                      <Save className="h-4 w-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsAddingIngredient(false)}>
-                      <X className="h-4 w-4 mr-2" />
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Ingredients List */}
-            <div className="space-y-2">
-              {ingredients.map((ingredient) => (
-                <div
-                  key={ingredient.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex-1 grid md:grid-cols-6 gap-4 items-center">
-                    <div>
-                      <span className="font-medium">{ingredient.name}</span>
-                      <div className="text-sm text-gray-500">{ingredient.category}</div>
-                    </div>
-                    <div className="text-sm">
-                      <div>Fat: {ingredient.fat}%</div>
-                      <div>MSNF: {ingredient.msnf}%</div>
-                    </div>
-                    <div className="text-sm">
-                      <div>PAC: {ingredient.pac}%</div>
-                      <div>POD: {ingredient.pod}%</div>
-                    </div>
-                    <div className="text-sm">
-                      <div>Cost: ₹{ingredient.cost}/kg</div>
-                    </div>
-                    <div>
-                      <Badge variant={
-                        ingredient.confidence === 'high' ? 'default' :
-                        ingredient.confidence === 'medium' ? 'secondary' : 'outline'
-                      }>
-                        {ingredient.confidence}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      {ingredient.flavorNotes.slice(0, 2).map((note, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs">
-                          {note}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingId(ingredient.id)}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            ))}
           </Tabs>
         </CardContent>
       </Card>

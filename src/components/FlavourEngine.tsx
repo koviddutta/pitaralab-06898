@@ -1,5 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Brain, Sparkles, Upload, Download, Database, Smartphone, Monitor } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,8 +17,9 @@ import DatabaseManager from './DatabaseManager';
 import ProductSelector, { ProductType } from './ProductSelector';
 import ProductAnalysis from './flavour-engine/ProductAnalysis';
 import SugarBlendOptimizer from './flavour-engine/SugarBlendOptimizer';
-import { databaseService } from '@/services/databaseService';
 import { productParametersService } from '@/services/productParametersService';
+import { IngredientService } from '@/services/ingredientService';
+import { databaseService } from '@/services/databaseService';
 import ProfileSwitcher from './ProfileSwitcher';
 import TargetPanel from './TargetPanel';
 import ScienceChecklist from './ScienceChecklist';

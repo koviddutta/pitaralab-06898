@@ -63,7 +63,6 @@ export class RecipeService {
       throw new Error(`Failed to save recipe: ${recipeError.message}`);
     }
 
-    // Create first version in recipe_versions table
     const { data: versionData, error: versionError } = await supabase
       .from('recipe_versions')
       .insert({
@@ -75,7 +74,7 @@ export class RecipeService {
         profile_id: recipe.profile_id,
         profile_version: '2025',
         change_notes: recipe.change_notes || 'Initial version'
-      })
+      } as any)
       .select()
       .single();
 
@@ -121,7 +120,6 @@ export class RecipeService {
       throw new Error(`Failed to update recipe: ${updateError.message}`);
     }
 
-    // Create a new version
     const { data: versionData, error: versionError } = await supabase
       .from('recipe_versions')
       .insert({
@@ -133,7 +131,7 @@ export class RecipeService {
         profile_id: updates.profile_id,
         profile_version: '2025',
         change_notes: updates.change_notes
-      })
+      } as any)
       .select()
       .single();
 
