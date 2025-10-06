@@ -16,6 +16,7 @@ import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
 import { CompositionBar } from './CompositionBar';
+import { ScienceMetricsPanel } from './ScienceMetricsPanel';
 
 interface RecipeRow {
   ingredientId: string;
@@ -97,7 +98,57 @@ const RecipeCalculatorV2 = () => {
     }
     
     return calcMetricsV2(ingredientRows, { mode });
-  }, [rows, mode]);
+  }, [rows, mode, INGREDIENT_LIBRARY]);
+
+  // Calculate sugar breakdown for visualization
+  const sugarBreakdown = useMemo(() => {
+    const breakdown = {
+      sucrose: 0,
+      dextrose: 0,
+      fructose: 0,
+      lactose: metrics?.lactose_g || 0,
+      other: 0
+    };
+
+    rows.forEach(row => {
+      const ing = INGREDIENT_LIBRARY[row.ingredientId];
+      if (!ing) return;
+
+      const sugars_g = row.grams * (ing.sugars_pct || 0) / 100;
+      if (sugars_g <= 0) return;
+
+      const id = (ing.id || '').toLowerCase();
+      const name = (ing.name || '').toLowerCase();
+
+      // Handle fruit with sugar split
+      if (ing.category === 'fruit' && ing.sugar_split) {
+        const s = ing.sugar_split;
+        const norm = (s.glucose ?? 0) + (s.fructose ?? 0) + (s.sucrose ?? 0) || 100;
+        breakdown.dextrose += sugars_g * ((s.glucose ?? 0) / norm);
+        breakdown.fructose += sugars_g * ((s.fructose ?? 0) / norm);
+        breakdown.sucrose += sugars_g * ((s.sucrose ?? 0) / norm);
+      } else if (id.includes('dextrose') || name.includes('dextrose') || 
+                 (id.includes('glucose') && !id.includes('syrup')) || 
+                 (name.includes('glucose') && !name.includes('syrup'))) {
+        breakdown.dextrose += sugars_g;
+      } else if (id.includes('fructose') || name.includes('fructose')) {
+        breakdown.fructose += sugars_g;
+      } else if (id.includes('glucose_syrup') || name.includes('glucose syrup')) {
+        // For glucose syrup, split based on DE
+        const deMatch = (id + name).match(/de\s*(\d+)/i);
+        const de = deMatch ? parseInt(deMatch[1]) : 60;
+        breakdown.dextrose += sugars_g * (de / 100);
+        breakdown.other += sugars_g * (1 - de / 100);
+      } else if (id.includes('invert') || name.includes('invert')) {
+        breakdown.dextrose += sugars_g * 0.5;
+        breakdown.fructose += sugars_g * 0.5;
+      } else {
+        breakdown.sucrose += sugars_g;
+      }
+    });
+
+    return breakdown;
+  }, [rows, metrics, INGREDIENT_LIBRARY]);
 
   const updateRow = (index: number, field: 'ingredientId' | 'grams', value: string | number) => {
     setRows(prev => {
@@ -388,6 +439,23 @@ const RecipeCalculatorV2 = () => {
           )}
         </div>
       </div>
+
+      {/* Science Metrics Visualization */}
+      {metrics && (
+        <ScienceMetricsPanel
+          podIndex={metrics.pod_index}
+          fpdt={metrics.fpdt}
+          mode={mode}
+          sugars={sugarBreakdown}
+          composition={{
+            fat: metrics.fat_pct,
+            msnf: metrics.msnf_pct,
+            water: metrics.water_pct,
+            sugars: metrics.totalSugars_pct,
+            other: metrics.other_pct
+          }}
+        />
+      )}
     </div>
   );
 };
