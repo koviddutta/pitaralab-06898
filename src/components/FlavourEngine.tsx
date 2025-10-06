@@ -383,7 +383,7 @@ const FlavourEngine = () => {
 
       <CardContent className={`${isMobile ? 'p-3' : 'p-6'} bg-gradient-to-br from-background to-card-secondary/30`}>
         <Tabs defaultValue="recipe" className="w-full">
-          <TabsList className={`grid w-full ${isMobile ? 'grid-cols-2' : 'grid-cols-7'} ${isMobile ? 'h-auto' : 'h-12'} gap-1 bg-card-secondary/50 backdrop-blur-sm`}>
+          <TabsList className={`${isMobile ? 'grid grid-cols-2 gap-1' : 'flex flex-wrap gap-2'} w-full h-auto bg-card-secondary/50 backdrop-blur-sm p-2`}>
             <TabsTrigger 
               value="recipe" 
               className={`${isMobile ? 'text-xs px-2 py-2' : 'px-4 py-2'} data-[state=active]:bg-primary data-[state=active]:text-primary-foreground animate-smooth`}

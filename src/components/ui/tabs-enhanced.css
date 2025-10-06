@@ -51,19 +51,18 @@
     -webkit-overflow-scrolling: touch;
     
     /* Visual indicator for scrollability on right edge only */
-    mask-image: linear-gradient(to right, black 0%, black calc(100% - 40px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 40px), transparent 100%);
+    mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 0%, black calc(100% - 32px), transparent 100%);
   }
   
-  /* Ensure first tab is fully visible */
+  /* Ensure first tab is visible without margin cutting it off */
   [role="tablist"] [role="tab"]:first-child {
-    margin-left: 0.25rem;
     scroll-snap-align: start;
   }
   
-  /* Add padding to last tab for scrollability */
+  /* Add padding to last tab for full scrollability */
   [role="tablist"] [role="tab"]:last-child {
-    margin-right: 1rem;
+    margin-right: 2rem;
     scroll-snap-align: end;
   }
   

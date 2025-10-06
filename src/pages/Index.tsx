@@ -188,19 +188,18 @@ const Index = () => {
         <Tabs defaultValue="calculator" className="w-full">
           {/* Unified tab list - scrollable on mobile, wrapped on desktop */}
           <TabsList className={isMobile 
-            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden py-3 pl-2 pr-4 bg-background/80 backdrop-blur-sm shadow-sm" 
+            ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden py-3 bg-background/80 backdrop-blur-sm shadow-sm" 
             : "w-full h-auto flex flex-wrap gap-2 p-2 bg-background/80 backdrop-blur-sm"
           }
           style={isMobile ? {
             scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            scrollPaddingLeft: '0.5rem'
+            WebkitOverflowScrolling: 'touch'
           } : undefined}
           >
             <TabsTrigger 
               value="calculator" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium ml-2' 
                 : 'flex-1 min-w-[140px] font-medium'}
               style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
@@ -209,7 +208,7 @@ const Index = () => {
             <TabsTrigger 
               value="flavour-engine" 
               className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
                 : 'flex-1 min-w-[140px] font-medium'}
               style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
