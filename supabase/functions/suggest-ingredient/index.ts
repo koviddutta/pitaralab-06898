@@ -1,5 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+// Input validation schema
+const requestSchema = z.object({
+  rows: z.array(
+    z.object({
+      ingredientId: z.string().min(1, 'Ingredient ID required'),
+      grams: z.number().positive('Amount must be positive').max(10000, 'Amount too large')
+    })
+  ).max(50, 'Too many ingredients - maximum 50 allowed'),
+  mode: z.enum(['gelato', 'kulfi', 'sorbet', 'paste'], {
+    errorMap: () => ({ message: 'Invalid product mode' })
+  })
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,7 +81,25 @@ serve(async (req) => {
       function_name: "suggest-ingredient",
     });
 
-    const { rows, mode } = await req.json();
+    // Validate input
+    const body = await req.json();
+    const validationResult = requestSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      console.error('Validation error:', validationResult.error.errors);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid input', 
+          details: validationResult.error.errors.map(e => e.message).join(', ')
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+    
+    const { rows, mode } = validationResult.data;
 
     // Build context about current recipe
     const ingredientList = rows

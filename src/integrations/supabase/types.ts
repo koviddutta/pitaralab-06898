@@ -52,6 +52,7 @@ export type Database = {
           ph: number | null
           recipe_id: string | null
           scoop_temp_c: number | null
+          user_id: string
         }
         Insert: {
           age_hours?: number | null
@@ -69,6 +70,7 @@ export type Database = {
           ph?: number | null
           recipe_id?: string | null
           scoop_temp_c?: number | null
+          user_id?: string
         }
         Update: {
           age_hours?: number | null
@@ -86,6 +88,7 @@ export type Database = {
           ph?: number | null
           recipe_id?: string | null
           scoop_temp_c?: number | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -241,6 +244,7 @@ export type Database = {
           preservation_json: Json | null
           tags: string[] | null
           updated_at: string | null
+          user_id: string
         }
         Insert: {
           category: string
@@ -254,6 +258,7 @@ export type Database = {
           preservation_json?: Json | null
           tags?: string[] | null
           updated_at?: string | null
+          user_id?: string
         }
         Update: {
           category?: string
@@ -267,6 +272,7 @@ export type Database = {
           preservation_json?: Json | null
           tags?: string[] | null
           updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -334,6 +340,7 @@ export type Database = {
           profile_version: string | null
           rows_json: Json
           updated_at: string | null
+          user_id: string
         }
         Insert: {
           created_at?: string | null
@@ -345,6 +352,7 @@ export type Database = {
           profile_version?: string | null
           rows_json: Json
           updated_at?: string | null
+          user_id?: string
         }
         Update: {
           created_at?: string | null
@@ -356,6 +364,7 @@ export type Database = {
           profile_version?: string | null
           rows_json?: Json
           updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
