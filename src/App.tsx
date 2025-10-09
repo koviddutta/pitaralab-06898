@@ -12,6 +12,7 @@ const queryClient = new QueryClient();
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Auth = lazy(() => import("./pages/Auth"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const ReverseEngineer = lazy(() => import("./components/ReverseEngineer"));
 
 const App = () => {
@@ -28,6 +29,7 @@ const App = () => {
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<Index />} />
+                <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/reverse-engineer" element={<ReverseEngineer palette={[]} />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
