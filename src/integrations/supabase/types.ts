@@ -130,6 +130,13 @@ export type Database = {
             referencedRelation: "ingredients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ingredient_access_log_ingredient_id_fkey"
+            columns: ["ingredient_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ingredients: {
@@ -223,10 +230,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pairing_feedback_a_id_fkey"
+            columns: ["a_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pairing_feedback_b_id_fkey"
             columns: ["b_id"]
             isOneToOne: false
             referencedRelation: "ingredients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pairing_feedback_b_id_fkey"
+            columns: ["b_id"]
+            isOneToOne: false
+            referencedRelation: "ingredients_public"
             referencedColumns: ["id"]
           },
         ]
@@ -289,6 +310,7 @@ export type Database = {
           profile_version: string | null
           recipe_id: string
           rows_json: Json
+          user_id: string
           version_number: number
         }
         Insert: {
@@ -303,6 +325,7 @@ export type Database = {
           profile_version?: string | null
           recipe_id: string
           rows_json: Json
+          user_id?: string
           version_number: number
         }
         Update: {
@@ -317,6 +340,7 @@ export type Database = {
           profile_version?: string | null
           recipe_id?: string
           rows_json?: Json
+          user_id?: string
           version_number?: number
         }
         Relationships: [
@@ -368,15 +392,95 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      ingredients_public: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          fat_pct: number | null
+          id: string | null
+          msnf_pct: number | null
+          name: string | null
+          notes: string | null
+          other_solids_pct: number | null
+          pac_coeff: number | null
+          sp_coeff: number | null
+          sugar_split: Json | null
+          sugars_pct: number | null
+          tags: string[] | null
+          updated_at: string | null
+          water_pct: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          fat_pct?: number | null
+          id?: string | null
+          msnf_pct?: number | null
+          name?: string | null
+          notes?: string | null
+          other_solids_pct?: number | null
+          pac_coeff?: number | null
+          sp_coeff?: number | null
+          sugar_split?: Json | null
+          sugars_pct?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          water_pct?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          fat_pct?: number | null
+          id?: string | null
+          msnf_pct?: number | null
+          name?: string | null
+          notes?: string | null
+          other_solids_pct?: number | null
+          pac_coeff?: number | null
+          sp_coeff?: number | null
+          sugar_split?: Json | null
+          sugars_pct?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          water_pct?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -503,6 +607,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
