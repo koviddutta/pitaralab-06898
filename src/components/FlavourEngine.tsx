@@ -31,7 +31,7 @@ import MachineSelector from './MachineSelector';
 import CostYieldDisplay from './CostYieldDisplay';
 import WhyPanel from './WhyPanel';
 import { IngredientData } from '@/types/ingredients';
-import { calcMetrics, Metrics } from '@/lib/calc';
+import { calcMetrics, calcMetricsV2, Metrics } from '@/lib/calc';
 import UnitConverterAdvanced from './flavour-engine/UnitConverterAdvanced';
 import SugarSpectrumToggle from './flavour-engine/SugarSpectrumToggle';
 import OptimizationEngine from './flavour-engine/OptimizationEngine';
@@ -190,6 +190,9 @@ const FlavourEngine = () => {
     water_pct: 0, other_pct: 0, ts_add_g: 0, ts_mass_g: 0, ts_mass_pct: 0
   };
 
+  // For saving to database, use v2 metrics
+  const modernMetricsV2 = modernRecipeRows.length > 0 ? calcMetricsV2(modernRecipeRows) : null;
+
   // Map UI product to parameter profile key
   const paramProduct: 'ice_cream'|'gelato_white'|'gelato_finished'|'fruit_gelato'|'sorbet' =
     selectedProduct === 'ice-cream' ? 'ice_cream' :
@@ -255,7 +258,6 @@ const FlavourEngine = () => {
     });
   };
 
-  const saveRecipe = () => {
   const handleSaveCurrentRecipe = async () => {
     if (!currentRecipeName.trim()) {
       toast({
@@ -271,10 +273,10 @@ const FlavourEngine = () => {
       
       // Convert recipe to rows format
       const rows = Object.entries(recipe).map(([ingredientName, grams]) => {
-        // Find ingredient ID from formattedIngredients
-        const ing = formattedIngredients.find(i => i.name === ingredientName);
+        // Find ingredient ID from availableIngredients
+        const ing = availableIngredients.find(i => i.name === ingredientName);
         return {
-          ingredientId: ing?.id || ingredientName,
+          ingredientId: ing?.id || ingredientName.toLowerCase().replace(/\s+/g, '_'),
           grams
         };
       });
@@ -282,7 +284,7 @@ const FlavourEngine = () => {
       await RecipeService.saveRecipe({
         name: currentRecipeName,
         rows,
-        metrics,
+        metrics: modernMetricsV2 || undefined,
         product_type: selectedProduct,
         change_notes: `${selectedProduct} recipe created with ${Object.keys(recipe).length} ingredients. ${validation.isValid ? 'Compliant' : 'Needs adjustment'}.`
       });
@@ -448,14 +450,14 @@ const FlavourEngine = () => {
                   className={`flex-1 px-3 py-2 border rounded-md ${isMobile ? 'text-sm' : ''}`}
                 />
                 <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2`}>
-                  <Button 
-                    onClick={saveRecipe} 
-                    disabled={!currentRecipeName.trim()}
-                    size={isMobile ? 'sm' : 'default'}
-                    className={isMobile ? 'text-xs' : ''}
-                  >
-                    Save Recipe
-                  </Button>
+                <Button 
+                  onClick={handleSaveCurrentRecipe} 
+                  disabled={!currentRecipeName.trim()}
+                  size={isMobile ? 'sm' : 'default'}
+                  className={isMobile ? 'text-xs' : ''}
+                >
+                  Save Recipe
+                </Button>
                   <Button 
                     variant="outline" 
                     onClick={() => fileInputRef.current?.click()}
