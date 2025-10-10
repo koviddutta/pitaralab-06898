@@ -11,31 +11,37 @@
   background: hsl(var(--background)) !important;
 }
 
-.production-mode .ingredient-name {
+.ingredient-name {
   font-size: 18px;
   font-weight: 500;
   line-height: 1.4;
 }
 
-.production-mode .ingredient-qty {
+.ingredient-qty {
   font-size: 24px;
   font-weight: 600;
   color: hsl(var(--foreground));
   letter-spacing: -0.02em;
 }
 
-.production-mode .metric-value {
+.metric-value {
   font-size: 28px;
   font-weight: 700;
   color: hsl(var(--primary));
 }
 
-.production-mode .metric-label {
+.metric-label {
   font-size: 14px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: hsl(var(--muted-foreground));
+}
+
+/* Touch-friendly tap targets */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* High contrast mode for kitchen environment */
@@ -52,6 +58,17 @@
 .production-mode .export-buttons,
 .production-mode .optimization-section {
   display: none !important;
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    overflow-x: hidden;
+  }
 }
 
 /* Print styles */
