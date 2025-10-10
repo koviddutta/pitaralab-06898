@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/safeClient";
 
 export type RecipeRow = {
   id?: string;
@@ -17,6 +17,7 @@ const bumpVersion = (v: string) => {
 };
 
 export async function saveRecipe(r: RecipeRow) {
+  const supabase = await getSupabase();
   if (!r.id) {
     // New recipe
     const { data, error } = await supabase
@@ -81,6 +82,7 @@ export async function saveRecipe(r: RecipeRow) {
 }
 
 export async function getMyRecipes() {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("recipes")
     .select("*")
@@ -91,6 +93,7 @@ export async function getMyRecipes() {
 }
 
 export async function getRecipeById(id: string) {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("recipes")
     .select("*")
@@ -102,6 +105,7 @@ export async function getRecipeById(id: string) {
 }
 
 export async function updateRecipe(id: string, patch: Partial<RecipeRow>) {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("recipes")
     .update(patch)
@@ -114,6 +118,7 @@ export async function updateRecipe(id: string, patch: Partial<RecipeRow>) {
 }
 
 export async function deleteRecipe(id: string) {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("recipes")
     .delete()
