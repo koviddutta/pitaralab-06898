@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { mlService } from '@/services/mlService';
-import { RecipeService } from '@/services/recipeService';
+import { saveRecipe as saveRecipeToDb } from '@/services/recipeService';
 import { productParametersService } from '@/services/productParametersService';
 
 const RecipeCalculator = () => {
@@ -131,12 +131,11 @@ const RecipeCalculator = () => {
         grams
       }));
 
-      await RecipeService.saveRecipe({
+      await saveRecipeToDb({
         name: recipeName,
-        rows,
+        rows_json: rows,
         metrics,
-        product_type: productType,
-        change_notes: 'Initial version'
+        product_type: productType === 'ice-cream' ? 'other' : productType
       });
 
       toast({

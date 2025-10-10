@@ -1,308 +1,123 @@
-import { getSupabase, isBackendReady } from '@/integrations/supabase/safeClient';
-import { MetricsV2 } from '@/lib/calc.v2';
+import { supabase } from "@/integrations/supabase/client";
 
-export interface RecipeRow {
-  ingredientId: string;
-  grams: number;
-}
-
-export interface Recipe {
-  id: string;
+export type RecipeRow = {
+  id?: string;
   name: string;
-  rows_json: RecipeRow[];
-  metrics?: MetricsV2;
-  product_type?: string;
-  profile_id?: string;
+  rows_json: any;
+  metrics?: any;
+  product_type: "gelato" | "kulfi" | "sorbet" | "other";
   profile_version?: string;
-  created_at: string;
-  updated_at: string;
-}
+  is_public?: boolean;
+};
 
-export interface RecipeVersion {
-  id: string;
-  recipe_id: string;
-  version_number: number;
-  name: string;
-  rows_json: RecipeRow[];
-  metrics?: MetricsV2;
-  product_type?: string;
-  profile_id?: string;
-  profile_version?: string;
-  change_notes?: string;
-  created_at: string;
-}
+const bumpVersion = (v: string) => {
+  const m = v?.match(/v(\d+)/);
+  const n = m ? (+m[1] + 1) : 2;
+  return `v${n}`;
+};
 
-export class RecipeService {
-  /**
-   * Save a new recipe with automatic versioning
-   */
-  static async saveRecipe(recipe: {
-    name: string;
-    rows: RecipeRow[];
-    metrics?: MetricsV2;
-    product_type?: string;
-    profile_id?: string;
-    change_notes?: string;
-  }): Promise<{ recipeId: string; versionNumber: number }> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    // Insert recipe into recipes table
-    const { data: recipeData, error: recipeError } = await supabase
-      .from('recipes')
+export async function saveRecipe(r: RecipeRow) {
+  if (!r.id) {
+    // New recipe
+    const { data, error } = await supabase
+      .from("recipes")
       .insert({
-        name: recipe.name,
-        rows_json: recipe.rows as any,
-        metrics: recipe.metrics as any,
-        product_type: recipe.product_type,
-        profile_id: recipe.profile_id,
-        profile_version: '2025'
+        name: r.name,
+        rows_json: r.rows_json as any,
+        metrics: r.metrics as any,
+        product_type: r.product_type,
+        profile_version: r.profile_version ?? "v1"
       })
       .select()
       .single();
 
-    if (recipeError) {
-      console.error('Error saving recipe:', recipeError);
-      throw new Error(`Failed to save recipe: ${recipeError.message}`);
-    }
+    if (error) throw error;
 
-    const { data: versionData, error: versionError } = await supabase
-      .from('recipe_versions')
+    // Create initial version
+    await supabase
+      .from("recipe_versions")
       .insert({
-        recipe_id: recipeData.id,
-        name: recipe.name,
-        rows_json: recipe.rows as any,
-        metrics: recipe.metrics as any,
-        product_type: recipe.product_type,
-        profile_id: recipe.profile_id,
-        profile_version: '2025',
-        change_notes: recipe.change_notes || 'Initial version'
-      } as any)
-      .select()
-      .single();
+        recipe_id: data.id,
+        name: r.name,
+        rows_json: r.rows_json as any,
+        metrics: r.metrics as any,
+        profile_version: data.profile_version,
+        product_type: r.product_type
+      } as any);
 
-    if (versionError) {
-      console.error('Error creating recipe version:', versionError);
-      // Non-critical error - recipe was saved successfully
-    }
-
-    return {
-      recipeId: recipeData.id,
-      versionNumber: versionData?.version_number || 1
-    };
-  }
-
-  /**
-   * Update an existing recipe and create a new version
-   */
-  static async updateRecipe(
-    recipeId: string,
-    updates: {
-      name?: string;
-      rows?: RecipeRow[];
-      metrics?: MetricsV2;
-      product_type?: string;
-      profile_id?: string;
-      change_notes?: string;
-    }
-  ): Promise<{ versionNumber: number }> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    // Update the main recipe record
-    const { error: updateError } = await supabase
-      .from('recipes')
+    return data;
+  } else {
+    // Update existing recipe - bump version
+    const next = bumpVersion(r.profile_version ?? "v1");
+    const { data, error } = await supabase
+      .from("recipes")
       .update({
-        name: updates.name,
-        rows_json: updates.rows as any,
-        metrics: updates.metrics as any,
-        product_type: updates.product_type,
-        profile_id: updates.profile_id
+        name: r.name,
+        rows_json: r.rows_json as any,
+        metrics: r.metrics as any,
+        product_type: r.product_type,
+        profile_version: next
       })
-      .eq('id', recipeId);
-
-    if (updateError) {
-      console.error('Error updating recipe:', updateError);
-      throw new Error(`Failed to update recipe: ${updateError.message}`);
-    }
-
-    const { data: versionData, error: versionError } = await supabase
-      .from('recipe_versions')
-      .insert({
-        recipe_id: recipeId,
-        name: updates.name!,
-        rows_json: updates.rows! as any,
-        metrics: updates.metrics as any,
-        product_type: updates.product_type,
-        profile_id: updates.profile_id,
-        profile_version: '2025',
-        change_notes: updates.change_notes
-      } as any)
+      .eq("id", r.id)
       .select()
       .single();
 
-    if (versionError) {
-      console.error('Error creating version:', versionError);
-      throw new Error(`Failed to create version: ${versionError.message}`);
-    }
+    if (error) throw error;
 
-    return { versionNumber: versionData.version_number };
+    // Append new version
+    await supabase
+      .from("recipe_versions")
+      .insert({
+        recipe_id: r.id,
+        name: r.name,
+        rows_json: r.rows_json as any,
+        metrics: r.metrics as any,
+        profile_version: next,
+        product_type: r.product_type
+      } as any);
+
+    return data;
   }
+}
 
-  /**
-   * Get all recipes for the current user
-   */
-  static async getMyRecipes(): Promise<Recipe[]> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('*')
-      .order('updated_at', { ascending: false });
+export async function getMyRecipes() {
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .order("updated_at", { ascending: false });
 
-    if (error) {
-      console.error('Error fetching recipes:', error);
-      throw new Error(`Failed to fetch recipes: ${error.message}`);
-    }
+  if (error) throw error;
+  return data;
+}
 
-    return (data || []).map(row => ({
-      ...row,
-      rows_json: row.rows_json as any as RecipeRow[],
-      metrics: row.metrics as any as MetricsV2
-    }));
-  }
+export async function getRecipeById(id: string) {
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
 
-  /**
-   * Get a single recipe by ID
-   */
-  static async getRecipe(id: string): Promise<Recipe | null> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('*')
-      .eq('id', id)
-      .single();
+  if (error) throw error;
+  return data;
+}
 
-    if (error) {
-      console.error('Error fetching recipe:', error);
-      return null;
-    }
+export async function updateRecipe(id: string, patch: Partial<RecipeRow>) {
+  const { data, error } = await supabase
+    .from("recipes")
+    .update(patch)
+    .eq("id", id)
+    .select()
+    .single();
 
-    if (!data) return null;
+  if (error) throw error;
+  return data;
+}
 
-    return {
-      ...data,
-      rows_json: data.rows_json as any as RecipeRow[],
-      metrics: data.metrics as any as MetricsV2
-    };
-  }
+export async function deleteRecipe(id: string) {
+  const { error } = await supabase
+    .from("recipes")
+    .delete()
+    .eq("id", id);
 
-  /**
-   * Get all versions of a recipe
-   */
-  static async getRecipeVersions(recipeId: string): Promise<RecipeVersion[]> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('recipe_versions')
-      .select('*')
-      .eq('recipe_id', recipeId)
-      .order('version_number', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching recipe versions:', error);
-      throw new Error(`Failed to fetch versions: ${error.message}`);
-    }
-
-    return (data || []).map(row => ({
-      ...row,
-      rows_json: row.rows_json as any as RecipeRow[],
-      metrics: row.metrics as any as MetricsV2
-    }));
-  }
-
-  /**
-   * Get a specific version of a recipe
-   */
-  static async getRecipeVersion(recipeId: string, versionNumber: number): Promise<RecipeVersion | null> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('recipe_versions')
-      .select('*')
-      .eq('recipe_id', recipeId)
-      .eq('version_number', versionNumber)
-      .single();
-
-    if (error) {
-      console.error('Error fetching recipe version:', error);
-      return null;
-    }
-
-    if (!data) return null;
-
-    return {
-      ...data,
-      rows_json: data.rows_json as any as RecipeRow[],
-      metrics: data.metrics as any as MetricsV2
-    };
-  }
-
-  /**
-   * Delete a recipe
-   */
-  static async deleteRecipe(id: string): Promise<void> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    const { error } = await supabase
-      .from('recipes')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting recipe:', error);
-      throw new Error(`Failed to delete recipe: ${error.message}`);
-    }
-  }
-
-  /**
-   * Search recipes by name
-   */
-  static async searchRecipes(query: string): Promise<Recipe[]> {
-    if (!isBackendReady()) {
-      throw new Error('Backend not available');
-    }
-    const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from('recipes')
-      .select('*')
-      .ilike('name', `%${query}%`)
-      .order('updated_at', { ascending: false })
-      .limit(20);
-
-    if (error) {
-      console.error('Error searching recipes:', error);
-      throw new Error(`Failed to search recipes: ${error.message}`);
-    }
-
-    return (data || []).map(row => ({
-      ...row,
-      rows_json: row.rows_json as any as RecipeRow[],
-      metrics: row.metrics as any as MetricsV2
-    }));
-  }
+  if (error) throw error;
 }

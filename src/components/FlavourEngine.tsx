@@ -19,7 +19,7 @@ import ProductAnalysis from './flavour-engine/ProductAnalysis';
 import SugarBlendOptimizer from './flavour-engine/SugarBlendOptimizer';
 import { productParametersService } from '@/services/productParametersService';
 import { getAllIngredients } from '@/services/ingredientService';
-import { RecipeService } from '@/services/recipeService';
+import { saveRecipe } from '@/services/recipeService';
 import ProfileSwitcher from './ProfileSwitcher';
 import TargetPanel from './TargetPanel';
 import ScienceChecklist from './ScienceChecklist';
@@ -281,12 +281,11 @@ const FlavourEngine = () => {
         };
       });
 
-      await RecipeService.saveRecipe({
+      await saveRecipe({
         name: currentRecipeName,
-        rows,
+        rows_json: rows,
         metrics: modernMetricsV2 || undefined,
-        product_type: selectedProduct,
-        change_notes: `${selectedProduct} recipe created with ${Object.keys(recipe).length} ingredients. ${validation.isValid ? 'Compliant' : 'Needs adjustment'}.`
+        product_type: selectedProduct as "gelato" | "kulfi" | "sorbet" | "other"
       });
 
       toast({

@@ -11,7 +11,7 @@ import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
 import { getAllIngredients } from '@/services/ingredientService';
-import { RecipeService } from '@/services/recipeService';
+import { saveRecipe as saveRecipeToDb } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { ModeSelector } from './ModeSelector';
@@ -214,12 +214,11 @@ const RecipeCalculatorV2 = () => {
 
     setIsSaving(true);
     try {
-      const { recipeId, versionNumber } = await RecipeService.saveRecipe({
+      const result = await saveRecipeToDb({
         name: recipeName,
-        rows,
+        rows_json: rows,
         metrics,
-        product_type: mode,
-        change_notes: 'Initial version'
+        product_type: mode
       });
 
       // Clear draft after successful save
@@ -227,7 +226,7 @@ const RecipeCalculatorV2 = () => {
 
       toast({
         title: "Recipe Saved",
-        description: `${recipeName} saved successfully (v${versionNumber})`,
+        description: `${recipeName} saved successfully`,
         duration: 5000
       });
       
