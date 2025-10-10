@@ -5,6 +5,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import localforage from 'localforage'
 import App from './App.tsx'
 import './index.css'
+import './styles/production.css'
 
 // Configure localforage for better storage
 localforage.config({

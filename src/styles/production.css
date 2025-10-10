@@ -1,0 +1,101 @@
+/* Production Mode Styles - Distraction-free kitchen view */
+
+.production-mode .app-nav,
+.production-mode .sidebar,
+.production-mode .promo,
+.production-mode .footer {
+  display: none !important;
+}
+
+.production-mode {
+  background: hsl(var(--background)) !important;
+}
+
+.production-mode .ingredient-name {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.production-mode .ingredient-qty {
+  font-size: 24px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.02em;
+}
+
+.production-mode .metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: hsl(var(--primary));
+}
+
+.production-mode .metric-label {
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+}
+
+/* High contrast mode for kitchen environment */
+.production-mode .card {
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--card));
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Hide non-essential elements */
+.production-mode .warnings-panel,
+.production-mode .science-metrics,
+.production-mode .ai-buttons,
+.production-mode .export-buttons,
+.production-mode .optimization-section {
+  display: none !important;
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .app-nav,
+  .sidebar,
+  .actions,
+  .promo,
+  .footer,
+  .warnings-panel,
+  .science-metrics,
+  .ai-buttons,
+  .export-buttons {
+    display: none !important;
+  }
+
+  .ingredient-name {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .ingredient-qty {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .card {
+    border: 1px solid #ccc;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure clean page breaks */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}

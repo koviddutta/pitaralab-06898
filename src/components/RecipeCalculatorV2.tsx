@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ import { OptimizeDialog } from './OptimizeDialog';
 import { WarningTooltip } from './WarningTooltip';
 import { RecipeBrowserDrawer } from './RecipeBrowserDrawer';
 import { RecipeCompareDialog } from './RecipeCompareDialog';
+import { ProductionToggle } from './ProductionToggle';
 import { FEATURES } from '@/config/features';
 
 interface RecipeRow {
@@ -32,6 +34,7 @@ interface RecipeRow {
 }
 
 const RecipeCalculatorV2 = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState<'gelato' | 'kulfi'>('gelato');
   const [recipeName, setRecipeName] = useState('');
   const [rows, setRows] = useState<RecipeRow[]>([]);
@@ -46,6 +49,30 @@ const RecipeCalculatorV2 = () => {
   const [recipesToCompare, setRecipesToCompare] = useState<RecipeDBRow[]>([]);
   
   const { toast } = useToast();
+  
+  // Production mode state from query param
+  const isProductionMode = searchParams.get('production') === '1';
+  
+  const toggleProductionMode = (enabled: boolean) => {
+    if (enabled) {
+      searchParams.set('production', '1');
+    } else {
+      searchParams.delete('production');
+    }
+    setSearchParams(searchParams);
+  };
+  
+  // Apply production mode class to body
+  useEffect(() => {
+    if (isProductionMode) {
+      document.body.classList.add('production-mode');
+    } else {
+      document.body.classList.remove('production-mode');
+    }
+    return () => {
+      document.body.classList.remove('production-mode');
+    };
+  }, [isProductionMode]);
 
   // Fetch ingredients from Supabase
   const { data: ingredientsArray = [], isLoading: isLoadingIngredients } = useQuery({
@@ -541,12 +568,20 @@ const RecipeCalculatorV2 = () => {
               <Calculator className="h-6 w-6" />
               Recipe Calculator (v2.1 Science)
             </div>
-            {metrics && recipeStatus.status !== 'none' && (
-              <div className="flex items-center gap-2">
-                {recipeStatus.icon}
-                <WarningTooltip warning={recipeStatus.message} />
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {FEATURES.PRODUCTION_MODE && (
+                <ProductionToggle 
+                  isProduction={isProductionMode} 
+                  onToggle={toggleProductionMode} 
+                />
+              )}
+              {metrics && recipeStatus.status !== 'none' && (
+                <div className="flex items-center gap-2">
+                  {recipeStatus.icon}
+                  <WarningTooltip warning={recipeStatus.message} />
+                </div>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -559,7 +594,7 @@ const RecipeCalculatorV2 = () => {
                 onChange={(e) => setRecipeName(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-2 items-end">
+            <div className={`flex flex-wrap gap-2 items-end ${isProductionMode ? 'hidden' : ''}`}>
               <Button 
                 onClick={saveRecipe} 
                 disabled={!recipeName.trim() || isSaving || !metrics}
@@ -619,76 +654,97 @@ const RecipeCalculatorV2 = () => {
             <CardTitle className="text-lg">Ingredients</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {rows.map((row, index) => (
-              <div key={index} className="space-y-2 pb-3 border-b last:border-0">
-                <div className="flex justify-between items-center">
-                  <Label className="text-sm">Ingredient {index + 1}</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeRow(index)}
-                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-                
-                <Select
-                  value={row.ingredientId}
-                  onValueChange={(value) => updateRow(index, 'ingredientId', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(INGREDIENT_LIBRARY).map(ing => (
-                      <SelectItem key={ing.id} value={ing.id}>
-                        {ing.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {rows.map((row, index) => {
+              const ing = INGREDIENT_LIBRARY[row.ingredientId];
+              return (
+                <div key={index} className="space-y-2 pb-3 border-b last:border-0">
+                  {isProductionMode ? (
+                    // Production Mode: Large, readable format
+                    <div className="py-2">
+                      <div className="ingredient-name mb-1">{ing?.name || row.ingredientId}</div>
+                      <div className="ingredient-qty">{row.grams}g</div>
+                      {metrics && (
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {((row.grams / metrics.total_g) * 100).toFixed(1)}% of batch
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Normal Mode: Full editor
+                    <>
+                      <div className="flex justify-between items-center">
+                        <Label className="text-sm">Ingredient {index + 1}</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeRow(index)}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      
+                      <Select
+                        value={row.ingredientId}
+                        onValueChange={(value) => updateRow(index, 'ingredientId', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(INGREDIENT_LIBRARY).map(ing => (
+                            <SelectItem key={ing.id} value={ing.id}>
+                              {ing.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustGrams(index, -10)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <Input
-                    type="number"
-                    value={row.grams}
-                    onChange={(e) => updateRow(index, 'grams', parseFloat(e.target.value) || 0)}
-                    className="flex-1 text-center"
-                    min="0"
-                    step="1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => adjustGrams(index, 10)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground">g</span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => adjustGrams(index, -10)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <Input
+                          type="number"
+                          value={row.grams}
+                          onChange={(e) => updateRow(index, 'grams', parseFloat(e.target.value) || 0)}
+                          className="flex-1 text-center"
+                          min="0"
+                          step="1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => adjustGrams(index, 10)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                        <span className="text-sm text-muted-foreground">g</span>
+                      </div>
+                      
+                      {metrics && (
+                        <div className="text-xs text-muted-foreground">
+                          {((row.grams / metrics.total_g) * 100).toFixed(1)}% of total
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-                
-                {metrics && (
-                  <div className="text-xs text-muted-foreground">
-                    {((row.grams / metrics.total_g) * 100).toFixed(1)}% of total
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
-            <Button onClick={addRow} variant="outline" className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Ingredient
-            </Button>
+            {!isProductionMode && (
+              <Button onClick={addRow} variant="outline" className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Ingredient
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -696,9 +752,39 @@ const RecipeCalculatorV2 = () => {
         <div className="lg:col-span-2 space-y-6">
           {metrics ? (
             <>
-              <CompositionBar metrics={metrics} />
-              <MetricsDisplayV2 metrics={metrics} mode={mode} />
-              <EnhancedWarningsPanel warnings={metrics.warnings} />
+              {isProductionMode ? (
+                // Production Mode: Only key metrics in large format
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Key Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className="text-center">
+                        <div className="metric-label mb-2">Total Solids</div>
+                        <div className="metric-value">{metrics.ts_pct.toFixed(1)}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="metric-label mb-2">Fat</div>
+                        <div className="metric-value">{metrics.fat_pct.toFixed(1)}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="metric-label mb-2">FPDT</div>
+                        <div className="metric-value">{metrics.fpdt.toFixed(2)}°C</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                // Normal Mode: Full metrics
+                <>
+                  <CompositionBar metrics={metrics} />
+                  <MetricsDisplayV2 metrics={metrics} mode={mode} />
+                  <div className="warnings-panel">
+                    <EnhancedWarningsPanel warnings={metrics.warnings} />
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <Card>
@@ -711,8 +797,8 @@ const RecipeCalculatorV2 = () => {
       </div>
 
       {/* Science Metrics Visualization - Below ingredient table */}
-      {FEATURES.SCIENCE_PANEL && metrics && (
-        <Card>
+      {FEATURES.SCIENCE_PANEL && metrics && !isProductionMode && (
+        <Card className="science-metrics">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               Science Metrics
