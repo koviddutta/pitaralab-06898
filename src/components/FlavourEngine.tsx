@@ -19,7 +19,7 @@ import ProductAnalysis from './flavour-engine/ProductAnalysis';
 import SugarBlendOptimizer from './flavour-engine/SugarBlendOptimizer';
 import { productParametersService } from '@/services/productParametersService';
 import { IngredientService } from '@/services/ingredientService';
-import { databaseService } from '@/services/databaseService';
+import { RecipeService } from '@/services/recipeService';
 import ProfileSwitcher from './ProfileSwitcher';
 import TargetPanel from './TargetPanel';
 import ScienceChecklist from './ScienceChecklist';
@@ -32,7 +32,6 @@ import CostYieldDisplay from './CostYieldDisplay';
 import WhyPanel from './WhyPanel';
 import { IngredientData } from '@/types/ingredients';
 import { calcMetrics, Metrics } from '@/lib/calc';
-import { getSeedIngredients } from '@/lib/ingredientLibrary';
 import UnitConverterAdvanced from './flavour-engine/UnitConverterAdvanced';
 import SugarSpectrumToggle from './flavour-engine/SugarSpectrumToggle';
 import OptimizationEngine from './flavour-engine/OptimizationEngine';
@@ -257,6 +256,7 @@ const FlavourEngine = () => {
   };
 
   const saveRecipe = () => {
+  const handleSaveCurrentRecipe = async () => {
     if (!currentRecipeName.trim()) {
       toast({
         title: "Recipe Name Required",
@@ -268,21 +268,28 @@ const FlavourEngine = () => {
 
     try {
       const validation = productParametersService.validateRecipeForProduct(recipe, selectedProduct);
-      const savedRecipe = databaseService.saveRecipe({
+      
+      // Convert recipe to rows format
+      const rows = Object.entries(recipe).map(([ingredientName, grams]) => {
+        // Find ingredient ID from formattedIngredients
+        const ing = formattedIngredients.find(i => i.name === ingredientName);
+        return {
+          ingredientId: ing?.id || ingredientName,
+          grams
+        };
+      });
+
+      await RecipeService.saveRecipe({
         name: currentRecipeName,
-        ingredients: recipe,
+        rows,
         metrics,
-        predictions: {
-          productType: selectedProduct,
-          validation: validation,
-          pacSp: productParametersService.calculateRecipeAfpSp(recipe)
-        },
-        notes: `${selectedProduct} recipe created with ${Object.keys(recipe).length} ingredients. ${validation.isValid ? 'Compliant' : 'Needs adjustment'}.`
+        product_type: selectedProduct,
+        change_notes: `${selectedProduct} recipe created with ${Object.keys(recipe).length} ingredients. ${validation.isValid ? 'Compliant' : 'Needs adjustment'}.`
       });
 
       toast({
         title: "Recipe Saved",
-        description: `${savedRecipe.name} has been saved with ${selectedProduct} parameters`,
+        description: `${currentRecipeName} has been saved with ${selectedProduct} parameters`,
       });
       
       setCurrentRecipeName('');

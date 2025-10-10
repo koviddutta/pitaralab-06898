@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Plus, Trash2, Beaker, Package, FileText, Download, Sparkles, BookOpen, Calculator } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { pasteAdvisorService } from '@/services/pasteAdvisorService';
-import { getSeedIngredients } from '@/lib/ingredientLibrary';
+import { IngredientService } from '@/services/ingredientService';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import FDPowderGenerator from '@/components/FDPowderGenerator';
@@ -20,7 +21,13 @@ import type { IngredientData } from '@/types/ingredients';
 
 export default function PasteStudio() {
   const { toast } = useToast();
-  const library = getSeedIngredients();
+  
+  // Load ingredients from Supabase
+  const { data: library = [], isLoading: isLoadingIngredients } = useQuery({
+    queryKey: ['ingredients'],
+    queryFn: () => IngredientService.getIngredients(),
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
+  });
   
   const [paste, setPaste] = useState<PasteFormula>(() => ({
     id: generateId(), 

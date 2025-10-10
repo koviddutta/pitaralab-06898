@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { mlService } from '@/services/mlService';
-import { databaseService } from '@/services/databaseService';
+import { RecipeService } from '@/services/recipeService';
 import { productParametersService } from '@/services/productParametersService';
 
 const RecipeCalculator = () => {
@@ -114,7 +114,7 @@ const RecipeCalculator = () => {
     });
   };
 
-  const saveRecipe = () => {
+  const saveRecipe = async () => {
     if (!recipeName.trim()) {
       toast({
         title: "Recipe Name Required",
@@ -125,16 +125,18 @@ const RecipeCalculator = () => {
     }
 
     try {
-      databaseService.saveRecipe({
+      // Convert legacy recipe format to RecipeService format
+      const rows = Object.entries(recipe).map(([ingredientId, grams]) => ({
+        ingredientId,
+        grams
+      }));
+
+      await RecipeService.saveRecipe({
         name: recipeName,
-        ingredients: recipe,
+        rows,
         metrics,
-        predictions: {
-          productType,
-          validation,
-          pacSp: { pac: metrics.pac, sp: metrics.sp }
-        },
-        notes: `${productType} recipe with ${Object.keys(recipe).length} ingredients`
+        product_type: productType,
+        change_notes: 'Initial version'
       });
 
       toast({
