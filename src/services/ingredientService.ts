@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/safeClient";
 import { z } from "zod";
 import type { IngredientData } from "@/types/ingredients";
 
@@ -39,6 +39,7 @@ function transformToIngredientData(dbRow: z.infer<typeof DbIngredientSchema>): I
 }
 
 export async function getAllIngredients(): Promise<IngredientData[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").order("name");
   if (error) throw error;
   const parsed = DbIngredientSchema.array().parse(data);
@@ -46,6 +47,7 @@ export async function getAllIngredients(): Promise<IngredientData[]> {
 }
 
 export async function getByCategory(category: IngredientData["category"]): Promise<IngredientData[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").eq("category", category).order("name");
   if (error) throw error;
   const parsed = DbIngredientSchema.array().parse(data);
@@ -53,12 +55,14 @@ export async function getByCategory(category: IngredientData["category"]): Promi
 }
 
 export async function getById(id: string): Promise<IngredientData | null> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").eq("id", id).maybeSingle();
   if (error) throw error;
   return data ? transformToIngredientData(DbIngredientSchema.parse(data)) : null;
 }
 
 export async function searchIngredients(q: string): Promise<IngredientData[]> {
+  const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").ilike("name", `%${q}%`).order("name");
   if (error) throw error;
   const parsed = DbIngredientSchema.array().parse(data);
