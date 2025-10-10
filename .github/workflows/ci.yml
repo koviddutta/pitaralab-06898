@@ -33,17 +33,17 @@ jobs:
       - name: Show NPM scripts
         run: npm run -s
 
-      - name: Typecheck (optional)
-        run: npm run -s typecheck || echo "typecheck failed (ignored)"
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
 
-      - name: Lint (optional)
-        run: npm run -s lint || echo "lint failed (ignored)"
+      - name: Run Tests
+        run: npm test
+        continue-on-error: false
 
-      - name: Tests (optional)
-        run: npm -s test -- --coverage --run || echo "tests failed (ignored)"
-
-      - name: Build (optional)
-        run: npm run -s build || echo "build failed (ignored)"
+      - name: Build
+        run: npm run build
+        continue-on-error: false
 
       - name: Upload coverage reports
         if: ${{ hashFiles('coverage/coverage-final.json') != '' }}
