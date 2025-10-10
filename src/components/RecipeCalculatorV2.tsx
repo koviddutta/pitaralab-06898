@@ -18,7 +18,7 @@ import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
 import { CompositionBar } from './CompositionBar';
-import { ScienceMetricsPanel } from './ScienceMetricsPanel';
+import ScienceMetricsPanel from './ScienceMetricsPanel';
 import { AISuggestionDialog } from './AISuggestionDialog';
 import { OptimizeDialog } from './OptimizeDialog';
 import { WarningTooltip } from './WarningTooltip';
@@ -645,13 +645,18 @@ const RecipeCalculatorV2 = () => {
           podIndex={metrics.pod_index || 0}
           fpdt={metrics.fpdt || 0}
           mode={mode}
-          sugars={sugarBreakdown}
+          sugars={{
+            sucrose_g: sugarBreakdown.sucrose,
+            dextrose_g: sugarBreakdown.dextrose,
+            fructose_g: sugarBreakdown.fructose,
+            lactose_g: sugarBreakdown.lactose
+          }}
           composition={{
-            fat: metrics.fat_pct,
-            msnf: metrics.msnf_pct,
-            water: metrics.water_pct,
-            sugars: metrics.totalSugars_pct,
-            other: metrics.other_pct
+            waterPct: metrics.water_pct,
+            fatPct: metrics.fat_pct,
+            msnfPct: metrics.msnf_pct,
+            sugarsPct: metrics.totalSugars_pct,
+            otherPct: metrics.other_pct
           }}
         />
       )}

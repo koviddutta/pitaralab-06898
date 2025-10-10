@@ -1,287 +1,85 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
-import { Thermometer, Gauge, PieChartIcon, Layers } from 'lucide-react';
+import { Card } from "@/components/ui/card";
+import { ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 
-interface ScienceMetricsPanelProps {
-  podIndex: number;
-  fpdt: number;
-  mode: 'gelato' | 'kulfi';
-  sugars: {
-    sucrose: number;
-    dextrose: number;
-    fructose: number;
-    lactose: number;
-    other: number;
-  };
-  composition: {
-    fat: number;
-    msnf: number;
-    water: number;
-    sugars: number;
-    other: number;
-  };
-}
-
-const COLORS = {
-  sucrose: 'hsl(var(--chart-1))',
-  dextrose: 'hsl(var(--chart-2))',
-  fructose: 'hsl(var(--chart-3))',
-  lactose: 'hsl(var(--chart-4))',
-  other: 'hsl(var(--chart-5))',
-  fat: 'hsl(var(--primary))',
-  msnf: 'hsl(var(--secondary))',
-  water: 'hsl(var(--accent))',
-  sugarsComp: 'hsl(var(--destructive))',
-};
-
-export const ScienceMetricsPanel: React.FC<ScienceMetricsPanelProps> = ({
-  podIndex,
-  fpdt,
-  mode,
-  sugars,
-  composition
-}) => {
-  // POD gauge data for RadialBarChart (0-150 scale)
-  const podValue = Math.min(Math.max(podIndex, 0), 150);
-  const podPercentage = (podValue / 150) * 100;
-  
-  const podGaugeData = [
-    {
-      name: 'POD Index',
-      value: podPercentage,
-      fill: podValue < 80 || podValue > 120 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'
-    }
+export default function ScienceMetricsPanel({
+  podIndex, fpdt, mode,
+  sugars: { sucrose_g, dextrose_g, fructose_g, lactose_g },
+  composition: { waterPct, fatPct, msnfPct, sugarsPct, otherPct }
+}: {
+  podIndex: number; fpdt: number; mode:"gelato"|"kulfi";
+  sugars:{sucrose_g:number; dextrose_g:number; fructose_g:number; lactose_g:number};
+  composition:{waterPct:number; fatPct:number; msnfPct:number; sugarsPct:number; otherPct:number};
+}) {
+  const podVal = Math.max(0, Math.min(160, Math.round(podIndex)));
+  const [lo, hi] = mode==="gelato"? [2.5,3.5] : [2.0,2.5];
+  const sugarData = [
+    { name:"Sucrose", value:sucrose_g }, { name:"Dextrose", value:dextrose_g },
+    { name:"Fructose", value:fructose_g }, { name:"Lactose", value:lactose_g }
   ];
+  const compData = [{ name:"Mix", Water:waterPct, Fat:fatPct, MSNF:msnfPct, Sugars:sugarsPct, Other:otherPct }];
 
-  // Sugar breakdown pie data
-  const sugarPieData = [
-    { name: 'Sucrose', value: sugars.sucrose, fill: COLORS.sucrose },
-    { name: 'Dextrose', value: sugars.dextrose, fill: COLORS.dextrose },
-    { name: 'Fructose', value: sugars.fructose, fill: COLORS.fructose },
-    { name: 'Lactose', value: sugars.lactose, fill: COLORS.lactose },
-    { name: 'Other', value: sugars.other, fill: COLORS.other },
-  ].filter(item => item.value > 0);
-
-  // FPDT scale data
-  const fpdtTarget = mode === 'gelato' 
-    ? { min: 2.5, max: 3.5, label: 'Gelato Zone' }
-    : { min: 2.0, max: 2.5, label: 'Kulfi Zone' };
-
-  const fpdtScaleData = [
-    { label: 'Current', value: fpdt }
-  ];
-
-  // Composition bar data
-  const compositionData = [
-    { name: 'Fat', value: composition.fat, fill: COLORS.fat },
-    { name: 'MSNF', value: composition.msnf, fill: COLORS.msnf },
-    { name: 'Sugars', value: composition.sugars, fill: COLORS.sugarsComp },
-    { name: 'Water', value: composition.water, fill: COLORS.water },
-    { name: 'Other', value: composition.other, fill: COLORS.other },
-  ].filter(item => item.value > 0);
-
-  // POD status
-  const getPODStatus = () => {
-    if (podIndex < 80) return { text: 'Low Sweetness', color: 'text-orange-500' };
-    if (podIndex > 120) return { text: 'High Sweetness', color: 'text-red-500' };
-    return { text: 'Balanced', color: 'text-green-500' };
+  const TargetBar = ({ label, value, min, max }:{label:string; value:number; min:number; max:number}) => {
+    const ok = value >= min && value <= max;
+    return (
+      <div className="mb-2">
+        <div className="flex justify-between text-xs mb-1">
+          <span>{label}</span><span>{value.toFixed(1)}% (target {min}–{max}%)</span>
+        </div>
+        <div className="h-2 bg-muted rounded overflow-hidden">
+          <div className={`h-2 ${ok?'bg-success':'bg-warning'}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+        </div>
+      </div>
+    );
   };
-
-  const podStatus = getPODStatus();
-
-  // FPDT status
-  const getFPDTStatus = () => {
-    if (fpdt < fpdtTarget.min) return { text: 'Too Soft', color: 'text-orange-500' };
-    if (fpdt > fpdtTarget.max) return { text: 'Too Hard', color: 'text-orange-500' };
-    return { text: 'Optimal', color: 'text-green-500' };
-  };
-
-  const fpdtStatus = getFPDTStatus();
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
-      {/* POD Index Gauge */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Gauge className="h-5 w-5" />
-            POD Sweetness Index
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={180}>
-              <RadialBarChart
-                cx="50%"
-                cy="50%"
-                innerRadius="60%"
-                outerRadius="90%"
-                barSize={20}
-                data={podGaugeData}
-                startAngle={180}
-                endAngle={0}
-              >
-                <PolarAngleAxis
-                  type="number"
-                  domain={[0, 100]}
-                  angleAxisId={0}
-                  tick={false}
-                />
-                <RadialBar
-                  background
-                  dataKey="value"
-                  cornerRadius={10}
-                  fill="hsl(var(--primary))"
-                />
-                <text
-                  x="50%"
-                  y="50%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="fill-foreground"
-                >
-                  <tspan x="50%" dy="-0.5em" fontSize="32" fontWeight="bold">
-                    {podIndex.toFixed(0)}
-                  </tspan>
-                  <tspan x="50%" dy="1.5em" fontSize="12" className="fill-muted-foreground">
-                    POD Index
-                  </tspan>
-                </text>
-              </RadialBarChart>
-            </ResponsiveContainer>
-            <div className="text-center space-y-1">
-              <div className={`text-sm font-medium ${podStatus.color}`}>{podStatus.text}</div>
-              <div className="text-xs text-muted-foreground">Target: 80-120 (Balanced)</div>
-            </div>
-          </div>
-        </CardContent>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <Card className="p-3">
+        <div className="text-sm mb-1">POD Index (per 100 g sugars)</div>
+        <ResponsiveContainer width="100%" height={140}>
+          <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ name:'POD', value: podVal }]}>
+            <RadialBar dataKey="value" cornerRadius={10} />
+          </RadialBarChart>
+        </ResponsiveContainer>
+        <div className="text-xs text-muted-foreground">Ideal ~80–120. Sucrose=100.</div>
       </Card>
 
-      {/* FPDT Scale */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Thermometer className="h-5 w-5" />
-            Freezing Point Depression
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <ResponsiveContainer width="100%" height={130}>
-              <BarChart
-                data={fpdtScaleData}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="label" tick={{ fontSize: 12 }} width={60} />
-                <ReferenceLine 
-                  x={fpdtTarget.min} 
-                  stroke="hsl(var(--primary))" 
-                  strokeDasharray="3 3" 
-                  label={{ value: 'Min', position: 'top', fontSize: 10 }}
-                />
-                <ReferenceLine 
-                  x={fpdtTarget.max} 
-                  stroke="hsl(var(--primary))" 
-                  strokeDasharray="3 3"
-                  label={{ value: 'Max', position: 'top', fontSize: 10 }}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px'
-                  }}
-                  formatter={(value: any) => [`${value.toFixed(2)}°C`, 'FPDT']}
-                />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="text-center space-y-1">
-              <div className="text-3xl font-bold">{fpdt.toFixed(2)}°C</div>
-              <div className={`text-sm font-medium ${fpdtStatus.color}`}>{fpdtStatus.text}</div>
-              <div className="text-xs text-muted-foreground">
-                {fpdtTarget.label}: {fpdtTarget.min.toFixed(1)}-{fpdtTarget.max.toFixed(1)}°C
-              </div>
-            </div>
-          </div>
-        </CardContent>
+      <Card className="p-3">
+        <div className="text-sm">FPDT: {fpdt.toFixed(2)} °C</div>
+        <div className="h-3 rounded bg-muted mt-2 relative">
+          <div className={`absolute top-0 h-3 ${fpdt>=lo && fpdt<=hi ? 'bg-success' : 'bg-warning'}`} style={{ width: `${Math.max(0, Math.min(100, ((fpdt-1.0)/3.5)*100))}%` }} />
+        </div>
+        <div className="text-xs mt-1">Target: {lo}–{hi} °C</div>
       </Card>
 
-      {/* Sugar Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <PieChartIcon className="h-5 w-5" />
-            Sugar Composition
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={sugarPieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={70}
-                dataKey="value"
-              >
-                {sugarPieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px'
-                }}
-                formatter={(value: any) => [`${value.toFixed(1)}g`, 'Amount']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
+      <Card className="p-3">
+        <div className="text-sm mb-2">Sugar Spectrum (g)</div>
+        <ResponsiveContainer width="100%" height={180}>
+          <PieChart><Pie data={sugarData} dataKey="value" nameKey="name" outerRadius={70} label>
+            {sugarData.map((_, i) => <Cell key={i} />)}
+          </Pie></PieChart>
+        </ResponsiveContainer>
       </Card>
 
-      {/* Composition Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Layers className="h-5 w-5" />
-            Recipe Composition
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart
-              data={compositionData}
-              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} label={{ value: '%', angle: -90, position: 'insideLeft' }} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'hsl(var(--popover))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px'
-                }}
-                formatter={(value: any) => [`${value.toFixed(1)}%`, 'Percentage']}
-              />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {compositionData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
+      <Card className="p-3">
+        <div className="text-sm mb-2">Composition (%)</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={compData}>
+            <XAxis dataKey="name" hide /><YAxis domain={[0,100]} /><Tooltip />
+            <Bar dataKey="Water" stackId="a" /><Bar dataKey="Fat" stackId="a" />
+            <Bar dataKey="MSNF" stackId="a" /><Bar dataKey="Sugars" stackId="a" />
+            <Bar dataKey="Other" stackId="a" />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card className="p-3">
+        <div className="text-sm font-medium mb-2">Targets</div>
+        <TargetBar label="Total Solids" value={sugarsPct+fatPct+msnfPct+otherPct} min={mode==='gelato'?36:38} max={mode==='gelato'?45:42} />
+        <TargetBar label="Fat" value={fatPct} min={mode==='gelato'?6:10} max={mode==='gelato'?9:12} />
+        <TargetBar label="MSNF" value={msnfPct} min={mode==='gelato'?10:18} max={mode==='gelato'?12:25} />
+        <TargetBar label="Total Sugars" value={sugarsPct} min={mode==='gelato'?16:18} max={mode==='gelato'?22:22} />
       </Card>
     </div>
   );
-};
+}
