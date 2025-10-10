@@ -8,6 +8,9 @@ export type RecipeRow = {
   product_type: "gelato" | "kulfi" | "sorbet" | "other";
   profile_version?: string;
   is_public?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  user_id?: string;
 };
 
 const bumpVersion = (v: string) => {
@@ -81,7 +84,7 @@ export async function saveRecipe(r: RecipeRow) {
   }
 }
 
-export async function getMyRecipes() {
+export async function getMyRecipes(): Promise<RecipeRow[]> {
   const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("recipes")
@@ -89,10 +92,10 @@ export async function getMyRecipes() {
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return data as RecipeRow[];
 }
 
-export async function getRecipeById(id: string) {
+export async function getRecipeById(id: string): Promise<RecipeRow | null> {
   const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("recipes")
@@ -101,7 +104,7 @@ export async function getRecipeById(id: string) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data as RecipeRow | null;
 }
 
 export async function updateRecipe(id: string, patch: Partial<RecipeRow>) {

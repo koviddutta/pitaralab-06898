@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp } from 'lucide-react';
+import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
 import { getAllIngredients } from '@/services/ingredientService';
-import { saveRecipe as saveRecipeToDb } from '@/services/recipeService';
+import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { ModeSelector } from './ModeSelector';
@@ -22,6 +22,8 @@ import { ScienceMetricsPanel } from './ScienceMetricsPanel';
 import { AISuggestionDialog } from './AISuggestionDialog';
 import { OptimizeDialog } from './OptimizeDialog';
 import { WarningTooltip } from './WarningTooltip';
+import { RecipeBrowserDrawer } from './RecipeBrowserDrawer';
+import { RecipeCompareDialog } from './RecipeCompareDialog';
 import { FEATURES } from '@/config/features';
 
 interface RecipeRow {
@@ -39,6 +41,9 @@ const RecipeCalculatorV2 = () => {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [optimizeDialogOpen, setOptimizeDialogOpen] = useState(false);
   const [optimizedRows, setOptimizedRows] = useState<RecipeRow[]>([]);
+  const [browserDrawerOpen, setBrowserDrawerOpen] = useState(false);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const [recipesToCompare, setRecipesToCompare] = useState<RecipeDBRow[]>([]);
   
   const { toast } = useToast();
 
@@ -47,6 +52,16 @@ const RecipeCalculatorV2 = () => {
     queryKey: ['ingredients'],
     queryFn: getAllIngredients,
     staleTime: 1000 * 60 * 5 // Cache for 5 minutes
+  });
+
+  // Fetch recipe count for badge
+  const { data: myRecipes = [] } = useQuery({
+    queryKey: ['recipes'],
+    queryFn: async () => {
+      const { getMyRecipes } = await import('@/services/recipeService');
+      return getMyRecipes();
+    },
+    staleTime: 1000 * 60 * 1 // Cache for 1 minute
   });
 
   // Convert array to lookup object
@@ -242,6 +257,26 @@ const RecipeCalculatorV2 = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLoadRecipe = (recipe: RecipeDBRow) => {
+    setRecipeName(recipe.name);
+    setMode(recipe.product_type as 'gelato' | 'kulfi');
+    setRows(Array.isArray(recipe.rows_json) ? recipe.rows_json : []);
+    toast({ title: "Recipe Loaded", description: `${recipe.name} loaded successfully` });
+  };
+
+  const handleDuplicateRecipe = (recipe: RecipeDBRow) => {
+    setRecipeName(`${recipe.name} (Copy)`);
+    setMode(recipe.product_type as 'gelato' | 'kulfi');
+    setRows(Array.isArray(recipe.rows_json) ? recipe.rows_json : []);
+    toast({ title: "Recipe Duplicated", description: "Edit and save to create a new version" });
+  };
+
+  const handleCompareRecipes = (recipes: RecipeDBRow[]) => {
+    setRecipesToCompare(recipes);
+    setCompareDialogOpen(true);
+    setBrowserDrawerOpen(false);
   };
 
   const handleAISuggest = async () => {
@@ -461,6 +496,19 @@ const RecipeCalculatorV2 = () => {
                 <Save className="h-4 w-4 mr-2" />
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
+              <Button 
+                onClick={() => setBrowserDrawerOpen(true)} 
+                variant="outline"
+                className="relative"
+              >
+                <Bookmark className="h-4 w-4 mr-2" />
+                My Recipes
+                {myRecipes.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
+                    {myRecipes.length}
+                  </span>
+                )}
+              </Button>
               <Button onClick={exportToCsv} variant="outline" disabled={!metrics}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
@@ -624,6 +672,20 @@ const RecipeCalculatorV2 = () => {
         optimizedRows={optimizedRows}
         onApply={applyOptimization}
         getIngredientName={(id) => INGREDIENT_LIBRARY[id]?.name || id}
+      />
+
+      <RecipeBrowserDrawer
+        open={browserDrawerOpen}
+        onOpenChange={setBrowserDrawerOpen}
+        onLoad={handleLoadRecipe}
+        onDuplicate={handleDuplicateRecipe}
+        onCompare={handleCompareRecipes}
+      />
+
+      <RecipeCompareDialog
+        open={compareDialogOpen}
+        onOpenChange={setCompareDialogOpen}
+        recipes={recipesToCompare}
       />
     </div>
   );
