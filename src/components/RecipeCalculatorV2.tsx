@@ -22,6 +22,7 @@ import { ScienceMetricsPanel } from './ScienceMetricsPanel';
 import { AISuggestionDialog } from './AISuggestionDialog';
 import { OptimizeDialog } from './OptimizeDialog';
 import { WarningTooltip } from './WarningTooltip';
+import { FEATURES } from '@/config/features';
 
 interface RecipeRow {
   ingredientId: string;
@@ -574,10 +575,10 @@ const RecipeCalculatorV2 = () => {
       </div>
 
       {/* Science Metrics Visualization */}
-      {metrics && (
+      {FEATURES.SCIENCE_PANEL && metrics && (
         <ScienceMetricsPanel
-          podIndex={metrics.pod_index}
-          fpdt={metrics.fpdt}
+          podIndex={metrics.pod_index || 0}
+          fpdt={metrics.fpdt || 0}
           mode={mode}
           sugars={sugarBreakdown}
           composition={{

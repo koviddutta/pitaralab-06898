@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 import { Thermometer, Gauge, PieChartIcon, Layers } from 'lucide-react';
 
 interface ScienceMetricsPanelProps {
@@ -42,15 +42,17 @@ export const ScienceMetricsPanel: React.FC<ScienceMetricsPanelProps> = ({
   sugars,
   composition
 }) => {
-  // POD gauge data (0-150 scale)
+  // POD gauge data for RadialBarChart (0-150 scale)
+  const podValue = Math.min(Math.max(podIndex, 0), 150);
+  const podPercentage = (podValue / 150) * 100;
+  
   const podGaugeData = [
-    { name: 'Too Low', value: 80, fill: 'hsl(var(--destructive) / 0.3)' },
-    { name: 'Optimal', value: 40, fill: 'hsl(var(--primary))' },
-    { name: 'Too High', value: 30, fill: 'hsl(var(--destructive) / 0.3)' },
+    {
+      name: 'POD Index',
+      value: podPercentage,
+      fill: podValue < 80 || podValue > 120 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'
+    }
   ];
-
-  const podNeedle = Math.min(Math.max(podIndex, 0), 150);
-  const podAngle = ((podNeedle / 150) * 180) - 90;
 
   // Sugar breakdown pie data
   const sugarPieData = [
@@ -109,36 +111,46 @@ export const ScienceMetricsPanel: React.FC<ScienceMetricsPanelProps> = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="relative h-32">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={podGaugeData}
-                    cx="50%"
-                    cy="90%"
-                    startAngle={180}
-                    endAngle={0}
-                    innerRadius={60}
-                    outerRadius={80}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {podGaugeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Needle */}
-              <div 
-                className="absolute bottom-0 left-1/2 w-0.5 h-16 bg-foreground origin-bottom transition-transform"
-                style={{ 
-                  transform: `translateX(-50%) rotate(${podAngle}deg)`,
-                }}
-              />
-            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <RadialBarChart
+                cx="50%"
+                cy="50%"
+                innerRadius="60%"
+                outerRadius="90%"
+                barSize={20}
+                data={podGaugeData}
+                startAngle={180}
+                endAngle={0}
+              >
+                <PolarAngleAxis
+                  type="number"
+                  domain={[0, 100]}
+                  angleAxisId={0}
+                  tick={false}
+                />
+                <RadialBar
+                  background
+                  dataKey="value"
+                  cornerRadius={10}
+                  fill="hsl(var(--primary))"
+                />
+                <text
+                  x="50%"
+                  y="50%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="fill-foreground"
+                >
+                  <tspan x="50%" dy="-0.5em" fontSize="32" fontWeight="bold">
+                    {podIndex.toFixed(0)}
+                  </tspan>
+                  <tspan x="50%" dy="1.5em" fontSize="12" className="fill-muted-foreground">
+                    POD Index
+                  </tspan>
+                </text>
+              </RadialBarChart>
+            </ResponsiveContainer>
             <div className="text-center space-y-1">
-              <div className="text-3xl font-bold">{podIndex.toFixed(0)}</div>
               <div className={`text-sm font-medium ${podStatus.color}`}>{podStatus.text}</div>
               <div className="text-xs text-muted-foreground">Target: 80-120 (Balanced)</div>
             </div>
