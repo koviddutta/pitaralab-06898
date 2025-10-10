@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { Metrics } from '@/lib/calc';
-import { validateIngredientData } from '@/lib/ingredientMapping';
+import { validateIngredientData } from '@/lib/ingredientLibrary';
 import { IngredientData } from '@/types/ingredients';
 
 interface CalculationDebuggerProps {

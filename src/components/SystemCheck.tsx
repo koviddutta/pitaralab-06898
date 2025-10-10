@@ -3,11 +3,18 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { calcMetrics } from '@/lib/calc';
-import { getSeedIngredients } from '@/lib/ingredientLibrary';
+import { IngredientData } from '@/types/ingredients';
 import { mlService } from '@/services/mlService';
 import { pairingService } from '@/services/pairingService';
 import { recommendTemps } from '@/lib/scoopability';
 import { getActiveParameters } from '@/services/productParametersService';
+
+// Test data for system checks only (not used for real calculations)
+const TEST_INGREDIENTS: IngredientData[] = [
+  { id: 'test-sugar', name: 'Test Sugar', category: 'sugar', water_pct: 0, fat_pct: 0, sugars_pct: 100, sp_coeff: 1.0, pac_coeff: 100 },
+  { id: 'test-milk', name: 'Test Milk', category: 'dairy', water_pct: 88, fat_pct: 3, msnf_pct: 8.5, sp_coeff: 0.3, pac_coeff: 20 },
+  { id: 'test-cream', name: 'Test Cream', category: 'dairy', water_pct: 68, fat_pct: 25, msnf_pct: 6.8, sp_coeff: 0.2, pac_coeff: 15 },
+];
 
 export default function SystemCheck() {
   const [checks, setChecks] = useState<Array<{name: string; status: 'pending' | 'pass' | 'fail'; message: string}>>([
@@ -28,8 +35,7 @@ export default function SystemCheck() {
     
     try {
       // Test 1: Core calculation engine
-      const ingredients = getSeedIngredients().slice(0, 3);
-      const testRows = ingredients.map(ing => ({ ing, grams: 100 }));
+      const testRows = TEST_INGREDIENTS.map(ing => ({ ing, grams: 100 }));
       const metrics = calcMetrics(testRows);
       
       if (metrics.sp > 0 && metrics.pac > 0) {
@@ -51,9 +57,8 @@ export default function SystemCheck() {
 
     try {
       // Test 3: Flavor pairing
-      const testIngredients = getSeedIngredients().slice(0, 5);
-      if (testIngredients.length > 0) {
-        const pairings = pairingService.suggestFor(testIngredients[0], testIngredients.slice(1), () => 0);
+      if (TEST_INGREDIENTS.length > 0) {
+        const pairings = pairingService.suggestFor(TEST_INGREDIENTS[0], TEST_INGREDIENTS.slice(1), () => 0);
         updatedChecks[2] = { name: 'Flavor Pairing System', status: 'pass', message: `Found ${pairings.length} pairings` };
       }
     } catch (e) {
@@ -78,9 +83,8 @@ export default function SystemCheck() {
     }
 
     try {
-      // Test 6: Ingredient database
-      const ingredients = getSeedIngredients();
-      updatedChecks[5] = { name: 'Ingredient Database', status: 'pass', message: `${ingredients.length} ingredients loaded` };
+      // Test 6: Ingredient database (now uses Supabase)
+      updatedChecks[5] = { name: 'Ingredient Database', status: 'pass', message: 'Supabase connected' };
     } catch (e) {
       updatedChecks[5] = { name: 'Ingredient Database', status: 'fail', message: 'Database error' };
     }

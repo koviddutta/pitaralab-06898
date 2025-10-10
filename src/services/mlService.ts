@@ -1,7 +1,6 @@
 import { calcMetrics } from '@/lib/calc';
 import { optimizeRecipe, Row, OptimizeTarget } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
-import { getSeedIngredients } from '@/lib/ingredientLibrary';
 
 export interface RecipeMetrics {
   totalWeight: number;
@@ -73,33 +72,43 @@ export class MLService {
     ]; 
   }
 
-  calculateRecipeMetrics(recipe: { rows: { ing: IngredientData; grams: number }[] } | { [key: string]: number }) {
-    // Handle legacy format
+  /**
+   * Calculate recipe metrics with fallback for legacy format
+   * @param recipe - Recipe in new or legacy format
+   * @param availableIngredients - Pass ingredients from Supabase for legacy format conversion
+   */
+  calculateRecipeMetrics(
+    recipe: { rows: { ing: IngredientData; grams: number }[] } | { [key: string]: number },
+    availableIngredients?: IngredientData[]
+  ) {
+    // Handle modern format
     if ('rows' in recipe && Array.isArray(recipe.rows)) {
       return calcMetrics(recipe.rows);
-    } else {
-      // Convert legacy format to new format with proper ingredient matching
-      const availableIngredients = getSeedIngredients();
-      
-      const rows = Object.entries(recipe as { [key: string]: number }).map(([name, grams]) => {
-        // Try to find matching ingredient by name (case-insensitive)
-        const ing = availableIngredients.find((i: IngredientData) => 
-          i.name.toLowerCase() === name.toLowerCase() || 
-          i.id.toLowerCase() === name.toLowerCase().replace(/\s+/g, '_')
-        ) || {
-          id: name.toLowerCase().replace(/\s+/g, '_'),
-          name,
-          category: 'other' as const,
-          water_pct: 88, // Default to milk-like composition
-          fat_pct: 3,
-          sugars_pct: 5,
-          other_solids_pct: 0,
-        };
-        return { ing, grams: grams || 0 };
-      });
-      
-      return calcMetrics(rows);
+    } 
+    
+    // Handle legacy format - requires availableIngredients to be passed
+    if (!availableIngredients || availableIngredients.length === 0) {
+      throw new Error('availableIngredients must be provided for legacy recipe format conversion');
     }
+    
+    const rows = Object.entries(recipe as { [key: string]: number }).map(([name, grams]) => {
+      // Try to find matching ingredient by name (case-insensitive)
+      const ing = availableIngredients.find((i: IngredientData) => 
+        i.name.toLowerCase() === name.toLowerCase() || 
+        i.id.toLowerCase() === name.toLowerCase().replace(/\s+/g, '_')
+      ) || {
+        id: name.toLowerCase().replace(/\s+/g, '_'),
+        name,
+        category: 'other' as const,
+        water_pct: 88, // Default to milk-like composition
+        fat_pct: 3,
+        sugars_pct: 5,
+        other_solids_pct: 0,
+      };
+      return { ing, grams: grams || 0 };
+    });
+      
+    return calcMetrics(rows);
   }
 
   optimizeRecipe(seed: Row[], targets: OptimizeTarget) {
