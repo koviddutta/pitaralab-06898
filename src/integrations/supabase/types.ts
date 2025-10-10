@@ -357,6 +357,7 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          is_public: boolean | null
           metrics: Json | null
           name: string
           product_type: string | null
@@ -369,6 +370,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
           metrics?: Json | null
           name: string
           product_type?: string | null
@@ -381,6 +383,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           id?: string
+          is_public?: boolean | null
           metrics?: Json | null
           name?: string
           product_type?: string | null

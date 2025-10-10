@@ -152,9 +152,9 @@ export class RecipeService {
   }
 
   /**
-   * Get all recipes
+   * Get all recipes for the current user
    */
-  static async getRecipes(): Promise<Recipe[]> {
+  static async getMyRecipes(): Promise<Recipe[]> {
     if (!isBackendReady()) {
       throw new Error('Backend not available');
     }
