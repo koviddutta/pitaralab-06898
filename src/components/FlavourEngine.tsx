@@ -18,7 +18,7 @@ import ProductSelector, { ProductType } from './ProductSelector';
 import ProductAnalysis from './flavour-engine/ProductAnalysis';
 import SugarBlendOptimizer from './flavour-engine/SugarBlendOptimizer';
 import { productParametersService } from '@/services/productParametersService';
-import { IngredientService } from '@/services/ingredientService';
+import { getAllIngredients } from '@/services/ingredientService';
 import { RecipeService } from '@/services/recipeService';
 import ProfileSwitcher from './ProfileSwitcher';
 import TargetPanel from './TargetPanel';
@@ -106,7 +106,7 @@ const FlavourEngine = () => {
   // Load ingredients from Supabase
   const { data: dbIngredients = [] } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: () => IngredientService.getIngredients()
+    queryFn: getAllIngredients
   });
 
   const formattedIngredients = useMemo(() => 

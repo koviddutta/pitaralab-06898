@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { IngredientService } from '@/services/ingredientService';
+import { getAllIngredients } from '@/services/ingredientService';
 import { databaseService } from '@/services/databaseService';
 
 const DatabaseManager = () => {
@@ -16,7 +16,7 @@ const DatabaseManager = () => {
   // Fetch ingredients from Supabase
   const { data: ingredients = [] } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: () => IngredientService.getIngredients()
+    queryFn: getAllIngredients
   });
 
   const performanceMetrics = databaseService.getPerformanceMetrics();

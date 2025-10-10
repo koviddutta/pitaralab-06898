@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { pasteAdvisorService } from '@/services/pasteAdvisorService';
-import { IngredientService } from '@/services/ingredientService';
+import { getAllIngredients } from '@/services/ingredientService';
 import { useToast } from '@/hooks/use-toast';
 import { generateId } from '@/lib/utils';
 import FDPowderGenerator from '@/components/FDPowderGenerator';
@@ -25,7 +25,7 @@ export default function PasteStudio() {
   // Load ingredients from Supabase
   const { data: library = [], isLoading: isLoadingIngredients } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: () => IngredientService.getIngredients(),
+    queryFn: getAllIngredients,
     staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   });
   

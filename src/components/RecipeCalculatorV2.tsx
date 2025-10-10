@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
-import { IngredientService } from '@/services/ingredientService';
+import { getAllIngredients } from '@/services/ingredientService';
 import { RecipeService } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
@@ -45,7 +45,7 @@ const RecipeCalculatorV2 = () => {
   // Fetch ingredients from Supabase
   const { data: ingredientsArray = [], isLoading: isLoadingIngredients } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: () => IngredientService.getIngredients(),
+    queryFn: getAllIngredients,
     staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   });
 
