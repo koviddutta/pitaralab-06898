@@ -55,22 +55,25 @@ serve(async (req) => {
     // Log usage
     await supabase.from("ai_usage_log").insert({ user_id: userId, function_name: fn });
 
-    // Return hardcoded suggestions based on mode
+    // Calculate total batch size for percentage-based suggestions
+    const totalGrams = body.rows.reduce((sum, r) => sum + r.grams, 0);
+
+    // Return hardcoded suggestions based on mode with calculated grams
     const suggestions = [
       { 
         ingredient: "Dextrose (Glucose)", 
-        reason: "Lowers FP (PAC≈1.9) to soften texture; swap a part of sucrose.", 
-        suggestedPctRange: [1, 3] 
+        grams: Math.round(totalGrams * 0.02), // 2% of total
+        reason: "Lowers FP (PAC≈1.9) to soften texture; swap a part of sucrose."
       },
       { 
         ingredient: "Glucose Syrup DE60", 
-        reason: "Adds body with lower sweetness; tunes FPDT without oversweetening.", 
-        suggestedPctRange: [2, 5] 
+        grams: Math.round(totalGrams * 0.035), // 3.5% of total
+        reason: "Adds body with lower sweetness; tunes FPDT without oversweetening."
       },
       { 
         ingredient: "Locust Bean Gum (LBG)", 
-        reason: "Improves body & meltdown; pair with guar for stability.", 
-        suggestedPctRange: [0.15, 0.30] 
+        grams: Math.round(totalGrams * 0.0025), // 0.25% of total
+        reason: "Improves body & meltdown; pair with guar for stability."
       }
     ];
     

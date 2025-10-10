@@ -367,8 +367,8 @@ const RecipeCalculatorV2 = () => {
       if (data?.error) {
         if (data.error.includes('Rate limit')) {
           toast({
-            title: "Too Many Requests",
-            description: "Please wait a moment before trying again (5 requests per minute)",
+            title: "Rate Limit Exceeded",
+            description: "You can make 10 AI suggestions per hour. Please try again later.",
             variant: "destructive"
           });
         } else {
