@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark } from 'lucide-react';
+import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,6 +175,69 @@ const RecipeCalculatorV2 = () => {
 
     return breakdown;
   }, [rows, metrics, INGREDIENT_LIBRARY]);
+
+  // Calculate recipe health status
+  const recipeStatus = useMemo(() => {
+    if (!metrics) return { status: 'none', message: '', icon: null };
+
+    const issues: string[] = [];
+    const warnings: string[] = [];
+
+    // Critical checks (FPDT out of range)
+    const [fpdtLo, fpdtHi] = mode === 'gelato' ? [2.5, 3.5] : [2.0, 2.5];
+    if (metrics.fpdt < fpdtLo || metrics.fpdt > fpdtHi) {
+      issues.push(`FPDT ${metrics.fpdt.toFixed(2)}°C is out of target range (${fpdtLo}-${fpdtHi}°C)`);
+    }
+
+    // Check total solids
+    const [tsMin, tsMax] = mode === 'gelato' ? [36, 45] : [38, 42];
+    if (metrics.ts_pct < tsMin || metrics.ts_pct > tsMax) {
+      issues.push(`Total solids ${metrics.ts_pct.toFixed(1)}% outside ${tsMin}-${tsMax}%`);
+    }
+
+    // Warning checks
+    if (metrics.lactose_pct > 11) {
+      warnings.push(`Lactose ${metrics.lactose_pct.toFixed(1)}% exceeds 11% (sandiness risk)`);
+    }
+
+    if (mode === 'gelato') {
+      if (metrics.fat_pct < 6 || metrics.fat_pct > 9) {
+        warnings.push(`Fat ${metrics.fat_pct.toFixed(1)}% outside 6-9% gelato range`);
+      }
+      if (metrics.msnf_pct < 10 || metrics.msnf_pct > 12) {
+        warnings.push(`MSNF ${metrics.msnf_pct.toFixed(1)}% outside 10-12% gelato range`);
+      }
+    } else {
+      if (metrics.fat_pct < 10 || metrics.fat_pct > 12) {
+        warnings.push(`Fat ${metrics.fat_pct.toFixed(1)}% outside 10-12% kulfi range`);
+      }
+      if (metrics.msnf_pct < 18 || metrics.msnf_pct > 25) {
+        warnings.push(`MSNF ${metrics.msnf_pct.toFixed(1)}% outside 18-25% kulfi range`);
+      }
+    }
+
+    if (issues.length > 0) {
+      return {
+        status: 'critical',
+        message: issues.join('; '),
+        icon: <XCircle className="h-5 w-5 text-destructive" />
+      };
+    }
+
+    if (warnings.length > 0) {
+      return {
+        status: 'warning',
+        message: warnings.join('; '),
+        icon: <AlertTriangle className="h-5 w-5 text-warning" />
+      };
+    }
+
+    return {
+      status: 'success',
+      message: 'All parameters in target range',
+      icon: <CheckCircle2 className="h-5 w-5 text-success" />
+    };
+  }, [metrics, mode]);
 
   const updateRow = (index: number, field: 'ingredientId' | 'grams', value: string | number) => {
     setRows(prev => {
@@ -473,9 +536,17 @@ const RecipeCalculatorV2 = () => {
       {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calculator className="h-6 w-6" />
-            Recipe Calculator (v2.1 Science)
+          <CardTitle className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <Calculator className="h-6 w-6" />
+              Recipe Calculator (v2.1 Science)
+            </div>
+            {metrics && recipeStatus.status !== 'none' && (
+              <div className="flex items-center gap-2">
+                {recipeStatus.icon}
+                <WarningTooltip warning={recipeStatus.message} />
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -639,26 +710,41 @@ const RecipeCalculatorV2 = () => {
         </div>
       </div>
 
-      {/* Science Metrics Visualization */}
+      {/* Science Metrics Visualization - Below ingredient table */}
       {FEATURES.SCIENCE_PANEL && metrics && (
-        <ScienceMetricsPanel
-          podIndex={metrics.pod_index || 0}
-          fpdt={metrics.fpdt || 0}
-          mode={mode}
-          sugars={{
-            sucrose_g: sugarBreakdown.sucrose,
-            dextrose_g: sugarBreakdown.dextrose,
-            fructose_g: sugarBreakdown.fructose,
-            lactose_g: sugarBreakdown.lactose
-          }}
-          composition={{
-            waterPct: metrics.water_pct,
-            fatPct: metrics.fat_pct,
-            msnfPct: metrics.msnf_pct,
-            sugarsPct: metrics.totalSugars_pct,
-            otherPct: metrics.other_pct
-          }}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              Science Metrics
+              {recipeStatus.status !== 'none' && (
+                <div className="flex items-center gap-2">
+                  {recipeStatus.icon}
+                  <WarningTooltip warning={recipeStatus.message} />
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScienceMetricsPanel
+              podIndex={metrics.pod_index || 0}
+              fpdt={metrics.fpdt || 0}
+              mode={mode}
+              sugars={{
+                sucrose_g: sugarBreakdown.sucrose,
+                dextrose_g: sugarBreakdown.dextrose,
+                fructose_g: sugarBreakdown.fructose,
+                lactose_g: sugarBreakdown.lactose
+              }}
+              composition={{
+                waterPct: metrics.water_pct,
+                fatPct: metrics.fat_pct,
+                msnfPct: metrics.msnf_pct,
+                sugarsPct: metrics.totalSugars_pct,
+                otherPct: metrics.other_pct
+              }}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* AI Dialogs */}
