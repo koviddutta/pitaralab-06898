@@ -49,24 +49,24 @@ serve(async (req) => {
       });
     }
 
-    // Rate limiting: Check requests in last 60 seconds
-    const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+    // Rate limiting: Check requests in last hour (10 per hour)
+    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
     const { data: recentUsage, error: usageError } = await supabase
       .from("ai_usage_log")
       .select("id")
       .eq("user_id", user.id)
       .eq("function_name", "suggest-ingredient")
-      .gte("created_at", oneMinuteAgo);
+      .gte("created_at", oneHourAgo);
 
     if (usageError) {
       console.error("Usage check error:", usageError);
     }
 
-    // Allow 5 requests per minute
-    if (recentUsage && recentUsage.length >= 5) {
+    // Allow 10 requests per hour
+    if (recentUsage && recentUsage.length >= 10) {
       return new Response(
         JSON.stringify({
-          error: "Rate limit exceeded. Please wait a moment before trying again.",
+          error: "Rate limit exceeded. You can make 10 AI suggestions per hour. Please try again later.",
         }),
         {
           status: 429,

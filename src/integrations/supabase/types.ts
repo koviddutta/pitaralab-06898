@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_suggestion_events: {
+        Row: {
+          accepted: boolean
+          created_at: string | null
+          id: string
+          ingredient: string
+          reason: string | null
+          user_id: string | null
+        }
+        Insert: {
+          accepted?: boolean
+          created_at?: string | null
+          id?: string
+          ingredient: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          accepted?: boolean
+          created_at?: string | null
+          id?: string
+          ingredient?: string
+          reason?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_usage_log: {
         Row: {
           created_at: string | null

@@ -295,7 +295,7 @@ const RecipeCalculatorV2 = () => {
     }
   };
 
-  const handleAddSuggestion = (suggestion: any) => {
+  const handleAddSuggestion = async (suggestion: any) => {
     // Try to find matching ingredient
     const matchingIng = Object.values(INGREDIENT_LIBRARY).find(
       ing => ing.name.toLowerCase().includes(suggestion.ingredient.toLowerCase()) ||
@@ -304,6 +304,20 @@ const RecipeCalculatorV2 = () => {
 
     if (matchingIng) {
       setRows(prev => [...prev, { ingredientId: matchingIng.id, grams: suggestion.grams }]);
+      
+      // Log telemetry for accepted suggestion
+      try {
+        const supabase = await getSupabase();
+        await supabase.from('ai_suggestion_events').insert({
+          ingredient: suggestion.ingredient,
+          reason: suggestion.reason,
+          accepted: true
+        });
+      } catch (error) {
+        console.error('Failed to log suggestion telemetry:', error);
+        // Non-blocking - don't show error to user
+      }
+      
       toast({
         title: "Ingredient Added",
         description: `Added ${matchingIng.name} (${suggestion.grams}g)`
@@ -452,22 +466,26 @@ const RecipeCalculatorV2 = () => {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Button 
-                onClick={handleAISuggest} 
-                variant="secondary"
-                disabled={rows.length === 0}
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                AI Suggest
-              </Button>
-              <Button 
-                onClick={handleOptimize} 
-                variant="secondary"
-                disabled={!metrics}
-              >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Optimize
-              </Button>
+              {FEATURES.AI_SUGGESTIONS && (
+                <>
+                  <Button 
+                    onClick={handleAISuggest} 
+                    variant="secondary"
+                    disabled={rows.length === 0}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    AI Suggest
+                  </Button>
+                  <Button 
+                    onClick={handleOptimize} 
+                    variant="secondary"
+                    disabled={!metrics}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    Optimize
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
