@@ -16,12 +16,13 @@ import EnhancedCalculator from "@/components/EnhancedCalculator";
 import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
 import CopyProtection from "@/components/CopyProtection";
-import WelcomeModal from "@/components/WelcomeModal";
+import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Card, CardContent } from "@/components/ui/card";
-import { Smartphone, Monitor, LogOut, User as UserIcon } from "lucide-react";
+import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle } from "lucide-react";
 import { migratePinProfiles } from "@/lib/migratePinProfiles";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -128,23 +129,28 @@ const Index = () => {
     <ErrorBoundary>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
         <CopyProtection />
-        <WelcomeModal />
+        <WelcomeTour />
         <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
         {backendReady && user && (
           <div className="flex justify-end mb-4">
-            <Card className="inline-flex items-center gap-2 p-2">
-              <UserIcon className="h-4 w-4 text-gray-600" />
-              <span className="text-sm text-gray-600">{user.email}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="gap-1"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </Button>
-            </Card>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <UserIcon className="h-4 w-4" />
+                  <span className="text-sm">{user.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={showTourAgain}>
+                  <HelpCircle className="h-4 w-4 mr-2" />
+                  Show Tour Again
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
         

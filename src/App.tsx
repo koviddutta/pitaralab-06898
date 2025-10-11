@@ -14,6 +14,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Auth = lazy(() => import("./pages/Auth"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const ReverseEngineer = lazy(() => import("./components/ReverseEngineer"));
+const Glossary = lazy(() => import("./pages/Glossary"));
 
 const App = () => {
   // Lovable Cloud projects have auto-managed environment variables
@@ -31,6 +32,7 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/reverse-engineer" element={<ReverseEngineer palette={[]} />} />
+                <Route path="/help/glossary" element={<Glossary />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

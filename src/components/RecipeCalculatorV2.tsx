@@ -32,6 +32,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { IngredientSearch } from './IngredientSearch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { RecipeTemplates, resolveTemplateIngredients } from './RecipeTemplates';
 import { FEATURES } from '@/config/features';
 
 // Lazy load Science panel for better performance
@@ -114,7 +115,7 @@ const RecipeCalculatorV2 = () => {
     }, {} as Record<string, IngredientData>);
   }, [ingredientsArray]);
 
-  // Load draft from localStorage or set defaults
+  // Load draft from localStorage or show empty state
   useEffect(() => {
     if (isLoadingIngredients || ingredientsArray.length === 0) return;
 
@@ -127,20 +128,8 @@ const RecipeCalculatorV2 = () => {
         title: "Draft Restored",
         description: "Your previous draft has been restored"
       });
-    } else {
-      // Set default ingredients
-      const findIngredientByTag = (tag: string) => 
-        ingredientsArray.find(ing => ing.tags?.includes(tag));
-
-      setRows([
-        { ingredientId: findIngredientByTag('id:milk_3')?.id || ingredientsArray[0]?.id || '', grams: 600 },
-        { ingredientId: findIngredientByTag('id:heavy_cream')?.id || ingredientsArray[1]?.id || '', grams: 200 },
-        { ingredientId: findIngredientByTag('id:smp')?.id || ingredientsArray[2]?.id || '', grams: 40 },
-        { ingredientId: findIngredientByTag('id:sucrose')?.id || ingredientsArray[3]?.id || '', grams: 140 },
-        { ingredientId: findIngredientByTag('id:dextrose')?.id || ingredientsArray[4]?.id || '', grams: 20 },
-        { ingredientId: findIngredientByTag('id:stabilizer')?.id || ingredientsArray[5]?.id || '', grams: 3 }
-      ].filter(row => row.ingredientId)); // Filter out any missing IDs
     }
+    // Don't set default ingredients - let empty state handle it
   }, [isLoadingIngredients, ingredientsArray, toast]);
 
   // Autosave draft every 30 seconds
@@ -565,6 +554,32 @@ const RecipeCalculatorV2 = () => {
     });
   };
 
+  const handleLoadTemplate = (template: any) => {
+    const resolvedRows = resolveTemplateIngredients(template, ingredientsArray);
+    setRows(resolvedRows);
+    setRecipeName(template.name);
+    setMode(template.mode);
+    toast({
+      title: "Template Loaded",
+      description: `${template.name} recipe loaded successfully`
+    });
+  };
+
+  const handleStartFromScratch = () => {
+    const findIngredientByTag = (tag: string) => 
+      ingredientsArray.find(ing => ing.tags?.includes(tag));
+
+    setRows([
+      { ingredientId: findIngredientByTag('id:milk_3')?.id || ingredientsArray[0]?.id || '', grams: 600 },
+      { ingredientId: findIngredientByTag('id:heavy_cream')?.id || ingredientsArray[1]?.id || '', grams: 200 },
+      { ingredientId: findIngredientByTag('id:smp')?.id || ingredientsArray[2]?.id || '', grams: 40 },
+      { ingredientId: findIngredientByTag('id:sucrose')?.id || ingredientsArray[3]?.id || '', grams: 140 },
+      { ingredientId: findIngredientByTag('id:dextrose')?.id || ingredientsArray[4]?.id || '', grams: 20 },
+      { ingredientId: findIngredientByTag('id:stabilizer')?.id || ingredientsArray[5]?.id || '', grams: 3 }
+    ].filter(row => row.ingredientId));
+    setRecipeName('');
+  };
+
   if (isLoadingIngredients) {
     return (
       <Card>
@@ -573,6 +588,19 @@ const RecipeCalculatorV2 = () => {
           <p className="text-muted-foreground">Loading ingredients...</p>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Show empty state if no ingredients
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-6">
+        <RecipeTemplates
+          onSelectTemplate={handleLoadTemplate}
+          onStartFromScratch={handleStartFromScratch}
+          availableIngredients={ingredientsArray}
+        />
+      </div>
     );
   }
 

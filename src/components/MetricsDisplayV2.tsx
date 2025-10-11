@@ -1,5 +1,6 @@
 import { MetricsV2 } from "@/lib/calc.v2";
 import { MetricCard } from "./MetricCard";
+import { GlossaryTooltip } from "./GlossaryTooltip";
 
 interface MetricsDisplayV2Props {
   metrics: MetricsV2;
@@ -28,7 +29,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
           />
           
           <MetricCard
-            label="MSNF"
+            label={
+              <span className="flex items-center gap-1">
+                MSNF
+                <GlossaryTooltip term="msnf" brief="Milk Solids Non-Fat: protein + lactose + minerals from dairy" />
+              </span>
+            }
             sublabel="Milk Solids Non-Fat"
             value={metrics.msnf_pct}
             unit="%"
@@ -85,7 +91,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
           />
           
           <MetricCard
-            label="POD Index"
+            label={
+              <span className="flex items-center gap-1">
+                POD Index
+                <GlossaryTooltip term="pod" brief="Protein Other than Dairy: balances total solids, fat, and protein" />
+              </span>
+            }
             sublabel="Sweetness Power"
             value={metrics.pod_index}
             target="100-120"
@@ -110,7 +121,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
           />
           
           <MetricCard
-            label="FPDT"
+            label={
+              <span className="flex items-center gap-1">
+                FPDT
+                <GlossaryTooltip term="fpdt" brief="Freezing Point Depression Total: how much sugars lower the freezing point" />
+              </span>
+            }
             sublabel="Freezing Point"
             value={metrics.fpdt}
             unit="°C"

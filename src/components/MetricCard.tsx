@@ -5,7 +5,7 @@ import { Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
-  label: string;
+  label: React.ReactNode;
   sublabel?: string;
   value: number;
   unit?: string;
