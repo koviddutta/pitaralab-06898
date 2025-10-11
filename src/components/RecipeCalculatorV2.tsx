@@ -30,6 +30,8 @@ import { MobileActionBar } from './MobileActionBar';
 import { CollapsibleSection } from './CollapsibleSection';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { IngredientSearch } from './IngredientSearch';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { FEATURES } from '@/config/features';
 
 // Lazy load Science panel for better performance
@@ -55,6 +57,7 @@ const RecipeCalculatorV2 = () => {
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [recipesToCompare, setRecipesToCompare] = useState<RecipeDBRow[]>([]);
   const [metricsVisible, setMetricsVisible] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -286,8 +289,11 @@ const RecipeCalculatorV2 = () => {
     });
   };
 
-  const addRow = () => {
-    setRows(prev => [...prev, { ingredientId: 'milk_3pct', grams: 100 }]);
+  const addRow = (ingredient?: IngredientData) => {
+    const ing = ingredient || ingredientsArray[0];
+    if (!ing) return;
+    setRows(prev => [...prev, { ingredientId: ing.id, grams: 100 }]);
+    setSearchOpen(false);
   };
 
   const removeRow = (index: number) => {
@@ -773,10 +779,22 @@ const RecipeCalculatorV2 = () => {
               })}
 
               {!isProductionMode && (
-                <Button onClick={addRow} variant="outline" className="w-full">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Ingredient
-                </Button>
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Ingredient
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <IngredientSearch
+                      ingredients={ingredientsArray}
+                      onSelect={addRow}
+                      open={searchOpen}
+                      onOpenChange={setSearchOpen}
+                    />
+                  </PopoverContent>
+                </Popover>
               )}
             </CardContent>
           </Card>
@@ -922,12 +940,26 @@ const RecipeCalculatorV2 = () => {
       {/* Mobile Action Bar */}
       {isMobile && !isProductionMode && (
         <MobileActionBar
-          onAddIngredient={addRow}
+          onAddIngredient={() => setSearchOpen(true)}
           onViewMetrics={() => setMetricsVisible(true)}
           onSave={saveRecipe}
           canSave={!!recipeName.trim() && !!metrics}
           isSaving={isSaving}
         />
+      )}
+
+      {/* Search Popover for Mobile */}
+      {isMobile && (
+        <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+          <PopoverContent className="w-[90vw] p-0 mx-4" align="center">
+            <IngredientSearch
+              ingredients={ingredientsArray}
+              onSelect={addRow}
+              open={searchOpen}
+              onOpenChange={setSearchOpen}
+            />
+          </PopoverContent>
+        </Popover>
       )}
 
       {/* AI Dialogs */}
