@@ -24,6 +24,9 @@ Access at `http://localhost:5173`
 - **AI Paste Studio**: Generate scientific paste recipes with citations
 - **Flavour Engine**: Multi-ingredient analysis and optimization
 - **Reverse Engineering**: Generate recipes from target nutritional profiles
+- **Interactive Onboarding**: 3-step welcome tour + contextual tooltips
+- **Recipe Templates**: Quick start with Classic Vanilla, Mango Kulfi, Dark Chocolate
+- **Glossary & Help**: Comprehensive /help/glossary with technical term definitions
 - **Cost Calculator**: Batch costing with waste factors
 - **15+ Specialized Tools**: Unit converters, machine selectors, QA checklists
 
@@ -68,9 +71,11 @@ Built-in AI formulation using **Google Gemini 2.5 Flash** (no API key required):
 ✅ Scientific accuracy verified  
 ✅ Error handling comprehensive  
 ✅ Performance optimized  
-✅ Type safety enforced
+✅ Type safety enforced  
+✅ Design system standardized (shadcn/ui)  
+✅ Service layer tested (Vitest)
 
-**Status**: Ready for beta testing (8/10 quality score)
+**Status**: Ready for beta testing (9/10 quality score)
 
 ## Lovable Project Info
 

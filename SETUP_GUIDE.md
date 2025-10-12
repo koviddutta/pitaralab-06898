@@ -99,25 +99,38 @@ meetha-pitara-calculator/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── RecipeCalculator.tsx
+│   │   ├── RecipeCalculatorV2.tsx
 │   │   ├── FlavourEngine.tsx
 │   │   ├── PasteStudio.tsx
 │   │   ├── ReverseEngineer.tsx
-│   │   └── flavour-engine/  # Specialized sub-components
+│   │   ├── WelcomeTour.tsx         # NEW: Interactive onboarding
+│   │   ├── RecipeTemplates.tsx     # NEW: Quick-start templates
+│   │   ├── GlossaryTooltip.tsx     # NEW: Contextual help
+│   │   └── flavour-engine/         # Specialized sub-components
 │   ├── lib/                 # Core logic
 │   │   ├── calc.ts          # Calculation engine
+│   │   ├── calc.v2.ts       # Enhanced calculator
 │   │   ├── optimize.ts      # Optimization algorithm
 │   │   ├── ingredientLibrary.ts
 │   │   └── ingredientMapping.ts
 │   ├── services/            # External integrations
 │   │   ├── mlService.ts
 │   │   ├── pasteAdvisorService.ts
+│   │   ├── ingredientService.ts    # NEW: Ingredient CRUD
+│   │   ├── recipeService.ts        # NEW: Recipe versioning
 │   │   └── databaseService.ts
 │   ├── types/               # TypeScript definitions
 │   │   ├── ingredients.ts
 │   │   ├── paste.ts
 │   │   └── parameters.ts
-│   └── pages/
-│       └── Index.tsx        # Main app page
+│   ├── pages/
+│   │   ├── Index.tsx        # Main app page
+│   │   └── Glossary.tsx     # NEW: Help & terminology
+│   └── tests/               # Test suites
+│       ├── calc.v2.spec.ts
+│       ├── ingredientService.spec.ts  # NEW
+│       ├── recipeService.spec.ts      # NEW
+│       └── suggestIngredient.spec.ts  # NEW
 ├── supabase/
 │   └── functions/
 │       └── paste-formulator/ # AI edge function
@@ -125,6 +138,7 @@ meetha-pitara-calculator/
 └── docs/
     ├── PROJECT_OVERVIEW.md
     ├── EVALUATION_REPORT.md
+    ├── VALIDATION_REPORT.md     # NEW: Phase 10 validation
     └── SETUP_GUIDE.md
 ```
 
@@ -148,6 +162,23 @@ npx tsc --noEmit
 # Linting
 npm run lint
 ```
+
+### User Experience Features
+
+**Welcome Tour** (first-time users):
+- 3-step interactive tour stored in localStorage
+- Spotlights: Search bar → Metrics panel → Save button
+- Access "Show Tour Again" from user menu
+
+**Recipe Templates**:
+- Empty state shows template cards
+- Pre-built: Classic Vanilla, Mango Kulfi, Dark Chocolate
+- Click to instantly load complete recipes
+
+**Glossary & Tooltips**:
+- Visit `/help/glossary` for technical terms
+- Hover tooltips on FPDT, MSNF, POD metrics
+- Contextual help throughout the app
 
 ### Debugging Tools
 
