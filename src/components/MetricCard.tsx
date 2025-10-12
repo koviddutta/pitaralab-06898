@@ -27,19 +27,19 @@ export const MetricCard = ({
 }: MetricCardProps) => {
   return (
     <Card className={cn(
-      "transition-all hover:shadow-lg",
-      warning && "border-orange-500 bg-orange-50 dark:bg-orange-950/20",
-      status === 'error' && "border-red-500 bg-red-50 dark:bg-red-950/20",
-      status === 'success' && "border-green-500 bg-green-50 dark:bg-green-950/20",
-      status === 'warning' && "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+      "transition-all duration-200 ease-in-out hover:shadow-elegant",
+      warning && "border-warning bg-warning-light",
+      status === 'error' && "border-destructive bg-destructive/10",
+      status === 'success' && "border-success bg-success-light",
+      status === 'warning' && "border-warning bg-warning-light"
     )}>
       <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-muted-foreground">{label}</span>
           <div className="flex items-center gap-1">
-            {warning && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-            {status === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-            {status === 'error' && <AlertTriangle className="h-4 w-4 text-red-500" />}
+            {warning && <AlertTriangle className="h-4 w-4 text-warning" />}
+            {status === 'success' && <CheckCircle2 className="h-4 w-4 text-success" />}
+            {status === 'error' && <AlertTriangle className="h-4 w-4 text-destructive" />}
             {tooltip && (
               <TooltipProvider>
                 <Tooltip>
@@ -55,7 +55,7 @@ export const MetricCard = ({
           </div>
         </div>
         {sublabel && (
-          <span className="text-xs text-muted-foreground block mb-1">{sublabel}</span>
+          <span className="text-xs text-muted-foreground block mb-2">{sublabel}</span>
         )}
         <div className="text-2xl font-bold">
           {value.toFixed(2)}{unit}

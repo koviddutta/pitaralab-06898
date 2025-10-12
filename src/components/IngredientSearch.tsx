@@ -99,31 +99,32 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
   const allResults = q ? results : recentIngredients;
 
   return (
-    <Command className="rounded-lg border shadow-md">
+    <Command className="rounded-lg border border-border shadow-elegant">
       <CommandInput
         ref={inputRef}
         placeholder="Search ingredients... (press / to focus)"
         value={q}
         onValueChange={setQ}
+        className="text-base"
       />
       <CommandList>
         {q && results.length === 0 && (
           <CommandEmpty>
-            <div className="flex flex-col gap-3 p-4">
+            <div className="flex flex-col gap-4 p-6">
               <p className="text-sm text-muted-foreground">No ingredients found</p>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="transition-all duration-200 ease-in-out">
                 Request addition
               </Button>
               {nearMatches.length > 0 && (
                 <div className="mt-2">
-                  <p className="text-xs font-medium mb-2">Did you mean:</p>
-                  <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium mb-2 text-foreground">Did you mean:</p>
+                  <div className="flex flex-col gap-2">
                     {nearMatches.map(ing => (
                       <Button
                         key={ing.id}
                         variant="ghost"
                         size="sm"
-                        className="justify-start h-auto py-1"
+                        className="justify-start h-auto py-2 transition-all duration-200 ease-in-out"
                         onClick={() => handleSelect(ing)}
                       >
                         <span className="font-medium">{ing.name}</span>
@@ -146,10 +147,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                 key={ing.id}
                 value={ing.id}
                 onSelect={() => handleSelect(ing)}
-                className={selectedIndex === idx ? "bg-accent" : ""}
+                className={`transition-all duration-200 ease-in-out ${selectedIndex === idx ? "bg-accent" : ""}`}
               >
-                <span className="font-medium">{ing.name}</span>
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <span className="font-medium text-base">{ing.name}</span>
+                <Badge variant="secondary" className="ml-auto text-xs">
                   {ing.category}
                 </Badge>
               </CommandItem>
@@ -164,10 +165,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                 key={ing.id}
                 value={ing.id}
                 onSelect={() => handleSelect(ing)}
-                className={selectedIndex === idx ? "bg-accent" : ""}
+                className={`transition-all duration-200 ease-in-out ${selectedIndex === idx ? "bg-accent" : ""}`}
               >
-                <span className="font-medium">{ing.name}</span>
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <span className="font-medium text-base">{ing.name}</span>
+                <Badge variant="secondary" className="ml-auto text-xs">
                   {ing.category}
                 </Badge>
               </CommandItem>
@@ -179,9 +180,9 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
           <>
             <CommandGroup heading="Frequently Together">
               {FREQUENTLY_TOGETHER.map((pair, idx) => (
-                <CommandItem key={idx} disabled className="text-muted-foreground">
-                  <span>{pair.label}</span>
-                  <Badge variant="outline" className="ml-2 text-xs">
+                <CommandItem key={idx} disabled className="text-muted-foreground transition-all duration-200 ease-in-out">
+                  <span className="text-base">{pair.label}</span>
+                  <Badge variant="outline" className="ml-auto text-xs">
                     combo
                   </Badge>
                 </CommandItem>
@@ -195,9 +196,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                     key={ing.id}
                     value={ing.id}
                     onSelect={() => handleSelect(ing)}
+                    className="transition-all duration-200 ease-in-out"
                   >
-                    <span className="font-medium">{ing.name}</span>
-                    <Badge variant="secondary" className="ml-2 text-xs">
+                    <span className="font-medium text-base">{ing.name}</span>
+                    <Badge variant="secondary" className="ml-auto text-xs">
                       {ing.category}
                     </Badge>
                   </CommandItem>
@@ -212,9 +214,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                     key={ing.id}
                     value={ing.id}
                     onSelect={() => handleSelect(ing)}
+                    className="transition-all duration-200 ease-in-out"
                   >
-                    <span className="font-medium">{ing.name}</span>
-                    <Badge variant="secondary" className="ml-2 text-xs">
+                    <span className="font-medium text-base">{ing.name}</span>
+                    <Badge variant="secondary" className="ml-auto text-xs">
                       {ing.category}
                     </Badge>
                   </CommandItem>

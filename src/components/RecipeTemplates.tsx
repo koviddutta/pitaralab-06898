@@ -67,37 +67,37 @@ interface RecipeTemplatesProps {
 
 export function RecipeTemplates({ onSelectTemplate, onStartFromScratch, availableIngredients }: RecipeTemplatesProps) {
   return (
-    <Card className="border-dashed border-2">
-      <CardHeader className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
+    <Card className="border-dashed border-2 transition-all duration-200 ease-in-out">
+      <CardHeader className="text-center p-6">
+        <div className="flex justify-center mb-6">
+          <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center transition-all duration-200 ease-in-out">
             <ChefHat className="h-12 w-12 text-primary" />
           </div>
         </div>
-        <CardTitle className="text-2xl">Start Your Gelato Formula</CardTitle>
-        <CardDescription className="text-base">
+        <CardTitle className="text-2xl font-bold">Start Your Gelato Formula</CardTitle>
+        <CardDescription className="text-base text-muted-foreground">
           Choose a template to get started, or build your own recipe from scratch
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {TEMPLATES.map((template) => (
             <Card
               key={template.name}
-              className="cursor-pointer hover:border-primary transition-colors"
+              className="cursor-pointer hover:border-primary transition-all duration-200 ease-in-out hover:shadow-elegant p-4"
               onClick={() => onSelectTemplate(template)}
             >
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="p-0 mb-4">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   {template.icon}
                   {template.name}
                 </CardTitle>
-                <CardDescription className="text-xs">
+                <CardDescription className="text-sm text-muted-foreground mt-2">
                   {template.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button variant="outline" size="sm" className="w-full">
+              <CardContent className="p-0">
+                <Button variant="outline" size="sm" className="w-full transition-all duration-200 ease-in-out">
                   Use Template
                 </Button>
               </CardContent>
@@ -106,15 +106,15 @@ export function RecipeTemplates({ onSelectTemplate, onStartFromScratch, availabl
         </div>
         
         <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 border-t" />
+          <div className="flex-1 border-t border-border" />
           <span className="text-sm text-muted-foreground">or</span>
-          <div className="flex-1 border-t" />
+          <div className="flex-1 border-t border-border" />
         </div>
 
         <Button 
           variant="default" 
           size="lg" 
-          className="w-full"
+          className="w-full transition-all duration-200 ease-in-out"
           onClick={onStartFromScratch}
         >
           <Sparkles className="h-5 w-5 mr-2" />

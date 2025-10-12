@@ -17,7 +17,7 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-3">Basic Composition</h3>
+        <h3 className="text-2xl font-bold mb-4">Basic Composition</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
             label="Fat"
@@ -63,7 +63,7 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold mb-3">Sugar Analysis</h3>
+        <h3 className="text-2xl font-bold mb-4">Sugar Analysis</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
             label="Total Sugars"
@@ -106,7 +106,7 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold mb-3">Protein & Freezing Point</h3>
+        <h3 className="text-2xl font-bold mb-4">Protein & Freezing Point</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
             label="Protein"
@@ -158,7 +158,7 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold mb-3">Advanced Metrics</h3>
+        <h3 className="text-2xl font-bold mb-4">Advanced Metrics</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
             label="SE (Sucrose Equiv.)"

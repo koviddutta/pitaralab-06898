@@ -19,23 +19,23 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Card>
+    <Card className="transition-all duration-200 ease-in-out">
       <CardHeader
-        className="cursor-pointer touch-target"
+        className="cursor-pointer touch-target p-4"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <CardTitle className="flex items-center justify-between text-lg">
+        <CardTitle className="flex items-center justify-between text-lg font-semibold">
           <div className="flex items-center gap-2">
             {icon}
             {title}
           </div>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 transition-all duration-200 ease-in-out">
             {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CardTitle>
       </CardHeader>
       
-      {isOpen && <CardContent>{children}</CardContent>}
+      {isOpen && <CardContent className="p-4 pt-0">{children}</CardContent>}
     </Card>
   );
 };

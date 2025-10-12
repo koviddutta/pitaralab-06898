@@ -70,50 +70,50 @@ export function WelcomeTour({ open: controlledOpen, onOpenChange }: WelcomeTourP
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md p-6">
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-4 top-4"
+          className="absolute right-4 top-4 transition-all duration-200 ease-in-out"
           onClick={handleSkip}
         >
           <X className="h-4 w-4" />
         </Button>
         
-        <DialogHeader>
+        <DialogHeader className="space-y-4">
           <div className="flex justify-center mb-4">
             {currentStep.icon}
           </div>
-          <DialogTitle className="text-center text-xl">
+          <DialogTitle className="text-center text-2xl font-bold">
             {currentStep.title}
           </DialogTitle>
-          <DialogDescription className="text-center pt-2">
+          <DialogDescription className="text-center text-base text-muted-foreground pt-2">
             {currentStep.description}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="bg-muted rounded-lg p-4 my-4">
-          <p className="text-sm text-center text-muted-foreground">
+        <div className="bg-info-light rounded-lg p-4 my-6">
+          <p className="text-sm text-center text-foreground">
             {currentStep.highlight}
           </p>
         </div>
 
-        <div className="flex justify-center gap-2 mb-4">
+        <div className="flex justify-center gap-2 mb-6">
           {steps.map((_, idx) => (
             <div
               key={idx}
-              className={`h-2 w-2 rounded-full transition-colors ${
+              className={`h-2 w-2 rounded-full transition-all duration-200 ease-in-out ${
                 idx === step ? 'bg-primary' : 'bg-muted'
               }`}
             />
           ))}
         </div>
 
-        <DialogFooter className="flex-row justify-between sm:justify-between">
-          <Button variant="ghost" onClick={handleSkip}>
+        <DialogFooter className="flex-row justify-between sm:justify-between gap-2">
+          <Button variant="ghost" onClick={handleSkip} className="transition-all duration-200 ease-in-out">
             Skip Tour
           </Button>
-          <Button onClick={handleNext}>
+          <Button onClick={handleNext} className="transition-all duration-200 ease-in-out">
             {step < steps.length - 1 ? (
               <>
                 Next <ArrowRight className="ml-2 h-4 w-4" />
