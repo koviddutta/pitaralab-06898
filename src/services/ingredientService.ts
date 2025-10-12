@@ -40,7 +40,7 @@ function transformToIngredientData(dbRow: z.infer<typeof DbIngredientSchema>): I
 
 export async function getAllIngredients(): Promise<IngredientData[]> {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from("ingredients").select("*").order("name");
+  const { data, error } = await supabase.from("ingredients").select("*").order("category").order("name");
   if (error) throw error;
   const parsed = DbIngredientSchema.array().parse(data);
   return parsed.map(transformToIngredientData);
@@ -63,8 +63,77 @@ export async function getById(id: string): Promise<IngredientData | null> {
 
 export async function searchIngredients(q: string): Promise<IngredientData[]> {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from("ingredients").select("*").ilike("name", `%${q}%`).order("name");
+  const { data, error } = await supabase.from("ingredients").select("*").ilike("name", `%${q}%`).order("name").limit(20);
   if (error) throw error;
   const parsed = DbIngredientSchema.array().parse(data);
   return parsed.map(transformToIngredientData);
 }
+
+// Service wrapper for tests
+export const IngredientService = {
+  async getIngredients(): Promise<IngredientData[]> {
+    return getAllIngredients();
+  },
+  async getIngredientById(id: string): Promise<IngredientData | null> {
+    return getById(id);
+  },
+  async searchIngredients(query: string): Promise<IngredientData[]> {
+    return searchIngredients(query);
+  },
+  async addIngredient(ingredient: Omit<IngredientData, 'id'>): Promise<IngredientData> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from("ingredients")
+      .insert({
+        name: ingredient.name,
+        category: ingredient.category,
+        water_pct: ingredient.water_pct,
+        fat_pct: ingredient.fat_pct,
+        msnf_pct: ingredient.msnf_pct || 0,
+        sugars_pct: ingredient.sugars_pct || 0,
+        other_solids_pct: ingredient.other_solids_pct || 0,
+        sp_coeff: ingredient.sp_coeff,
+        pac_coeff: ingredient.pac_coeff,
+        cost_per_kg: ingredient.cost_per_kg,
+        notes: ingredient.notes?.[0],
+        tags: ingredient.tags,
+        sugar_split: ingredient.sugar_split as any,
+      })
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to add ingredient: ${error.message}`);
+    return transformToIngredientData(DbIngredientSchema.parse(data));
+  },
+  async updateIngredient(id: string, updates: Partial<IngredientData>): Promise<IngredientData> {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from("ingredients")
+      .update({
+        name: updates.name,
+        category: updates.category,
+        water_pct: updates.water_pct,
+        fat_pct: updates.fat_pct,
+        msnf_pct: updates.msnf_pct,
+        sugars_pct: updates.sugars_pct,
+        other_solids_pct: updates.other_solids_pct,
+        sp_coeff: updates.sp_coeff,
+        pac_coeff: updates.pac_coeff,
+        cost_per_kg: updates.cost_per_kg,
+        notes: updates.notes?.[0],
+        tags: updates.tags,
+        sugar_split: updates.sugar_split as any,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+    
+    if (error) throw new Error(`Failed to update ingredient: ${error.message}`);
+    return transformToIngredientData(DbIngredientSchema.parse(data));
+  },
+  async deleteIngredient(id: string): Promise<void> {
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("ingredients").delete().eq("id", id);
+    if (error) throw new Error(`Failed to delete ingredient: ${error.message}`);
+  }
+};

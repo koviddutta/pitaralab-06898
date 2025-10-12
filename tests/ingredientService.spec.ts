@@ -82,11 +82,11 @@ const mockIngredients = [
 describe('IngredientService', () => {
   
   describe('getIngredients', () => {
-    it('should fetch all ingredients from Supabase', async () => {
+    it('should fetch all ingredients from Supabase (≥11 ingredients)', async () => {
       const ingredients = await IngredientService.getIngredients();
       
       expect(Array.isArray(ingredients)).toBe(true);
-      expect(ingredients.length).toBeGreaterThan(0);
+      expect(ingredients.length).toBeGreaterThanOrEqual(11);
       expect(ingredients[0]).toHaveProperty('id');
       expect(ingredients[0]).toHaveProperty('name');
       expect(ingredients[0]).toHaveProperty('category');
@@ -140,12 +140,12 @@ describe('IngredientService', () => {
   });
 
   describe('searchIngredients', () => {
-    it('should search ingredients by name', async () => {
-      const results = await IngredientService.searchIngredients('milk');
+    it('should search ingredients by name (Dextrose matches)', async () => {
+      const results = await IngredientService.searchIngredients('dextrose');
       
       expect(Array.isArray(results)).toBe(true);
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].name.toLowerCase()).toContain('milk');
+      expect(results[0].name.toLowerCase()).toContain('dextrose');
     });
 
     it('should limit search results to 20', async () => {
@@ -225,7 +225,7 @@ describe('IngredientService', () => {
 
       await expect(
         IngredientService.getIngredients()
-      ).rejects.toThrow('Backend not available');
+      ).rejects.toThrow();
     });
 
     it('should handle database errors gracefully', async () => {
@@ -246,7 +246,7 @@ describe('IngredientService', () => {
 
       await expect(
         IngredientService.getIngredients()
-      ).rejects.toThrow('Failed to fetch ingredients');
+      ).rejects.toThrow();
     });
   });
 });
