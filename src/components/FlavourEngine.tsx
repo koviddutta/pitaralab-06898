@@ -104,9 +104,10 @@ const FlavourEngine = () => {
   }, [selectedProduct]);
 
   // Load ingredients from Supabase
-  const { data: dbIngredients = [] } = useQuery({
+  const { data: dbIngredients = [], error: ingredientsError } = useQuery({
     queryKey: ['ingredients'],
-    queryFn: getAllIngredients
+    queryFn: getAllIngredients,
+    retry: 1
   });
 
   const formattedIngredients = useMemo(() => 
@@ -202,6 +203,21 @@ const FlavourEngine = () => {
   const metrics = calculateRecipeMetrics(recipe, ingredients);
   const targetResults = checkTargets(metrics, targets);
   const allTargetsMet = Object.values(targetResults).every(result => result);
+
+  // Show error if ingredients failed to load
+  if (ingredientsError && ingredients.length === 0) {
+    return (
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardContent className="p-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Backend Unavailable</h3>
+          <p className="text-sm text-yellow-700">
+            Unable to load ingredients from the database. AI Engine features require an active backend connection.
+            Please ensure your backend is configured and try refreshing the page.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const updateRecipe = (ingredient: string, value: string) => {
     // Store previous metrics before change

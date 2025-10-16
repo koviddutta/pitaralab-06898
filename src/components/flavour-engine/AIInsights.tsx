@@ -18,7 +18,12 @@ const AIInsights = ({ recipe, metrics }: AIInsightsProps) => {
 
   useEffect(() => {
     const analyzeRecipe = async () => {
-      if (Object.keys(recipe).length === 0) return;
+      // Check if recipe has any ingredients
+      if (!recipe || Object.keys(recipe).length === 0) return;
+      
+      // Check if all values are 0 or invalid
+      const hasValidData = Object.values(recipe).some(val => val > 0);
+      if (!hasValidData) return;
       
       setIsLoading(true);
       try {
@@ -27,6 +32,9 @@ const AIInsights = ({ recipe, metrics }: AIInsightsProps) => {
         setFlavorProfile(result.flavorProfile);
       } catch (error) {
         console.error('Error analyzing recipe:', error);
+        // Reset states on error
+        setPrediction(null);
+        setFlavorProfile(null);
       } finally {
         setIsLoading(false);
       }

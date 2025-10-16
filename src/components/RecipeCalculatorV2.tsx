@@ -91,9 +91,10 @@ const RecipeCalculatorV2 = () => {
   }, [isProductionMode]);
 
   // Fetch ingredients from Supabase
-  const { data: ingredientsArray = [], isLoading: isLoadingIngredients } = useQuery({
+  const { data: ingredientsArray = [], isLoading: isLoadingIngredients, error: ingredientsError } = useQuery({
     queryKey: ['ingredients'],
     queryFn: getAllIngredients,
+    retry: 1, // Only retry once
     staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   });
 
@@ -580,7 +581,7 @@ const RecipeCalculatorV2 = () => {
     setRecipeName('');
   };
 
-  if (isLoadingIngredients) {
+  if (isLoadingIngredients && !ingredientsError) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -591,10 +592,19 @@ const RecipeCalculatorV2 = () => {
     );
   }
 
-  // Show empty state if no ingredients
+  // Show empty state if no ingredients or if there was an error
   if (rows.length === 0) {
     return (
       <div className="space-y-6">
+        {ingredientsError && (
+          <Card className="bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4">
+              <p className="text-sm text-yellow-800">
+                ⚠️ Unable to load ingredients from database. Backend features may be temporarily unavailable.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <RecipeTemplates
           onSelectTemplate={handleLoadTemplate}
           onStartFromScratch={handleStartFromScratch}
