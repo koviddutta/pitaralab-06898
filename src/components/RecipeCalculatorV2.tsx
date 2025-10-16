@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle, ChefHat, Activity } from 'lucide-react';
+import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle, ChefHat, Activity, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,6 +49,9 @@ const RecipeCalculatorV2 = () => {
   const [recipeName, setRecipeName] = useState('');
   const [rows, setRows] = useState<RecipeRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [lastSavedName, setLastSavedName] = useState('');
   const [aiSuggestionsOpen, setAiSuggestionsOpen] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -306,8 +309,32 @@ const RecipeCalculatorV2 = () => {
     });
   };
 
+  // Auto-suggest recipe name based on main ingredient
+  const suggestedName = useMemo(() => {
+    if (recipeName.trim()) return recipeName;
+    
+    const mainIngredient = rows[0] ? INGREDIENT_LIBRARY[rows[0].ingredientId] : null;
+    if (!mainIngredient) return '';
+    
+    // Extract key ingredient name (remove common prefixes/suffixes)
+    const cleanName = mainIngredient.name
+      .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
+      .replace(/\s*(powder|paste|extract)\s*$/i, '') // Remove common suffixes
+      .trim();
+    
+    return `${cleanName} ${mode === 'gelato' ? 'Gelato' : 'Kulfi'}`;
+  }, [rows, INGREDIENT_LIBRARY, mode, recipeName]);
+
+  // Check if recipe exists (for version tracking)
+  const existingRecipe = useMemo(() => {
+    if (!recipeName.trim()) return null;
+    return myRecipes.find(r => r.name.toLowerCase() === recipeName.trim().toLowerCase());
+  }, [recipeName, myRecipes]);
+
   const saveRecipe = async () => {
-    if (!recipeName.trim()) {
+    const finalName = recipeName.trim() || suggestedName;
+    
+    if (!finalName) {
       toast({
         title: "Recipe Name Required",
         description: "Please enter a name for your recipe",
@@ -328,7 +355,7 @@ const RecipeCalculatorV2 = () => {
     setIsSaving(true);
     try {
       const result = await saveRecipeToDb({
-        name: recipeName,
+        name: finalName,
         rows_json: rows,
         metrics,
         product_type: mode
@@ -337,14 +364,16 @@ const RecipeCalculatorV2 = () => {
       // Clear draft after successful save
       databaseService.clearDraftRecipe();
 
-      toast({
-        title: "Recipe Saved",
-        description: `${recipeName} saved successfully`,
-        duration: 5000
-      });
+      // Show success animation
+      setLastSavedName(finalName);
+      setShowSaveSuccess(true);
+      setSavePopoverOpen(false);
       
-      setRecipeName('');
-      setRows([]);
+      setTimeout(() => {
+        setShowSaveSuccess(false);
+      }, 3000);
+      
+      // Don't clear the recipe after saving - keep it for further edits
     } catch (error) {
       console.error('Error saving recipe:', error);
       toast({
@@ -641,24 +670,96 @@ const RecipeCalculatorV2 = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label>Recipe Name</Label>
-              <Input
-                placeholder="Enter recipe name..."
-                value={recipeName}
-                onChange={(e) => setRecipeName(e.target.value)}
-                className={isMobile ? 'h-11' : ''}
-              />
-            </div>
-            <div className={`flex flex-wrap gap-2 items-end ${isProductionMode || isMobile ? 'hidden' : ''}`}>
-              <Button 
-                onClick={saveRecipe} 
-                disabled={!recipeName.trim() || isSaving || !metrics}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </Button>
+          <div className="flex gap-2 items-center">
+            {/* Toolbar Actions */}
+            <div className={`flex gap-2 ${isProductionMode || isMobile ? 'hidden' : ''}`}>
+              {/* Inline Save Popover */}
+              <Popover open={savePopoverOpen} onOpenChange={setSavePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    disabled={isSaving || !metrics}
+                    variant={showSaveSuccess ? "default" : "outline"}
+                    className="relative"
+                  >
+                    {showSaveSuccess ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2 animate-scale-in" />
+                        Saved
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Recipe
+                      </>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <h4 className="font-medium text-sm">Save Recipe</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {existingRecipe 
+                          ? `Updating existing recipe (v${(existingRecipe as any).version_number || 1})`
+                          : 'Save as new recipe'}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="recipe-name" className="text-xs">Recipe Name</Label>
+                      <Input
+                        id="recipe-name"
+                        placeholder={suggestedName}
+                        value={recipeName}
+                        onChange={(e) => setRecipeName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !isSaving) {
+                            saveRecipe();
+                          }
+                        }}
+                        autoFocus
+                      />
+                      {!recipeName && suggestedName && (
+                        <p className="text-xs text-muted-foreground">
+                          💡 Suggested: {suggestedName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={saveRecipe}
+                        disabled={isSaving || !metrics}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        {isSaving ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button 
+                        onClick={() => setSavePopoverOpen(false)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Success Toast */}
+              {showSaveSuccess && (
+                <div className="absolute top-16 left-4 z-50 animate-fade-in">
+                  <Card className="border-green-500 bg-green-50">
+                    <CardContent className="p-3 flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-900">
+                        Saved as {lastSavedName}
+                      </span>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* My Recipes - Prominent in toolbar */}
               <Button 
                 onClick={() => setBrowserDrawerOpen(true)} 
                 variant="outline"
@@ -672,10 +773,12 @@ const RecipeCalculatorV2 = () => {
                   </span>
                 )}
               </Button>
+
               <Button onClick={exportToCsv} variant="outline" disabled={!metrics}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
+
               {FEATURES.AI_SUGGESTIONS && (
                 <>
                   <Button 
@@ -697,6 +800,18 @@ const RecipeCalculatorV2 = () => {
                 </>
               )}
             </div>
+
+            {/* Recipe name display when saved */}
+            {recipeName && (
+              <div className="flex-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-medium">{recipeName}</span>
+                {existingRecipe && (
+                  <span className="text-xs bg-secondary px-2 py-0.5 rounded">
+                    v{(existingRecipe as any).version_number || 1}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
