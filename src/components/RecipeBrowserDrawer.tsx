@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Copy, Trash2, FileText, PlayCircle } from "lucide-react";
+import { Search, Copy, Trash2, FileText, PlayCircle, Download, Star, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, subDays, isAfter } from "date-fns";
+import jsPDF from "jspdf";
 
 interface RecipeBrowserDrawerProps {
   open: boolean;
@@ -27,6 +28,9 @@ export function RecipeBrowserDrawer({
 }: RecipeBrowserDrawerProps) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | '3months'>('all');
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,10 +54,35 @@ export function RecipeBrowserDrawer({
   const filtered = recipes.filter((r) => {
     const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase());
     const matchesType = !filterType || r.product_type === filterType;
-    return matchesSearch && matchesType;
+    
+    // Date filter
+    let matchesDate = true;
+    if (dateFilter !== 'all' && r.created_at) {
+      const recipeDate = new Date(r.created_at);
+      const cutoffDate = dateFilter === 'week' ? subDays(new Date(), 7)
+        : dateFilter === 'month' ? subDays(new Date(), 30)
+        : subDays(new Date(), 90);
+      matchesDate = isAfter(recipeDate, cutoffDate);
+    }
+    
+    // Favorites filter
+    const matchesFavorites = !showFavoritesOnly || (r.id && favorites.has(r.id));
+    
+    return matchesSearch && matchesType && matchesDate && matchesFavorites;
   });
 
   const types = Array.from(new Set(recipes.map((r) => r.product_type)));
+
+  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newFavorites = new Set(favorites);
+    if (newFavorites.has(id)) {
+      newFavorites.delete(id);
+    } else {
+      newFavorites.add(id);
+    }
+    setFavorites(newFavorites);
+  };
 
   const toggleCompareSelection = (id: string) => {
     const newSet = new Set(selectedForCompare);
@@ -79,18 +108,116 @@ export function RecipeBrowserDrawer({
 
   const getCompositionStrip = (recipe: RecipeRow) => {
     if (!recipe.metrics) return null;
-    const { fat, sugars, msnf, water } = recipe.metrics;
-    const total = (fat || 0) + (sugars || 0) + (msnf || 0) + (water || 0);
+    const m = recipe.metrics;
+    const fat = m.fat_pct || 0;
+    const sugars = m.sugars_pct || 0;
+    const msnf = m.msnf_pct || 0;
+    const other = m.other_solids_pct || 0;
+    const water = m.water_pct || 0;
+    const total = fat + sugars + msnf + other + water;
+    
     if (!total) return null;
     
     return (
-      <div className="flex h-2 w-full rounded overflow-hidden">
-        <div style={{ width: `${((fat || 0) / total) * 100}%` }} className="bg-amber-500" />
-        <div style={{ width: `${((sugars || 0) / total) * 100}%` }} className="bg-pink-500" />
-        <div style={{ width: `${((msnf || 0) / total) * 100}%` }} className="bg-blue-500" />
-        <div style={{ width: `${((water || 0) / total) * 100}%` }} className="bg-cyan-500" />
+      <div className="space-y-1">
+        <div className="flex h-3 w-full rounded overflow-hidden shadow-sm">
+          <div 
+            style={{ width: `${(fat / total) * 100}%` }} 
+            className="bg-amber-500"
+            title={`Fat: ${fat.toFixed(1)}%`}
+          />
+          <div 
+            style={{ width: `${(sugars / total) * 100}%` }} 
+            className="bg-pink-500"
+            title={`Sugars: ${sugars.toFixed(1)}%`}
+          />
+          <div 
+            style={{ width: `${(msnf / total) * 100}%` }} 
+            className="bg-blue-500"
+            title={`MSNF: ${msnf.toFixed(1)}%`}
+          />
+          <div 
+            style={{ width: `${(water / total) * 100}%` }} 
+            className="bg-cyan-400"
+            title={`Water: ${water.toFixed(1)}%`}
+          />
+        </div>
+        <div className="flex gap-2 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-amber-500" />
+            Fat {fat.toFixed(0)}%
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-pink-500" />
+            Sugar {sugars.toFixed(0)}%
+          </span>
+          <span className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            MSNF {msnf.toFixed(0)}%
+          </span>
+        </div>
       </div>
     );
+  };
+
+  const exportRecipeToPDF = (recipe: RecipeRow) => {
+    const doc = new jsPDF();
+    const m = recipe.metrics;
+    
+    // Title
+    doc.setFontSize(20);
+    doc.text(recipe.name, 20, 20);
+    
+    // Metadata
+    doc.setFontSize(10);
+    doc.text(`Product Type: ${recipe.product_type}`, 20, 30);
+    doc.text(`Created: ${recipe.created_at ? format(new Date(recipe.created_at), 'MMM d, yyyy') : 'N/A'}`, 20, 35);
+    doc.text(`Profile Version: ${recipe.profile_version || 'v1'}`, 20, 40);
+    
+    // Ingredients section
+    doc.setFontSize(14);
+    doc.text('Ingredients', 20, 50);
+    doc.setFontSize(10);
+    
+    let yPos = 58;
+    if (Array.isArray(recipe.rows_json)) {
+      recipe.rows_json.forEach((row: any, idx: number) => {
+        doc.text(`${idx + 1}. ${row.ingredientId || 'Unknown'}: ${row.grams}g`, 25, yPos);
+        yPos += 6;
+      });
+    }
+    
+    // Metrics section
+    yPos += 10;
+    doc.setFontSize(14);
+    doc.text('Metrics', 20, yPos);
+    yPos += 8;
+    doc.setFontSize(10);
+    
+    if (m) {
+      const metrics = [
+        `Fat: ${m.fat_pct?.toFixed(1)}%`,
+        `MSNF: ${m.msnf_pct?.toFixed(1)}%`,
+        `Sugars: ${m.sugars_pct?.toFixed(1)}%`,
+        `Water: ${m.water_pct?.toFixed(1)}%`,
+        `Total Solids: ${m.ts_pct?.toFixed(1)}%`,
+        `FPDT: ${m.fpdt?.toFixed(2)}°C`,
+        `POD Index: ${m.pod_index?.toFixed(0)}`
+      ];
+      
+      metrics.forEach(metric => {
+        doc.text(metric, 25, yPos);
+        yPos += 6;
+      });
+    }
+    
+    // Save PDF
+    doc.save(`${recipe.name.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+    
+    toast({
+      title: "PDF Exported",
+      description: `${recipe.name} exported successfully`
+    });
   };
 
   return (
@@ -111,24 +238,85 @@ export function RecipeBrowserDrawer({
             />
           </div>
 
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              variant={filterType === null ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterType(null)}
-            >
-              All
-            </Button>
-            {types.map((type) => (
+          {/* Filter Chips */}
+          <div className="space-y-3">
+            {/* Product Type Filters */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Product Type</label>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={filterType === null ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterType(null)}
+                >
+                  All
+                </Button>
+                {types.map((type) => (
+                  <Button
+                    key={type}
+                    variant={filterType === type ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFilterType(type)}
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date Range Filters */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Date Range
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant={dateFilter === 'all' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDateFilter('all')}
+                >
+                  All Time
+                </Button>
+                <Button
+                  variant={dateFilter === 'week' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDateFilter('week')}
+                >
+                  Last Week
+                </Button>
+                <Button
+                  variant={dateFilter === 'month' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDateFilter('month')}
+                >
+                  Last Month
+                </Button>
+                <Button
+                  variant={dateFilter === '3months' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setDateFilter('3months')}
+                >
+                  Last 3 Months
+                </Button>
+              </div>
+            </div>
+
+            {/* Favorites Filter */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                Favorites
+              </label>
               <Button
-                key={type}
-                variant={filterType === type ? "default" : "outline"}
+                variant={showFavoritesOnly ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilterType(type)}
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
               >
-                {type}
+                <Star className={`h-3 w-3 mr-1 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                {showFavoritesOnly ? 'Showing Favorites' : 'Show All'}
               </Button>
-            ))}
+            </div>
           </div>
 
           {selectedForCompare.size > 0 && (
@@ -170,8 +358,11 @@ export function RecipeBrowserDrawer({
                         <Badge variant="outline" className="text-xs">
                           {recipe.profile_version || "v1"}
                         </Badge>
+                        {recipe.id && favorites.has(recipe.id) && (
+                          <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
                         <span className="capitalize">{recipe.product_type}</span>
                         <span>•</span>
                         <span>
@@ -182,7 +373,15 @@ export function RecipeBrowserDrawer({
                       </div>
                       {getCompositionStrip(recipe)}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => recipe.id && toggleFavorite(recipe.id, e)}
+                        className="h-8 w-8"
+                      >
+                        <Star className={`h-4 w-4 ${recipe.id && favorites.has(recipe.id) ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"
@@ -191,6 +390,7 @@ export function RecipeBrowserDrawer({
                           onLoad(recipe);
                           onOpenChange(false);
                         }}
+                        className="h-8 w-8"
                       >
                         <PlayCircle className="h-4 w-4" />
                       </Button>
@@ -200,9 +400,22 @@ export function RecipeBrowserDrawer({
                         onClick={(e) => {
                           e.stopPropagation();
                           onDuplicate(recipe);
+                          onOpenChange(false);
                         }}
+                        className="h-8 w-8"
                       >
                         <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          exportRecipeToPDF(recipe);
+                        }}
+                        className="h-8 w-8"
+                      >
+                        <Download className="h-4 w-4" />
                       </Button>
                       <Button
                         size="icon"
@@ -213,6 +426,7 @@ export function RecipeBrowserDrawer({
                             deleteMutation.mutate(recipe.id);
                           }
                         }}
+                        className="h-8 w-8 text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
