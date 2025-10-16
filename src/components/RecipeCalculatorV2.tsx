@@ -31,7 +31,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { AIInsightsPanel } from './AIInsightsPanel';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { IngredientSearch } from './IngredientSearch';
+import { SmartIngredientSearch } from './SmartIngredientSearch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { RecipeTemplates, resolveTemplateIngredients } from './RecipeTemplates';
 import { FEATURES } from '@/config/features';
@@ -940,8 +940,8 @@ const RecipeCalculatorV2 = () => {
                       Add Ingredient
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <IngredientSearch
+                  <PopoverContent className="w-[450px] p-0 z-50 bg-background" align="start">
+                    <SmartIngredientSearch
                       ingredients={ingredientsArray}
                       onSelect={addRow}
                       open={searchOpen}
@@ -1110,8 +1110,8 @@ const RecipeCalculatorV2 = () => {
       {/* Search Popover for Mobile */}
       {isMobile && (
         <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-          <PopoverContent className="w-[90vw] p-0 mx-4" align="center">
-            <IngredientSearch
+          <PopoverContent className="w-[90vw] p-0 mx-4 z-50 bg-background" align="center">
+            <SmartIngredientSearch
               ingredients={ingredientsArray}
               onSelect={addRow}
               open={searchOpen}
