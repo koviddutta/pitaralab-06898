@@ -28,6 +28,7 @@ import { ProductionToggle } from './ProductionToggle';
 import { MobileIngredientRow } from './MobileIngredientRow';
 import { MobileActionBar } from './MobileActionBar';
 import { CollapsibleSection } from './CollapsibleSection';
+import { AIInsightsPanel } from './AIInsightsPanel';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { IngredientSearch } from './IngredientSearch';
@@ -1088,6 +1089,11 @@ const RecipeCalculatorV2 = () => {
             </CardContent>
           </Card>
         </Suspense>
+      )}
+
+      {/* AI Insights Panel */}
+      {!isProductionMode && metrics && (
+        <AIInsightsPanel recipe={rows} />
       )}
 
       {/* Mobile Action Bar */}
