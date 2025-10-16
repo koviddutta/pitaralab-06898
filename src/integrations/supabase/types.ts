@@ -172,6 +172,7 @@ export type Database = {
           cost_per_kg: number | null
           created_at: string | null
           fat_pct: number | null
+          hardening_factor: number
           id: string
           msnf_pct: number | null
           name: string
@@ -190,6 +191,7 @@ export type Database = {
           cost_per_kg?: number | null
           created_at?: string | null
           fat_pct?: number | null
+          hardening_factor?: number
           id?: string
           msnf_pct?: number | null
           name: string
@@ -208,6 +210,7 @@ export type Database = {
           cost_per_kg?: number | null
           created_at?: string | null
           fat_pct?: number | null
+          hardening_factor?: number
           id?: string
           msnf_pct?: number | null
           name?: string
