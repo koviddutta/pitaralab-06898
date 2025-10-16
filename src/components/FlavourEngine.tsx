@@ -204,21 +204,6 @@ const FlavourEngine = () => {
   const targetResults = checkTargets(metrics, targets);
   const allTargetsMet = Object.values(targetResults).every(result => result);
 
-  // Show error if ingredients failed to load
-  if (ingredientsError && ingredients.length === 0) {
-    return (
-      <Card className="bg-yellow-50 border-yellow-200">
-        <CardContent className="p-6">
-          <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Backend Unavailable</h3>
-          <p className="text-sm text-yellow-700">
-            Unable to load ingredients from the database. AI Engine features require an active backend connection.
-            Please ensure your backend is configured and try refreshing the page.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const updateRecipe = (ingredient: string, value: string) => {
     // Store previous metrics before change
     if (!previousMetrics) {
@@ -413,6 +398,15 @@ const FlavourEngine = () => {
       </CardHeader>
 
       <CardContent className={`${isMobile ? 'p-3' : 'p-6'} bg-gradient-to-br from-background to-card-secondary/30`}>
+        {ingredientsError && (
+          <Card className="bg-yellow-50 border-yellow-200 mb-4">
+            <CardContent className="p-3">
+              <p className="text-sm text-yellow-800">
+                ⚠️ Using default ingredients - database connection unavailable. You can still use the AI Engine with the current recipe.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <Tabs defaultValue="recipe" className="w-full">
           <TabsList className={`${isMobile ? 'grid grid-cols-2 gap-1' : 'flex flex-wrap gap-2'} w-full h-auto bg-card-secondary/50 backdrop-blur-sm p-2`}>
             <TabsTrigger 

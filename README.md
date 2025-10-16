@@ -59,6 +59,24 @@ src/
 
 ## 🤖 AI Integration
 
+The app features two powerful AI-driven systems:
+
+### AI Flavour Engine
+Advanced machine learning-powered recipe development:
+- **AI Insights**: ML-driven recipe success predictions and flavor analysis
+- **Chemistry Analysis**: Real-time composition tracking and validation  
+- **Sugar Blend Optimizer**: Optimize sugar types for perfect texture
+- **Ingredient Analyzer**: Smart ingredient suggestions and substitutions
+- **Flavor Pairings**: Discover complementary ingredient combinations
+- **Temperature Calculator**: Optimize serving temperatures
+- **Reverse Engineer**: Generate recipes from target specifications
+- **Paste Studio**: Design and integrate flavor pastes
+- **Product-Specific**: Optimized for Ice Cream, Gelato, and Sorbet
+- **Works Offline**: Core features available even without backend
+
+📖 See [AI_ENGINE_GUIDE.md](./AI_ENGINE_GUIDE.md) for complete usage guide
+
+### Paste Formulator
 Built-in AI formulation using **Google Gemini 2.5 Flash** (no API key required):
 - Scientific paste recipes with citations
 - Industry benchmark validation

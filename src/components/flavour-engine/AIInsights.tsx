@@ -19,19 +19,27 @@ const AIInsights = ({ recipe, metrics }: AIInsightsProps) => {
   useEffect(() => {
     const analyzeRecipe = async () => {
       // Check if recipe has any ingredients
-      if (!recipe || Object.keys(recipe).length === 0) return;
+      if (!recipe || Object.keys(recipe).length === 0) {
+        console.log('⚠️ No recipe data to analyze');
+        return;
+      }
       
       // Check if all values are 0 or invalid
       const hasValidData = Object.values(recipe).some(val => val > 0);
-      if (!hasValidData) return;
+      if (!hasValidData) {
+        console.log('⚠️ Recipe has no valid ingredient amounts');
+        return;
+      }
       
+      console.log('🧠 Analyzing recipe with AI:', recipe);
       setIsLoading(true);
       try {
         const result = await mlService.predictRecipeSuccess(recipe);
+        console.log('✅ AI analysis complete:', result);
         setPrediction(result);
         setFlavorProfile(result.flavorProfile);
       } catch (error) {
-        console.error('Error analyzing recipe:', error);
+        console.error('❌ Error analyzing recipe:', error);
         // Reset states on error
         setPrediction(null);
         setFlavorProfile(null);
