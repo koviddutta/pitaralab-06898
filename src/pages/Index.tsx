@@ -17,9 +17,10 @@ import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
 import CopyProtection from "@/components/CopyProtection";
 import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
+import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Card, CardContent } from "@/components/ui/card";
-import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle } from "lucide-react";
+import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle, Wrench } from "lucide-react";
 import { migratePinProfiles } from "@/lib/migratePinProfiles";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -32,17 +33,21 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [backendReady, setBackendReady] = useState(false);
+  const [currentTab, setCurrentTab] = useState("calculator");
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
     (async () => {
       try {
+        console.log('🚀 Initializing Supabase connection...');
         const supabase = await getSupabase();
+        console.log('✅ Supabase connection established');
         setBackendReady(true);
         
         // Set up auth state listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log('🔐 Auth state changed:', event, session ? 'User logged in' : 'No session');
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
@@ -50,16 +55,24 @@ const Index = () => {
         unsubscribe = () => subscription.unsubscribe();
 
         // Check for existing session
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔍 Checking for existing session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('❌ Error getting session:', error);
+        }
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
         // Redirect to auth if not logged in
         if (!session) {
+          console.log('⚠️ No session found, redirecting to auth...');
           navigate("/auth");
+        } else {
+          console.log('✅ User authenticated:', session.user.email);
         }
-      } catch (e) {
+      } catch (e: any) {
+        console.error('❌ Backend initialization failed:', e);
         console.log("Running in offline mode - backend features disabled");
         setBackendReady(false);
         setLoading(false);
@@ -145,6 +158,10 @@ const Index = () => {
                   <HelpCircle className="h-4 w-4 mr-2" />
                   Show Tour Again
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCurrentTab('diagnostics')}>
+                  <Wrench className="h-4 w-4 mr-2" />
+                  System Diagnostics
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
@@ -157,10 +174,31 @@ const Index = () => {
         {!backendReady && (
           <div className="mb-4">
             <Card className="bg-yellow-50 border-yellow-200">
-              <CardContent className="p-3">
-                <p className="text-sm text-yellow-800">
-                  ℹ️ Running in offline mode - backend features (save, auth) temporarily disabled
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Backend Connection Issue</h3>
+                <p className="text-sm text-yellow-700 mb-3">
+                  The app is running in offline mode. Backend features (save, auth, AI) are temporarily unavailable.
                 </p>
+                <details className="text-xs text-yellow-600">
+                  <summary className="cursor-pointer font-medium mb-2">Troubleshooting Steps</summary>
+                  <ol className="list-decimal ml-4 space-y-1 mt-2">
+                    <li>Open browser console (F12) to check for connection errors</li>
+                    <li>Look for logs starting with 🔍 or ❌ emojis</li>
+                    <li>Verify environment variables are set (should show "SET" not "MISSING")</li>
+                    <li>Try refreshing the page</li>
+                    <li>If using Lovable Cloud, the connection should auto-resolve</li>
+                    <li>Check TROUBLESHOOTING.md file for detailed help</li>
+                  </ol>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3 w-full"
+                    onClick={() => setCurrentTab('diagnostics')}
+                  >
+                    <Wrench className="h-4 w-4 mr-2" />
+                    Open System Diagnostics
+                  </Button>
+                </details>
               </CardContent>
             </Card>
           </div>
@@ -191,7 +229,7 @@ const Index = () => {
           )}
         </div>
 
-        <Tabs defaultValue="calculator" className="w-full">
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="w-full">
           {/* Unified tab list - scrollable on mobile, wrapped on desktop */}
           <TabsList className={isMobile 
             ? "w-full h-auto flex flex-nowrap gap-1.5 overflow-x-auto overflow-y-hidden py-3 bg-background/80 backdrop-blur-sm shadow-sm" 
@@ -274,10 +312,19 @@ const Index = () => {
             >
               💵 Cost Calc
             </TabsTrigger>
+            <TabsTrigger 
+              value="diagnostics" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              🔧 Diagnostics
+            </TabsTrigger>
             {isMobile && (
               <TabsTrigger 
                 value="mobile-input" 
-                className="text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start"
+                className="text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start mr-2"
                 style={{ scrollSnapAlign: 'start' }}
               >
                 ➕ Quick Add
@@ -327,6 +374,10 @@ const Index = () => {
             <CostCalculator />
           </TabsContent>
 
+          <TabsContent value="diagnostics" className="mt-4 md:mt-6">
+            <DiagnosticsPanel />
+          </TabsContent>
+
           {isMobile && (
             <TabsContent value="mobile-input" className="mt-4">
               <MobileRecipeInput onRecipeCreated={handleMobileRecipeCreated} />
@@ -340,11 +391,12 @@ const Index = () => {
             <CardContent className="p-4">
               <h3 className="font-semibold text-sm mb-2 text-foreground">📱 Mobile Features:</h3>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p>• All 9 tabs available - swipe to access</p>
+                <p>• All 10 tabs available - swipe to access</p>
                 <p>• Touch-optimized ingredient input</p>
                 <p>• Voice input for hands-free recipe creation</p>
                 <p>• Real-time parameter evaluation</p>
                 <p>• Mobile-friendly charts and analysis</p>
+                <p>• System diagnostics in 🔧 Diagnostics tab</p>
               </div>
             </CardContent>
           </Card>

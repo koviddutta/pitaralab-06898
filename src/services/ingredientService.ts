@@ -39,9 +39,14 @@ function transformToIngredientData(dbRow: z.infer<typeof DbIngredientSchema>): I
 }
 
 export async function getAllIngredients(): Promise<IngredientData[]> {
+  console.log('🔍 Fetching all ingredients from database...');
   const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").order("category").order("name");
-  if (error) throw error;
+  if (error) {
+    console.error('❌ Error fetching ingredients:', error);
+    throw error;
+  }
+  console.log(`✅ Fetched ${data?.length || 0} ingredients`);
   const parsed = DbIngredientSchema.array().parse(data);
   return parsed.map(transformToIngredientData);
 }
