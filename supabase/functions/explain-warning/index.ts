@@ -41,8 +41,18 @@ serve(async (req) => {
       return j({ error: "Bad request: missing warning" }, 400);
     }
 
-    // Log usage
-    await supabase.from("ai_usage_log").insert({ user_id: userId, function_name: fn });
+    // Check shared rate limit across both AI functions
+    const since = new Date(Date.now() - 60*60*1000).toISOString();
+    const { count: used } = await supabase.from("ai_usage_log")
+      .select("*", { count:"exact", head:true })
+      .eq("user_id", userId)
+      .in("function_name", ["suggest-ingredient","explain-warning"])
+      .gt("created_at", since);
+    
+    if ((used ?? 0) >= 10) {
+      console.log(`Rate limit exceeded for user ${userId}: ${used}/10 calls used`);
+      return j({ error: "Rate limit exceeded. Try again in ~1 hour." }, 429);
+    }
 
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableApiKey) {
@@ -100,6 +110,9 @@ Your explanations should:
       const aiData = await aiResponse.json();
       const explanation = aiData.choices?.[0]?.message?.content || "Unable to generate explanation";
 
+      // Log usage after successful response
+      await supabase.from("ai_usage_log").insert({ user_id: userId, function_name: fn });
+      
       console.log(`Generated explanation for user ${userId}`);
       
       return j({ explanation }, 200);

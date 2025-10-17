@@ -41,6 +41,7 @@ export function useAIUsageLimit(limitPerHour: number = 10): AIUsageLimit {
         .from('ai_usage_log')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
+        .in('function_name', ['suggest-ingredient', 'explain-warning'])
         .gt('created_at', since);
 
       if (countError) {
