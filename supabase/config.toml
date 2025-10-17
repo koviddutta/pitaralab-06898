@@ -25,3 +25,6 @@ verify_jwt = true
 
 [functions.thermo-metrics]
 verify_jwt = true
+
+[functions.explain-warning]
+verify_jwt = true

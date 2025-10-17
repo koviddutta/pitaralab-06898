@@ -2,13 +2,25 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Info, Wrench, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WarningTooltip } from "./WarningTooltip";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { WarningExplanationDialog } from "./WarningExplanationDialog";
 
 interface EnhancedWarningsPanelProps {
   warnings: string[];
   onRequestAIHelp?: () => void;
+  mode?: 'gelato' | 'kulfi';
+  metrics?: any;
 }
 
-export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWarningsPanelProps) => {
+export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp, mode = 'gelato', metrics }: EnhancedWarningsPanelProps) => {
+  const [selectedWarning, setSelectedWarning] = useState<string | null>(null);
+  const [explanationDialogOpen, setExplanationDialogOpen] = useState(false);
+
+  const handleExplainWarning = (warning: string) => {
+    setSelectedWarning(warning);
+    setExplanationDialogOpen(true);
+  };
   if (!warnings || warnings.length === 0) {
     return (
       <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
@@ -42,9 +54,21 @@ export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWar
             <AlertDescription>
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {critical.map((w, i) => (
-                  <li key={i} className="text-sm flex items-center gap-2">
-                    <span className="flex-1">{w.replace('⚠️', '').trim()}</span>
-                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                  <li key={i} className="text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="flex-1">{w.replace('⚠️', '').trim()}</span>
+                      <div className="flex gap-1">
+                        <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-1 hover:bg-background/50"
+                          onClick={() => handleExplainWarning(w)}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -59,9 +83,21 @@ export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWar
             <AlertDescription className="text-blue-800 dark:text-blue-200">
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {troubleshooting.map((w, i) => (
-                  <li key={i} className="text-sm flex items-center gap-2">
-                    <span className="flex-1">{w.replace('🔧', '').trim()}</span>
-                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                  <li key={i} className="text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="flex-1">{w.replace('🔧', '').trim()}</span>
+                      <div className="flex gap-1">
+                        <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-1 hover:bg-background/50"
+                          onClick={() => handleExplainWarning(w)}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -76,9 +112,21 @@ export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWar
             <AlertDescription className="text-yellow-800 dark:text-yellow-200">
               <ul className="list-disc pl-4 space-y-1 mt-2">
                 {info.map((w, i) => (
-                  <li key={i} className="text-sm flex items-center gap-2">
-                    <span className="flex-1">{w}</span>
-                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                  <li key={i} className="text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="flex-1">{w}</span>
+                      <div className="flex gap-1">
+                        <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto p-1 hover:bg-background/50"
+                          onClick={() => handleExplainWarning(w)}
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 text-primary" />
+                        </Button>
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -86,6 +134,15 @@ export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWar
           </Alert>
         )}
       </CardContent>
+      
+      {/* Warning Explanation Dialog */}
+      <WarningExplanationDialog
+        open={explanationDialogOpen}
+        onOpenChange={setExplanationDialogOpen}
+        warning={selectedWarning || ''}
+        mode={mode}
+        metrics={metrics}
+      />
     </Card>
   );
 };

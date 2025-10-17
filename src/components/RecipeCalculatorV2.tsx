@@ -16,6 +16,7 @@ import { getAllIngredients } from '@/services/ingredientService';
 import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow, RecipeService } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
@@ -466,6 +467,8 @@ const RecipeCalculatorV2 = () => {
 
     try {
       const supabase = await getSupabase();
+      
+      let retryCount = 0;
       const { data, error } = await supabase.functions.invoke('suggest-ingredient', {
         body: { rows, mode }
       });
@@ -479,6 +482,12 @@ const RecipeCalculatorV2 = () => {
             description: "You can make 10 AI suggestions per hour. Please try again later.",
             variant: "destructive"
           });
+        } else if (data.error.includes('credits') || data.error.includes('Payment')) {
+          toast({
+            title: "AI Credits Exhausted",
+            description: "Please add credits to your Lovable workspace to continue using AI features.",
+            variant: "destructive"
+          });
         } else {
           throw new Error(data.error);
         }
@@ -487,11 +496,19 @@ const RecipeCalculatorV2 = () => {
       }
 
       setAiSuggestions(data.suggestions || []);
+      
+      if (!data.suggestions || data.suggestions.length === 0) {
+        toast({
+          title: "No Suggestions",
+          description: "AI couldn't generate suggestions for this recipe. Try adding more ingredients.",
+          variant: "default"
+        });
+      }
     } catch (error) {
       console.error('AI suggestion error:', error);
       toast({
         title: "AI Suggestion Failed",
-        description: error instanceof Error ? error.message : "Failed to get suggestions",
+        description: error instanceof Error ? error.message : "Failed to get suggestions. Please try again.",
         variant: "destructive"
       });
       setAiSuggestionsOpen(false);
@@ -1105,6 +1122,8 @@ const RecipeCalculatorV2 = () => {
                       <EnhancedWarningsPanel 
                         warnings={metrics.warnings} 
                         onRequestAIHelp={handleAISuggest}
+                        mode={mode}
+                        metrics={metrics}
                       />
                     </div>
                   </>
@@ -1152,6 +1171,8 @@ const RecipeCalculatorV2 = () => {
                       <EnhancedWarningsPanel 
                         warnings={metrics.warnings}
                         onRequestAIHelp={handleAISuggest}
+                        mode={mode}
+                        metrics={metrics}
                       />
                     </div>
                   </>
