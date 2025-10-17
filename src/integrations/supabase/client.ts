@@ -5,13 +5,33 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Lazy-initialized client to avoid errors when env vars aren't loaded yet
+let _supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
+
+function getClient() {
+  if (!_supabaseClient) {
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error('Supabase environment variables are not configured. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are set.');
+    }
+    
+    _supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
+  }
+  return _supabaseClient;
+}
+
+// Export a proxy that lazily initializes the client
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
-
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
+  get(_, prop) {
+    const client = getClient();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
   }
 });

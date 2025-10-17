@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { isBackendReady } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
 
 interface AIInsightsPanelProps {
@@ -42,6 +43,11 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
     setError(null);
 
     try {
+      // Check if backend is ready
+      if (!isBackendReady()) {
+        throw new Error('Backend not configured. AI features require cloud connection.');
+      }
+
       const { data, error: fnError } = await supabase.functions.invoke('analyze-recipe', {
         body: { recipe, metrics, productType }
       });
