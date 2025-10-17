@@ -1,15 +1,42 @@
 import { Card } from "@/components/ui/card";
 import { ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { useState, useEffect } from "react";
+import { fetchThermoMetrics, type ThermoMetricsResult } from "@/services/metricsService";
+import { Loader2 } from "lucide-react";
 
 export default function ScienceMetricsPanel({
   podIndex, fpdt, mode,
   sugars: { sucrose_g, dextrose_g, fructose_g, lactose_g },
-  composition: { waterPct, fatPct, msnfPct, sugarsPct, otherPct }
+  composition: { waterPct, fatPct, msnfPct, sugarsPct, otherPct },
+  rows = [],
+  serveTempC = -12
 }: {
   podIndex: number; fpdt: number; mode:"gelato"|"kulfi";
   sugars:{sucrose_g:number; dextrose_g:number; fructose_g:number; lactose_g:number};
   composition:{waterPct:number; fatPct:number; msnfPct:number; sugarsPct:number; otherPct:number};
+  rows?: Array<{ ing_id: string; grams: number }>;
+  serveTempC?: number;
 }) {
+  const [thermoMetrics, setThermoMetrics] = useState<ThermoMetricsResult | null>(null);
+  const [isLoadingThermo, setIsLoadingThermo] = useState(false);
+
+  useEffect(() => {
+    if (rows.length === 0) return;
+    
+    const loadThermoMetrics = async () => {
+      try {
+        setIsLoadingThermo(true);
+        const result = await fetchThermoMetrics({ rows, mode, serveTempC });
+        setThermoMetrics(result);
+      } catch (error) {
+        console.error('Failed to fetch thermo metrics:', error);
+      } finally {
+        setIsLoadingThermo(false);
+      }
+    };
+
+    loadThermoMetrics();
+  }, [rows, mode, serveTempC]);
   const podVal = Math.max(0, Math.min(160, Math.round(podIndex)));
   const [lo, hi] = mode==="gelato"? [2.5,3.5] : [2.0,2.5];
   const sugarData = [
@@ -45,11 +72,68 @@ export default function ScienceMetricsPanel({
       </Card>
 
       <Card className="p-3">
-        <div className="text-sm">FPDT: {fpdt.toFixed(2)} °C</div>
-        <div className="h-3 rounded bg-muted mt-2 relative">
-          <div className={`absolute top-0 h-3 ${fpdt>=lo && fpdt<=hi ? 'bg-success' : 'bg-warning'}`} style={{ width: `${Math.max(0, Math.min(100, ((fpdt-1.0)/3.5)*100))}%` }} />
-        </div>
-        <div className="text-xs mt-1">Target: {lo}–{hi} °C</div>
+        <div className="text-sm font-medium mb-2">Freezing Point Depression</div>
+        {isLoadingThermo ? (
+          <div className="flex items-center justify-center h-20">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        ) : thermoMetrics ? (
+          <>
+            <div className="space-y-2">
+              <div>
+                <div className="text-xs text-muted-foreground">Base FPDT</div>
+                <div className="text-lg font-semibold">{thermoMetrics.base.FPDT.toFixed(2)} °C</div>
+              </div>
+              {thermoMetrics.adjusted.hardeningEffect > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Adjusted FPDT (with hardening)</div>
+                  <div className="text-lg font-semibold text-primary">{thermoMetrics.adjusted.FPDT.toFixed(2)} °C</div>
+                </div>
+              )}
+            </div>
+            <div className="h-3 rounded bg-muted mt-2 relative">
+              <div className={`absolute top-0 h-3 ${thermoMetrics.base.FPDT>=lo && thermoMetrics.base.FPDT<=hi ? 'bg-success' : 'bg-warning'}`} 
+                   style={{ width: `${Math.max(0, Math.min(100, ((thermoMetrics.base.FPDT-1.0)/3.5)*100))}%` }} />
+            </div>
+            <div className="text-xs mt-1">Target: {lo}–{hi} °C</div>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground">Add ingredients to calculate</div>
+        )}
+      </Card>
+
+      <Card className="p-3">
+        <div className="text-sm font-medium mb-2">Water Frozen @ {serveTempC}°C</div>
+        {isLoadingThermo ? (
+          <div className="flex items-center justify-center h-20">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        ) : thermoMetrics ? (
+          <>
+            <div className="space-y-2">
+              <div>
+                <div className="text-xs text-muted-foreground">Base</div>
+                <div className="text-lg font-semibold">{thermoMetrics.base.waterFrozenPct.toFixed(1)}%</div>
+              </div>
+              {thermoMetrics.adjusted.hardeningEffect > 0 && (
+                <div>
+                  <div className="text-xs text-muted-foreground">Adjusted (with hardening)</div>
+                  <div className="text-lg font-semibold text-primary">{thermoMetrics.adjusted.waterFrozenPct.toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Hardening effect: {thermoMetrics.adjusted.hardeningEffect.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="h-3 rounded bg-muted mt-2 relative">
+              <div className="absolute top-0 h-3 bg-primary" 
+                   style={{ width: `${thermoMetrics.base.waterFrozenPct}%` }} />
+            </div>
+            <div className="text-xs mt-1">Ideal: 65-75% for scoopability</div>
+          </>
+        ) : (
+          <div className="text-sm text-muted-foreground">Add ingredients to calculate</div>
+        )}
       </Card>
 
       <Card className="p-3">
