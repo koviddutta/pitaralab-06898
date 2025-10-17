@@ -6,6 +6,7 @@ import { fetchThermoMetrics, type ThermoMetricsResult } from "@/services/metrics
 import { Loader2 } from "lucide-react";
 import { showApiErrorToast } from "@/lib/ui/errors";
 import { safeDivide, clamp } from "@/lib/math";
+import { Badge } from "@/components/ui/badge";
 
 export default function ScienceMetricsPanel({
   podIndex, fpdt, mode,
@@ -22,6 +23,18 @@ export default function ScienceMetricsPanel({
 }) {
   const [thermoMetrics, setThermoMetrics] = useState<ThermoMetricsResult | null>(null);
   const [isLoadingThermo, setIsLoadingThermo] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
+
+  // Track screen width for responsive chart labels
+  useEffect(() => {
+    const checkWidth = () => {
+      setIsSmallScreen(window.innerWidth < 360);
+    };
+    
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, []);
 
   useEffect(() => {
     if (rows.length === 0) return;
@@ -90,24 +103,26 @@ export default function ScienceMetricsPanel({
       <Card className="p-4">
         <div className="text-sm font-medium mb-2">POD Index</div>
         <div className="text-xs text-muted-foreground mb-3">per 100g sugars</div>
-        <ChartContainer config={{ pod: { label: "POD", color: "hsl(var(--primary))" } }} className="h-[140px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <RadialBarChart 
-              innerRadius="60%" 
-              outerRadius="90%" 
-              data={[{ name:'POD', value: podVal, fill: podVal >= 80 && podVal <= 120 ? "hsl(var(--success))" : "hsl(var(--warning))" }]}
-              startAngle={180}
-              endAngle={0}
-            >
-              <RadialBar 
-                dataKey="value" 
-                cornerRadius={10}
-                background={{ fill: "hsl(var(--muted))" }}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-            </RadialBarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+        <div className="min-h-[140px]">
+          <ChartContainer config={{ pod: { label: "POD", color: "hsl(var(--primary))" } }} className="h-[140px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadialBarChart 
+                innerRadius="60%" 
+                outerRadius="90%" 
+                data={[{ name:'POD', value: podVal, fill: podVal >= 80 && podVal <= 120 ? "hsl(var(--success))" : "hsl(var(--warning))" }]}
+                startAngle={180}
+                endAngle={0}
+              >
+                <RadialBar 
+                  dataKey="value" 
+                  cornerRadius={10}
+                  background={{ fill: "hsl(var(--muted))" }}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+              </RadialBarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
         <div className="text-center mt-2">
           <div className="text-2xl font-bold">{podVal}</div>
           <div className="text-xs text-muted-foreground mt-1">
@@ -221,67 +236,92 @@ export default function ScienceMetricsPanel({
 
       <Card className="p-4">
         <div className="text-sm font-medium mb-4">Sugar Spectrum (grams)</div>
-        <ChartContainer config={sugarChartConfig} className="h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie 
-                data={sugarData} 
-                dataKey="value" 
-                nameKey="name" 
-                cx="50%" 
-                cy="50%" 
-                outerRadius={70}
-                label={({ name, value }) => value > 0 ? `${name}: ${value.toFixed(0)}g` : ''}
-                labelLine={false}
-              >
-                {sugarData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
+        <div className="min-h-[140px]">
+          <ChartContainer config={sugarChartConfig} className="h-[200px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={sugarData} 
+                  dataKey="value" 
+                  nameKey="name" 
+                  cx="50%" 
+                  cy="50%" 
+                  outerRadius={isSmallScreen ? 50 : 70}
+                  label={!isSmallScreen && (({ name, value }) => value > 0 ? `${name}: ${value.toFixed(0)}g` : '')}
+                  labelLine={!isSmallScreen}
+                >
+                  {sugarData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {!isSmallScreen && <Legend />}
+              </PieChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+        {isSmallScreen && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {sugarData.filter(s => s.value > 0).map((sugar) => (
+              <Badge key={sugar.name} variant="secondary" className="text-xs">
+                {sugar.name}: {sugar.value.toFixed(0)}g
+              </Badge>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="p-4">
         <div className="text-sm font-medium mb-4">Mix Composition (%)</div>
-        <ChartContainer config={compChartConfig} className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={compData} layout="vertical">
-              <XAxis type="number" domain={[0, 100]} />
-              <YAxis type="category" dataKey="name" hide />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="Water" stackId="a" fill="hsl(var(--chart-1))" radius={[4, 0, 0, 4]} />
-              <Bar dataKey="Fat" stackId="a" fill="hsl(var(--chart-2))" />
-              <Bar dataKey="MSNF" stackId="a" fill="hsl(var(--chart-3))" />
-              <Bar dataKey="Sugars" stackId="a" fill="hsl(var(--chart-4))" />
-              <Bar dataKey="Other" stackId="a" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-        <div className="mt-3 flex flex-wrap gap-3 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-chart-1" />
-            <span>Water: {waterPct.toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-chart-2" />
-            <span>Fat: {fatPct.toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-chart-3" />
-            <span>MSNF: {msnfPct.toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-chart-4" />
-            <span>Sugars: {sugarsPct.toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-chart-5" />
-            <span>Other: {otherPct.toFixed(1)}%</span>
-          </div>
+        <div className="min-h-[140px]">
+          <ChartContainer config={compChartConfig} className="h-[220px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={compData} layout="vertical">
+                <XAxis type="number" domain={[0, 100]} />
+                <YAxis type="category" dataKey="name" hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="Water" stackId="a" fill="hsl(var(--chart-1))" radius={[4, 0, 0, 4]} />
+                <Bar dataKey="Fat" stackId="a" fill="hsl(var(--chart-2))" />
+                <Bar dataKey="MSNF" stackId="a" fill="hsl(var(--chart-3))" />
+                <Bar dataKey="Sugars" stackId="a" fill="hsl(var(--chart-4))" />
+                <Bar dataKey="Other" stackId="a" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {isSmallScreen ? (
+            <>
+              <Badge variant="secondary" className="text-xs">W: {waterPct.toFixed(1)}%</Badge>
+              <Badge variant="secondary" className="text-xs">F: {fatPct.toFixed(1)}%</Badge>
+              <Badge variant="secondary" className="text-xs">M: {msnfPct.toFixed(1)}%</Badge>
+              <Badge variant="secondary" className="text-xs">S: {sugarsPct.toFixed(1)}%</Badge>
+              <Badge variant="secondary" className="text-xs">O: {otherPct.toFixed(1)}%</Badge>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1 text-xs">
+                <div className="w-3 h-3 rounded-sm bg-chart-1" />
+                <span>Water: {waterPct.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <div className="w-3 h-3 rounded-sm bg-chart-2" />
+                <span>Fat: {fatPct.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <div className="w-3 h-3 rounded-sm bg-chart-3" />
+                <span>MSNF: {msnfPct.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <div className="w-3 h-3 rounded-sm bg-chart-4" />
+                <span>Sugars: {sugarsPct.toFixed(1)}%</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs">
+                <div className="w-3 h-3 rounded-sm bg-chart-5" />
+                <span>Other: {otherPct.toFixed(1)}%</span>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 
