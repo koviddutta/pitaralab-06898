@@ -9,6 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Suggestion {
   ingredient: string;
@@ -31,6 +33,42 @@ export const AISuggestionDialog: React.FC<AISuggestionDialogProps> = ({
   onAddSuggestion,
   isLoading,
 }) => {
+  const { toast } = useToast();
+
+  const handleAddSuggestion = async (suggestion: Suggestion) => {
+    try {
+      // Log acceptance to database
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('ai_suggestion_events').insert({
+          user_id: user.id,
+          ingredient: suggestion.ingredient,
+          reason: suggestion.reason,
+          accepted: true,
+        });
+      }
+
+      // Apply the suggestion
+      onAddSuggestion(suggestion);
+      
+      // Show success toast
+      toast({
+        title: `Added ${suggestion.ingredient}`,
+        description: suggestion.reason,
+      });
+
+      // Close dialog
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to log suggestion:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add suggestion',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -64,10 +102,7 @@ export const AISuggestionDialog: React.FC<AISuggestionDialogProps> = ({
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => {
-                        onAddSuggestion(suggestion);
-                        onOpenChange(false);
-                      }}
+                      onClick={() => handleAddSuggestion(suggestion)}
                       className="flex-shrink-0"
                     >
                       <Plus className="h-4 w-4 mr-1" />
