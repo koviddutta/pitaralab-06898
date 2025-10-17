@@ -37,6 +37,7 @@ import { SmartIngredientSearch } from './SmartIngredientSearch';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { RecipeTemplates, resolveTemplateIngredients } from './RecipeTemplates';
 import { FEATURES } from '@/config/features';
+import { AIUsageCounter } from './AIUsageCounter';
 
 // Lazy load Science panel for better performance
 const ScienceMetricsPanel = lazy(() => import('./ScienceMetricsPanel'));
@@ -468,7 +469,6 @@ const RecipeCalculatorV2 = () => {
     try {
       const supabase = await getSupabase();
       
-      let retryCount = 0;
       const { data, error } = await supabase.functions.invoke('suggest-ingredient', {
         body: { rows, mode }
       });
@@ -932,6 +932,9 @@ const RecipeCalculatorV2 = () => {
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Optimize
                   </Button>
+                  
+                  {/* AI Usage Counter */}
+                  <AIUsageCounter compact />
                 </>
               )}
             </div>
