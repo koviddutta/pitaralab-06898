@@ -123,6 +123,77 @@ Sometimes old cached data can cause issues:
 2. Collapse sections you're not using
 3. Use "Quick Add" tab for faster ingredient entry
 
+## AI Feature Issues
+
+### AI Suggest Ingredient Not Working
+
+**Symptoms:** Button clicks but nothing happens
+
+**Possible causes:**
+- Rate limit reached (10/hour)
+- Not authenticated
+- Recipe is empty
+- Backend connection issue
+
+**Solution:**
+1. Check AI usage counter in top-right
+2. Ensure you're logged in
+3. Add at least one ingredient to recipe
+4. Check console for specific error
+
+### AI Usage Counter Shows 0/10
+
+**Symptoms:** "Rate limit reached" message
+
+**Solution:**
+1. Wait for hourly reset (timer shows remaining time)
+2. Use other calculator features in the meantime
+3. Plan AI requests strategically
+
+### Warning Explanation Button Missing
+
+**Symptoms:** No "?" button next to warnings
+
+**Possible causes:**
+- Not authenticated
+- Backend unavailable
+- Old cached version
+
+**Solution:**
+1. Log in to enable AI features
+2. Check backend connection status
+3. Clear cache and refresh page
+
+### AI Requests Timing Out
+
+**Symptoms:** Loading spinner never completes
+
+**Possible causes:**
+- Network issues
+- AI service overload
+- Large recipe complexity
+
+**Solution:**
+1. Check network connection
+2. Wait and retry (automatic retry happens)
+3. Simplify recipe if very complex
+4. Check console for timeout errors
+
+### AI Suggestions Not Relevant
+
+**Symptoms:** Suggestions don't make sense for your recipe
+
+**Possible causes:**
+- Incomplete recipe context
+- Unusual product type
+- Edge case ingredients
+
+**Solution:**
+1. Add more base ingredients first
+2. Verify product type is selected
+3. Use manual ingredient search instead
+4. Try AI Optimize instead of Suggest
+
 ## Getting Help
 
 If issues persist:
@@ -130,7 +201,9 @@ If issues persist:
 1. Check the browser console (F12) for error messages
 2. Copy any error logs
 3. Note what you were trying to do when the error occurred
-4. Report the issue with these details
+4. Check AI usage counter status
+5. Verify authentication status
+6. Report the issue with these details
 
 ## Diagnostic Console Commands
 

@@ -11,26 +11,51 @@ The AI Engine tab provides advanced machine learning-powered recipe analysis and
 - Product-specific parameters (Ice Cream, Gelato, Sorbet)
 - Automatic metric calculations (Total Solids, Fat, MSNF, PAC, etc.)
 
-### 2. **AI Insights**
+### 2. **AI Insights** 🤖
 - Recipe Success Score (ML prediction)
 - Flavor Profile Analysis
 - ML-powered recommendations
 - Similar recipe suggestions
 
-### 3. **Chemistry Analysis**
+### 3. **AI Ingredient Suggestions** ⭐ NEW
+- Click "AI Suggest Ingredient" for intelligent recommendations
+- Context-aware suggestions based on your recipe
+- Detailed rationale for each suggestion
+- Considers product type and target metrics
+- Rate limited (10 uses/hour)
+
+### 4. **AI Recipe Optimization** ⭐ NEW
+- Click "AI Optimize Recipe" to improve formulation
+- Before/after comparison view
+- Targeted improvements for texture and flavor
+- Maintains recipe identity while enhancing balance
+
+### 5. **AI Warning Explanations** ⭐ NEW
+- Click "?" next to any warning for detailed explanation
+- Understand why issues occur
+- Get actionable fixes
+- Science-backed recommendations
+
+### 6. **Chemistry Analysis**
 - Real-time composition tracking
 - Target range validation
 - Visual indicators for optimal parameters
 
-### 4. **Sugar Blend Optimizer**
+### 7. **Sugar Blend Optimizer**
 - Optimize sugar types for your product
 - Balance sweetness with freezing point
 - Product-specific recommendations
 
-### 5. **Ingredient Analyzer**
+### 8. **Ingredient Analyzer**
 - Search and add ingredients
 - Ingredient similarity suggestions
 - Category-based filtering
+
+### 9. **AI Usage Tracking** ⭐ NEW
+- Real-time counter shows remaining AI requests
+- 10 requests per hour per user
+- Automatic reset after 1 hour
+- Clear notifications when limit reached
 
 ## How to Use
 
@@ -58,12 +83,34 @@ The AI Engine tab provides advanced machine learning-powered recipe analysis and
 - Provides flavor profile breakdown
 - Offers optimization suggestions
 
+**AI Suggest Ingredient:**
+1. Click the "AI Suggest Ingredient" button
+2. AI analyzes your current recipe
+3. Receives 3-5 contextualized suggestions
+4. Each suggestion includes rationale
+5. Click to add ingredient to recipe
+
+**AI Optimize Recipe:**
+1. Click "AI Optimize Recipe" button
+2. AI analyzes composition and balance
+3. Shows before/after comparison
+4. Highlights specific improvements
+5. Apply or dismiss suggestions
+
+**AI Explain Warning:**
+1. Look for warnings in the warnings panel
+2. Click the "?" button next to any warning
+3. Read detailed explanation and fixes
+4. Apply recommended solutions
+
 **What the AI Analyzes:**
 - Total composition balance
 - Ingredient proportions
 - Flavor compatibility
 - Product-specific targets
 - Freezing point considerations
+- Texture and mouthfeel predictions
+- Formulation defects and fixes
 
 ### Understanding the Metrics
 

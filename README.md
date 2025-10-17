@@ -13,10 +13,21 @@ Access at `http://localhost:5173`
 
 ## 📚 Documentation
 
+### Core Documentation
 - **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - Features, architecture, and technical highlights
 - **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Detailed setup and development guide
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and design patterns
 - **[EVALUATION_REPORT.md](EVALUATION_REPORT.md)** - Comprehensive technical evaluation
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history and release notes
+
+### AI Features
+- **[AI_FEATURES.md](AI_FEATURES.md)** - Complete AI features documentation
+- **[AI_ENGINE_GUIDE.md](AI_ENGINE_GUIDE.md)** - AI Engine user guide
+
+### Implementation & Security
+- **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - Current implementation status
+- **[SECURITY.md](SECURITY.md)** - Security policies and architecture
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ## ✨ Key Features
 
@@ -59,7 +70,15 @@ src/
 
 ## 🤖 AI Integration
 
-The app features two powerful AI-driven systems:
+The app features comprehensive AI-powered capabilities powered by **Google Gemini** (no API key required):
+
+### AI Features Overview
+- **AI Ingredient Suggestions**: Get intelligent ingredient recommendations with rationale
+- **AI Recipe Optimization**: Optimize recipes for texture, flavor, and composition
+- **AI Warning Explanations**: Understand and fix formulation issues with detailed guidance
+- **AI Paste Formulator**: Generate scientific paste recipes with citations
+- **AI Insights Engine**: ML-driven recipe success predictions and flavor analysis
+- **Rate Limiting**: Built-in usage tracking (10 requests/hour per user)
 
 ### AI Flavour Engine
 Advanced machine learning-powered recipe development:
@@ -76,12 +95,36 @@ Advanced machine learning-powered recipe development:
 
 📖 See [AI_ENGINE_GUIDE.md](./AI_ENGINE_GUIDE.md) for complete usage guide
 
-### Paste Formulator
-Built-in AI formulation using **Google Gemini 2.5 Flash** (no API key required):
+### Edge Functions (AI-Powered)
+Built-in AI endpoints using **Google Gemini 2.5 Flash**:
+
+#### 1. Suggest Ingredient (`/suggest-ingredient`)
+- Intelligent ingredient recommendations based on recipe context
+- Considers product type, existing ingredients, and target metrics
+- Provides detailed rationale for each suggestion
+- Rate limited to prevent abuse
+
+#### 2. Paste Formulator (`/paste-formulator`)
 - Scientific paste recipes with citations
 - Industry benchmark validation
 - Preservation method recommendations
 - Cost optimization
+
+#### 3. Explain Warning (`/explain-warning`)
+- Detailed explanations for formulation warnings
+- Actionable fixes for composition issues
+- Context-aware recommendations
+
+#### 4. Thermo Metrics (`/thermo-metrics`)
+- Advanced thermal property calculations
+- Freezing point depression analysis
+- Science-backed formulation guidance
+
+### AI Usage Tracking
+- **Real-time Counter**: Shows remaining AI requests in UI
+- **Rate Limiting**: 10 requests/hour per authenticated user
+- **Usage Logs**: Stored in `ai_usage_log` table for audit trail
+- **Graceful Degradation**: Clear error messages when limits reached
 
 ## 🎯 Production Ready
 
@@ -91,9 +134,13 @@ Built-in AI formulation using **Google Gemini 2.5 Flash** (no API key required):
 ✅ Performance optimized  
 ✅ Type safety enforced  
 ✅ Design system standardized (shadcn/ui)  
-✅ Service layer tested (Vitest)
+✅ Service layer tested (Vitest)  
+✅ AI integration complete with rate limiting  
+✅ Edge functions deployed and monitored  
+✅ Security hardening implemented  
+✅ Comprehensive documentation
 
-**Status**: Ready for beta testing (9/10 quality score)
+**Status**: Production-ready (9/10 quality score)
 
 ## Lovable Project Info
 
