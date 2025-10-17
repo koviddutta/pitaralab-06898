@@ -5,9 +5,10 @@ import { WarningTooltip } from "./WarningTooltip";
 
 interface EnhancedWarningsPanelProps {
   warnings: string[];
+  onRequestAIHelp?: () => void;
 }
 
-export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) => {
+export const EnhancedWarningsPanel = ({ warnings, onRequestAIHelp }: EnhancedWarningsPanelProps) => {
   if (!warnings || warnings.length === 0) {
     return (
       <Card className="border-green-500 bg-green-50 dark:bg-green-950/20">
@@ -43,7 +44,7 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
                 {critical.map((w, i) => (
                   <li key={i} className="text-sm flex items-center gap-2">
                     <span className="flex-1">{w.replace('⚠️', '').trim()}</span>
-                    <WarningTooltip warning={w} />
+                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
                   </li>
                 ))}
               </ul>
@@ -60,7 +61,7 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
                 {troubleshooting.map((w, i) => (
                   <li key={i} className="text-sm flex items-center gap-2">
                     <span className="flex-1">{w.replace('🔧', '').trim()}</span>
-                    <WarningTooltip warning={w} />
+                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
                   </li>
                 ))}
               </ul>
@@ -77,7 +78,7 @@ export const EnhancedWarningsPanel = ({ warnings }: EnhancedWarningsPanelProps) 
                 {info.map((w, i) => (
                   <li key={i} className="text-sm flex items-center gap-2">
                     <span className="flex-1">{w}</span>
-                    <WarningTooltip warning={w} />
+                    <WarningTooltip warning={w} onRequestAIHelp={onRequestAIHelp} />
                   </li>
                 ))}
               </ul>

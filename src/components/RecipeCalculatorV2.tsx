@@ -1102,7 +1102,10 @@ const RecipeCalculatorV2 = () => {
                     <CompositionBar metrics={metrics} />
                     <MetricsDisplayV2 metrics={metrics} mode={mode} />
                     <div className="warnings-panel">
-                      <EnhancedWarningsPanel warnings={metrics.warnings} />
+                      <EnhancedWarningsPanel 
+                        warnings={metrics.warnings} 
+                        onRequestAIHelp={handleAISuggest}
+                      />
                     </div>
                   </>
                 )}
@@ -1146,7 +1149,10 @@ const RecipeCalculatorV2 = () => {
                     <CompositionBar metrics={metrics} />
                     <MetricsDisplayV2 metrics={metrics} mode={mode} />
                     <div className="warnings-panel">
-                      <EnhancedWarningsPanel warnings={metrics.warnings} />
+                      <EnhancedWarningsPanel 
+                        warnings={metrics.warnings}
+                        onRequestAIHelp={handleAISuggest}
+                      />
                     </div>
                   </>
                 )}
