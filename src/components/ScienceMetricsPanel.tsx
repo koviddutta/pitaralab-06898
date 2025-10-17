@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
-import { ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { useState, useEffect } from "react";
 import { fetchThermoMetrics, type ThermoMetricsResult } from "@/services/metricsService";
 import { Loader2 } from "lucide-react";
@@ -37,13 +38,32 @@ export default function ScienceMetricsPanel({
 
     loadThermoMetrics();
   }, [rows, mode, serveTempC]);
-  const podVal = Math.max(0, Math.min(160, Math.round(podIndex)));
+  const podVal = Math.max(0, Math.min(150, Math.round(podIndex)));
   const [lo, hi] = mode==="gelato"? [2.5,3.5] : [2.0,2.5];
+  
   const sugarData = [
-    { name:"Sucrose", value:sucrose_g }, { name:"Dextrose", value:dextrose_g },
-    { name:"Fructose", value:fructose_g }, { name:"Lactose", value:lactose_g }
+    { name:"Sucrose", value:sucrose_g, fill:"hsl(var(--chart-1))" },
+    { name:"Dextrose", value:dextrose_g, fill:"hsl(var(--chart-2))" },
+    { name:"Fructose", value:fructose_g, fill:"hsl(var(--chart-3))" },
+    { name:"Lactose", value:lactose_g, fill:"hsl(var(--chart-4))" }
   ];
+  
   const compData = [{ name:"Mix", Water:waterPct, Fat:fatPct, MSNF:msnfPct, Sugars:sugarsPct, Other:otherPct }];
+  
+  const sugarChartConfig = {
+    sucrose: { label: "Sucrose", color: "hsl(var(--chart-1))" },
+    dextrose: { label: "Dextrose", color: "hsl(var(--chart-2))" },
+    fructose: { label: "Fructose", color: "hsl(var(--chart-3))" },
+    lactose: { label: "Lactose", color: "hsl(var(--chart-4))" },
+  };
+  
+  const compChartConfig = {
+    water: { label: "Water", color: "hsl(var(--chart-1))" },
+    fat: { label: "Fat", color: "hsl(var(--chart-2))" },
+    msnf: { label: "MSNF", color: "hsl(var(--chart-3))" },
+    sugars: { label: "Sugars", color: "hsl(var(--chart-4))" },
+    other: { label: "Other", color: "hsl(var(--chart-5))" },
+  };
 
   const TargetBar = ({ label, value, min, max }:{label:string; value:number; min:number; max:number}) => {
     const ok = value >= min && value <= max;
@@ -61,100 +81,202 @@ export default function ScienceMetricsPanel({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      <Card className="p-3">
-        <div className="text-sm mb-1">POD Index (per 100 g sugars)</div>
-        <ResponsiveContainer width="100%" height={140}>
-          <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ name:'POD', value: podVal }]}>
-            <RadialBar dataKey="value" cornerRadius={10} />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <div className="text-xs text-muted-foreground">Ideal ~80–120. Sucrose=100.</div>
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-2">POD Index</div>
+        <div className="text-xs text-muted-foreground mb-3">per 100g sugars</div>
+        <ChartContainer config={{ pod: { label: "POD", color: "hsl(var(--primary))" } }} className="h-[140px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart 
+              innerRadius="60%" 
+              outerRadius="90%" 
+              data={[{ name:'POD', value: podVal, fill: podVal >= 80 && podVal <= 120 ? "hsl(var(--success))" : "hsl(var(--warning))" }]}
+              startAngle={180}
+              endAngle={0}
+            >
+              <RadialBar 
+                dataKey="value" 
+                cornerRadius={10}
+                background={{ fill: "hsl(var(--muted))" }}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+        <div className="text-center mt-2">
+          <div className="text-2xl font-bold">{podVal}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Ideal: 80–120 | Sucrose baseline: 100
+          </div>
+        </div>
       </Card>
 
-      <Card className="p-3">
-        <div className="text-sm font-medium mb-2">Freezing Point Depression</div>
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-2">Freezing Point Depression (FPDT)</div>
         {isLoadingThermo ? (
-          <div className="flex items-center justify-center h-20">
-            <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : thermoMetrics ? (
-          <>
-            <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="flex justify-between items-end">
               <div>
                 <div className="text-xs text-muted-foreground">Base FPDT</div>
-                <div className="text-lg font-semibold">{thermoMetrics.base.FPDT.toFixed(2)} °C</div>
+                <div className="text-2xl font-bold">{thermoMetrics.base.FPDT.toFixed(2)}°C</div>
               </div>
               {thermoMetrics.adjusted.hardeningEffect > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground">Adjusted FPDT (with hardening)</div>
-                  <div className="text-lg font-semibold text-primary">{thermoMetrics.adjusted.FPDT.toFixed(2)} °C</div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Adjusted</div>
+                  <div className="text-lg font-semibold text-primary">{thermoMetrics.adjusted.FPDT.toFixed(2)}°C</div>
                 </div>
               )}
             </div>
-            <div className="h-3 rounded bg-muted mt-2 relative">
-              <div className={`absolute top-0 h-3 ${thermoMetrics.base.FPDT>=lo && thermoMetrics.base.FPDT<=hi ? 'bg-success' : 'bg-warning'}`} 
-                   style={{ width: `${Math.max(0, Math.min(100, ((thermoMetrics.base.FPDT-1.0)/3.5)*100))}%` }} />
+            
+            {/* Thermometer visualization */}
+            <div className="relative h-4 rounded-full bg-gradient-to-r from-blue-200 via-blue-300 to-blue-400 overflow-hidden border border-border">
+              {/* Ideal range indicator */}
+              <div 
+                className="absolute top-0 h-full bg-success/30 border-x-2 border-success"
+                style={{ 
+                  left: `${((lo - 1.0) / 3.5) * 100}%`,
+                  width: `${((hi - lo) / 3.5) * 100}%`
+                }}
+              />
+              {/* Current value marker */}
+              <div 
+                className="absolute top-0 h-full w-1 bg-foreground"
+                style={{ left: `${Math.max(0, Math.min(100, ((thermoMetrics.base.FPDT - 1.0) / 3.5) * 100))}%` }}
+              />
             </div>
-            <div className="text-xs mt-1">Target: {lo}–{hi} °C</div>
-          </>
+            
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>1.0°C</span>
+              <span className="text-success font-medium">Target: {lo}–{hi}°C</span>
+              <span>4.5°C</span>
+            </div>
+          </div>
         ) : (
-          <div className="text-sm text-muted-foreground">Add ingredients to calculate</div>
+          <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+            Add ingredients to calculate
+          </div>
         )}
       </Card>
 
-      <Card className="p-3">
+      <Card className="p-4">
         <div className="text-sm font-medium mb-2">Water Frozen @ {serveTempC}°C</div>
         {isLoadingThermo ? (
-          <div className="flex items-center justify-center h-20">
-            <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : thermoMetrics ? (
-          <>
-            <div className="space-y-2">
+          <div className="space-y-3">
+            <div className="flex justify-between items-end">
               <div>
                 <div className="text-xs text-muted-foreground">Base</div>
-                <div className="text-lg font-semibold">{thermoMetrics.base.waterFrozenPct.toFixed(1)}%</div>
+                <div className="text-2xl font-bold">{thermoMetrics.base.waterFrozenPct.toFixed(1)}%</div>
               </div>
               {thermoMetrics.adjusted.hardeningEffect > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground">Adjusted (with hardening)</div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Adjusted</div>
                   <div className="text-lg font-semibold text-primary">{thermoMetrics.adjusted.waterFrozenPct.toFixed(1)}%</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Hardening effect: {thermoMetrics.adjusted.hardeningEffect.toFixed(2)}
-                  </div>
                 </div>
               )}
             </div>
-            <div className="h-3 rounded bg-muted mt-2 relative">
-              <div className="absolute top-0 h-3 bg-primary" 
-                   style={{ width: `${thermoMetrics.base.waterFrozenPct}%` }} />
+            
+            {/* Progress bar visualization */}
+            <div className="relative h-4 rounded-full bg-muted overflow-hidden border border-border">
+              <div 
+                className={`h-full transition-all ${
+                  thermoMetrics.base.waterFrozenPct >= 65 && thermoMetrics.base.waterFrozenPct <= 75 
+                    ? 'bg-success' 
+                    : 'bg-primary'
+                }`}
+                style={{ width: `${thermoMetrics.base.waterFrozenPct}%` }} 
+              />
             </div>
-            <div className="text-xs mt-1">Ideal: 65-75% for scoopability</div>
-          </>
+            
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">0%</span>
+              <span className="text-success font-medium">Ideal: 65-75%</span>
+              <span className="text-muted-foreground">100%</span>
+            </div>
+            
+            {thermoMetrics.adjusted.hardeningEffect > 0 && (
+              <div className="text-xs text-muted-foreground pt-1 border-t">
+                Hardening effect: +{thermoMetrics.adjusted.hardeningEffect.toFixed(2)}
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="text-sm text-muted-foreground">Add ingredients to calculate</div>
+          <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+            Add ingredients to calculate
+          </div>
         )}
       </Card>
 
-      <Card className="p-3">
-        <div className="text-sm mb-2">Sugar Spectrum (g)</div>
-        <ResponsiveContainer width="100%" height={180}>
-          <PieChart><Pie data={sugarData} dataKey="value" nameKey="name" outerRadius={70} label>
-            {sugarData.map((_, i) => <Cell key={i} />)}
-          </Pie></PieChart>
-        </ResponsiveContainer>
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-4">Sugar Spectrum (grams)</div>
+        <ChartContainer config={sugarChartConfig} className="h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie 
+                data={sugarData} 
+                dataKey="value" 
+                nameKey="name" 
+                cx="50%" 
+                cy="50%" 
+                outerRadius={70}
+                label={({ name, value }) => value > 0 ? `${name}: ${value.toFixed(0)}g` : ''}
+                labelLine={false}
+              >
+                {sugarData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartContainer>
       </Card>
 
-      <Card className="p-3">
-        <div className="text-sm mb-2">Composition (%)</div>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={compData}>
-            <XAxis dataKey="name" hide /><YAxis domain={[0,100]} /><Tooltip />
-            <Bar dataKey="Water" stackId="a" /><Bar dataKey="Fat" stackId="a" />
-            <Bar dataKey="MSNF" stackId="a" /><Bar dataKey="Sugars" stackId="a" />
-            <Bar dataKey="Other" stackId="a" />
-          </BarChart>
-        </ResponsiveContainer>
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-4">Mix Composition (%)</div>
+        <ChartContainer config={compChartConfig} className="h-[220px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={compData} layout="vertical">
+              <XAxis type="number" domain={[0, 100]} />
+              <YAxis type="category" dataKey="name" hide />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="Water" stackId="a" fill="hsl(var(--chart-1))" radius={[4, 0, 0, 4]} />
+              <Bar dataKey="Fat" stackId="a" fill="hsl(var(--chart-2))" />
+              <Bar dataKey="MSNF" stackId="a" fill="hsl(var(--chart-3))" />
+              <Bar dataKey="Sugars" stackId="a" fill="hsl(var(--chart-4))" />
+              <Bar dataKey="Other" stackId="a" fill="hsl(var(--chart-5))" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartContainer>
+        <div className="mt-3 flex flex-wrap gap-3 text-xs">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-chart-1" />
+            <span>Water: {waterPct.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-chart-2" />
+            <span>Fat: {fatPct.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-chart-3" />
+            <span>MSNF: {msnfPct.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-chart-4" />
+            <span>Sugars: {sugarsPct.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-chart-5" />
+            <span>Other: {otherPct.toFixed(1)}%</span>
+          </div>
+        </div>
       </Card>
 
       <Card className="p-3">
