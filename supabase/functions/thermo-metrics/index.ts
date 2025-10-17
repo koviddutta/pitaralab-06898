@@ -44,10 +44,21 @@ function leightonLookup(sucrosePerWater: number): number {
 }
 
 function estimateFrozenWater(waterPct: number, pac: number, tempC: number): number {
-  const absPAC = waterPct > 0 ? pac / waterPct : pac;
+  // Guard against invalid inputs
+  if (waterPct <= 0 || pac <= 0) return 0;
+  if (tempC > 0) return 0; // No freezing above 0°C
+  
+  // Calculate with numerical stability
+  const absPAC = Math.min(pac / waterPct, 100); // Cap to prevent overflow
   const T_ifp = -0.54 * (pac / 100);
   const alpha = 0.25 + 2.0 * absPAC;
-  const F = 1 - Math.exp(alpha * (tempC - T_ifp));
+  
+  // Prevent exponential overflow
+  const exponent = alpha * (tempC - T_ifp);
+  if (exponent < -50) return 100; // Fully frozen
+  if (exponent > 50) return 0; // Not frozen
+  
+  const F = 1 - Math.exp(exponent);
   return Math.max(0, Math.min(1, F)) * 100;
 }
 

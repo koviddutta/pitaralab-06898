@@ -1,5 +1,11 @@
 project_id = "upugwezzqpxzjxpdxuar"
 
+[functions.analyze-recipe]
+verify_jwt = true
+
+[functions.log-recipe-outcome]
+verify_jwt = true
+
 [api]
 enabled = true
 port = 54321

@@ -1240,7 +1240,11 @@ const RecipeCalculatorV2 = () => {
 
       {/* AI Insights Panel */}
       {!isProductionMode && metrics && (
-        <AIInsightsPanel recipe={rows} />
+        <AIInsightsPanel 
+          recipe={rows} 
+          metrics={metrics}
+          productType={mode}
+        />
       )}
 
       {/* Enhanced Tools */}

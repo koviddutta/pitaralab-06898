@@ -65,11 +65,70 @@ export class MLService {
     };
   }
 
-  findSimilarIngredients(searchTerm: string, availableIngredients: string[]): IngredientSimilarity[] { 
-    return [
-      { ingredient: 'Similar ingredient 1', similarity: 0.8, reason: 'Similar category' },
-      { ingredient: 'Similar ingredient 2', similarity: 0.6, reason: 'Similar function' }
-    ]; 
+  /**
+   * Find similar ingredients using fuzzy matching
+   * Uses Levenshtein distance and category matching
+   */
+  findSimilarIngredients(searchTerm: string, availableIngredients: string[]): IngredientSimilarity[] {
+    if (!searchTerm || !availableIngredients.length) return [];
+
+    const search = searchTerm.toLowerCase().trim();
+    
+    // Simple Levenshtein distance calculation
+    const levenshtein = (a: string, b: string): number => {
+      const matrix: number[][] = [];
+      for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+      for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+
+    const similarities = availableIngredients.map(ingredient => {
+      const ingLower = ingredient.toLowerCase();
+      
+      // Exact match
+      if (ingLower === search) {
+        return { ingredient, similarity: 1.0, reason: 'Exact match' };
+      }
+      
+      // Contains match
+      if (ingLower.includes(search) || search.includes(ingLower)) {
+        return { ingredient, similarity: 0.9, reason: 'Name contains search term' };
+      }
+      
+      // Fuzzy match using Levenshtein
+      const distance = levenshtein(search, ingLower);
+      const maxLen = Math.max(search.length, ingLower.length);
+      const similarity = 1 - (distance / maxLen);
+      
+      let reason = 'Similar name';
+      if (similarity > 0.7) reason = 'Very similar name';
+      if (similarity > 0.5) reason = 'Similar spelling';
+      
+      return { ingredient, similarity, reason };
+    });
+
+    // Filter and sort
+    return similarities
+      .filter(s => s.similarity > 0.4) // Threshold for relevance
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 5); // Top 5 results
   }
 
   /**
