@@ -393,6 +393,39 @@ export type Database = {
         }
         Relationships: []
       }
+      recipe_outcomes: {
+        Row: {
+          actual_texture: string | null
+          created_at: string
+          id: string
+          metrics: Json | null
+          notes: string | null
+          outcome: string
+          recipe_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_texture?: string | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          notes?: string | null
+          outcome: string
+          recipe_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_texture?: string | null
+          created_at?: string
+          id?: string
+          metrics?: Json | null
+          notes?: string | null
+          outcome?: string
+          recipe_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       recipe_versions: {
         Row: {
           change_notes: string | null
