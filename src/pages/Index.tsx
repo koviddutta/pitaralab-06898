@@ -42,6 +42,14 @@ const Index = () => {
     let unsubscribe: (() => void) | undefined;
 
     (async () => {
+      // Check if backend is ready before attempting connection
+      if (!isBackendReady()) {
+        console.log("⚠️ Backend env vars not configured - running in offline mode");
+        setBackendReady(false);
+        setLoading(false);
+        return;
+      }
+
       try {
         console.log('🚀 Initializing Supabase connection...');
         const supabase = await getSupabase();
