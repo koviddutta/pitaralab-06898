@@ -65,6 +65,7 @@ const RecipeCalculatorV2 = () => {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [optimizeDialogOpen, setOptimizeDialogOpen] = useState(false);
   const [optimizedRows, setOptimizedRows] = useState<RecipeRow[]>([]);
+  const [preOptimizeSnapshot, setPreOptimizeSnapshot] = useState<RecipeRow[] | null>(null);
   const [browserDrawerOpen, setBrowserDrawerOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [recipesToCompare, setRecipesToCompare] = useState<RecipeDBRow[]>([]);
@@ -569,8 +570,19 @@ const RecipeCalculatorV2 = () => {
     setRows(optimizedRows);
     toast({
       title: "Recipe Optimized",
-      description: "Applied AI optimization to your recipe"
+      description: "Applied optimization to your recipe. Use Undo to revert if needed."
     });
+  };
+
+  const undoOptimization = () => {
+    if (preOptimizeSnapshot) {
+      setRows([...preOptimizeSnapshot]);
+      setPreOptimizeSnapshot(null);
+      toast({
+        title: "Optimization Reverted",
+        description: "Recipe restored to pre-optimization state"
+      });
+    }
   };
 
   const exportToCsv = () => {
@@ -917,6 +929,17 @@ const RecipeCalculatorV2 = () => {
                     <TrendingUp className="h-4 w-4 mr-2" />
                     Optimize
                   </Button>
+                  
+                  {preOptimizeSnapshot && (
+                    <Button 
+                      onClick={undoOptimization} 
+                      variant="outline"
+                      size="sm"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Undo
+                    </Button>
+                  )}
                   
                   {/* AI Usage Counter */}
                   <AIUsageCounter compact />

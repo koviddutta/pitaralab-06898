@@ -8,8 +8,15 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, TrendingUp } from 'lucide-react';
+import { TrendingUp, ArrowRight } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface RecipeRow {
   ingredientId: string;
@@ -33,65 +40,92 @@ export const OptimizeDialog: React.FC<OptimizeDialogProps> = ({
   onApply,
   getIngredientName,
 }) => {
-  // Find changed ingredients
-  const changes = optimizedRows
-    .map((optRow, index) => {
-      const origRow = originalRows[index];
-      if (!origRow || optRow.grams === origRow.grams) return null;
-      
-      const diff = optRow.grams - origRow.grams;
-      const percentChange = ((diff / origRow.grams) * 100).toFixed(1);
-      
-      return {
-        name: getIngredientName(optRow.ingredientId),
-        original: origRow.grams,
-        optimized: optRow.grams,
-        diff,
-        percentChange,
-      };
-    })
-    .filter(Boolean);
+  // Build comparison data for all ingredients
+  const comparison = optimizedRows.map((optRow, index) => {
+    const origRow = originalRows[index];
+    const diff = optRow.grams - origRow.grams;
+    const percentChange = origRow.grams > 0 ? ((diff / origRow.grams) * 100) : 0;
+    
+    return {
+      name: getIngredientName(optRow.ingredientId),
+      original: origRow.grams,
+      optimized: optRow.grams,
+      diff,
+      percentChange,
+      hasChange: Math.abs(diff) > 0.01,
+    };
+  });
+
+  const hasChanges = comparison.some(c => c.hasChange);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            Recipe Optimization
+            Recipe Optimization Preview
           </DialogTitle>
           <DialogDescription>
-            Review the suggested changes to improve your recipe
+            Review the suggested changes before applying to your recipe
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Changes Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {changes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No optimization changes needed - recipe is already balanced!</p>
-              ) : (
-                changes.map((change, index) => (
-                  <div key={index} className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium">{change.name}</div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{change.original}g</span>
-                        <ArrowRight className="h-3 w-3" />
-                        <span className="font-semibold text-foreground">{change.optimized}g</span>
-                        <span className={change.diff > 0 ? 'text-green-600' : 'text-orange-600'}>
-                          ({change.diff > 0 ? '+' : ''}{change.percentChange}%)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+          {!hasChanges ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                No optimization changes needed - recipe is already balanced!
+              </p>
+            </div>
+          ) : (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ingredient</TableHead>
+                    <TableHead className="text-right">Before</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="text-right">After</TableHead>
+                    <TableHead className="text-right">Change</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {comparison.map((item, index) => (
+                    <TableRow 
+                      key={index}
+                      className={item.hasChange ? 'bg-muted/30' : ''}
+                    >
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.original.toFixed(1)}g
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {item.hasChange && (
+                          <ArrowRight className="h-4 w-4 text-muted-foreground mx-auto" />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold">
+                        {item.optimized.toFixed(1)}g
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {item.hasChange ? (
+                          <span className={item.diff > 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'}>
+                            {item.diff > 0 ? '+' : ''}{item.diff.toFixed(1)}g
+                            <span className="text-xs ml-1">
+                              ({item.diff > 0 ? '+' : ''}{item.percentChange.toFixed(1)}%)
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -103,7 +137,7 @@ export const OptimizeDialog: React.FC<OptimizeDialogProps> = ({
               onApply();
               onOpenChange(false);
             }}
-            disabled={changes.length === 0}
+            disabled={!hasChanges}
           >
             Apply Changes
           </Button>
