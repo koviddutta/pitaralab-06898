@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface GlossaryTooltipProps {
-  term: 'fpdt' | 'msnf' | 'pod' | 'pac' | 'sp';
+  term: 'fpdt' | 'msnf' | 'pod' | 'pac' | 'sp' | 'se' | 'ts' | 'overrun' | 'protein' | 'lactose';
   brief: string;
 }
 
@@ -12,7 +12,12 @@ const TERM_NAMES = {
   msnf: 'MSNF',
   pod: 'POD',
   pac: 'PAC',
-  sp: 'SP'
+  sp: 'SP',
+  se: 'SE',
+  ts: 'Total Solids',
+  overrun: 'Overrun',
+  protein: 'Protein',
+  lactose: 'Lactose'
 };
 
 export function GlossaryTooltip({ term, brief }: GlossaryTooltipProps) {

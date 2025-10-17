@@ -84,7 +84,7 @@ export default function ScienceMetricsPanel({
       <Card className="p-4">
         <div className="text-sm font-medium mb-2">POD Index</div>
         <div className="text-xs text-muted-foreground mb-3">per 100g sugars</div>
-        <ChartContainer config={{ pod: { label: "POD", color: "hsl(var(--primary))" } }} className="h-[140px]">
+        <ChartContainer config={{ pod: { label: "POD", color: "hsl(var(--primary))" } }} className="h-[140px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <RadialBarChart 
               innerRadius="60%" 
@@ -215,7 +215,7 @@ export default function ScienceMetricsPanel({
 
       <Card className="p-4">
         <div className="text-sm font-medium mb-4">Sugar Spectrum (grams)</div>
-        <ChartContainer config={sugarChartConfig} className="h-[200px]">
+        <ChartContainer config={sugarChartConfig} className="h-[200px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie 
@@ -241,7 +241,7 @@ export default function ScienceMetricsPanel({
 
       <Card className="p-4">
         <div className="text-sm font-medium mb-4">Mix Composition (%)</div>
-        <ChartContainer config={compChartConfig} className="h-[220px]">
+        <ChartContainer config={compChartConfig} className="h-[220px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={compData} layout="vertical">
               <XAxis type="number" domain={[0, 100]} />

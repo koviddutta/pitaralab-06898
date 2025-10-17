@@ -66,7 +66,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
         <h3 className="text-2xl font-bold mb-4">Sugar Analysis</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
-            label="Total Sugars"
+            label={
+              <span className="flex items-center gap-1">
+                Total Sugars
+                <GlossaryTooltip term="ts" brief="All sugars including lactose from milk solids" />
+              </span>
+            }
             sublabel="(incl. lactose)"
             value={metrics.totalSugars_pct}
             unit="%"
@@ -83,7 +88,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
           />
           
           <MetricCard
-            label="Lactose"
+            label={
+              <span className="flex items-center gap-1">
+                Lactose
+                <GlossaryTooltip term="lactose" brief="Milk sugar - risk of crystallization if >11%" />
+              </span>
+            }
             value={metrics.lactose_pct}
             unit="%"
             warning={metrics.lactose_pct >= 11}
@@ -109,7 +119,12 @@ export const MetricsDisplayV2 = ({ metrics, mode }: MetricsDisplayV2Props) => {
         <h3 className="text-2xl font-bold mb-4">Protein & Freezing Point</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <MetricCard
-            label="Protein"
+            label={
+              <span className="flex items-center gap-1">
+                Protein
+                <GlossaryTooltip term="protein" brief="Dairy protein - affects body and mouthfeel" />
+              </span>
+            }
             value={metrics.protein_pct}
             unit="%"
             target={mode === 'kulfi' ? '6-9' : undefined}

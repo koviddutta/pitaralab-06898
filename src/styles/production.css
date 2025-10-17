@@ -68,6 +68,17 @@
   
   body {
     overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  /* Safe area for mobile bottom bar */
+  .safe-area-bottom {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0));
+  }
+  
+  /* Ensure content doesn't get hidden under mobile action bar */
+  .mobile-content-wrapper {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0));
   }
 }
 

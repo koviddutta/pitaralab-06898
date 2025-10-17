@@ -29,22 +29,22 @@ export function WelcomeTour({ open: controlledOpen, onOpenChange }: WelcomeTourP
 
   const steps = [
     {
-      title: 'Smart Ingredient Search',
-      description: 'Press "/" to instantly search for ingredients. Our smart search understands categories, tags, and common names.',
+      title: '1. Add Ingredients',
+      description: 'Search and add ingredients to your recipe. Press "/" for quick search or click the "Add Ingredient" button.',
       icon: <Search className="h-12 w-12 text-primary" />,
-      highlight: 'Search through 100+ ingredients with keyboard shortcuts and autocomplete'
+      highlight: 'Our database includes 100+ ingredients with precise nutritional data'
     },
     {
-      title: 'Real-Time Metrics',
-      description: 'Watch your recipe metrics update instantly as you add ingredients. Track FPDT, Total Solids, Fat%, and more.',
+      title: '2. Analyze Metrics',
+      description: 'Watch real-time metrics update as you build your recipe. Green badges mean you\'re on target!',
       icon: <BarChart3 className="h-12 w-12 text-primary" />,
-      highlight: 'Get instant feedback on whether your recipe meets professional standards'
+      highlight: 'FPDT, Total Solids, POD Index, and more - all calculated instantly'
     },
     {
-      title: 'Save & Share',
-      description: 'Save your recipes to the cloud and access them from any device. Export to CSV for production use.',
+      title: '3. Save Your Recipe',
+      description: 'Save recipes to the cloud with automatic versioning. Access from any device and export to CSV.',
       icon: <Save className="h-12 w-12 text-primary" />,
-      highlight: 'Build your personal recipe library and never lose a formula again'
+      highlight: 'Never lose a formula - full version history is kept for every recipe'
     }
   ];
 
