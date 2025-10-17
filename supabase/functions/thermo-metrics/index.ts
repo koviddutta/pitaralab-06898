@@ -144,12 +144,16 @@ serve(async (req) => {
     const baseWaterFrozen = estimateFrozenWater(waterPct, basePAC, serveTempC);
 
     // Adjusted calculations with hardening factor
-    const hardeningAdjustment = totalHardeningEffect * 0.1; // Scale factor for SE adjustment
-    const adjustedSE = totalSE + hardeningAdjustment;
+    // Get configurable K multiplier from environment (default: 1.0)
+    const K = Number(Deno.env.get("HF_K") ?? "1.0");
+    const deltaPAC = totalHardeningEffect * K;
+    const adjustedSE = totalSE + deltaPAC;
     const adjustedSEper100gWater = totalWater > 0 ? (adjustedSE / totalWater) * 100 : 0;
     const adjustedFPDT = leightonLookup(adjustedSEper100gWater);
     const adjustedPAC = adjustedSEper100gWater;
     const adjustedWaterFrozen = estimateFrozenWater(waterPct, adjustedPAC, serveTempC);
+
+    console.log(`Hardening calculation: totalEffect=${totalHardeningEffect.toFixed(2)}, K=${K}, deltaPAC=${deltaPAC.toFixed(2)}`);
 
     const result = {
       base: {
