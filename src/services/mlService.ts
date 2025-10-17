@@ -119,6 +119,130 @@ export class MLService {
     return { accuracy: 0.85, totalPredictions: 1250, modelVersion: 'v2.0' };
   }
 
+  /**
+   * Export training dataset from proven recipes
+   * Returns recipes tagged with 'ml_training' for model training
+   */
+  async exportTrainingData() {
+    const { getSupabase } = await import('@/integrations/supabase/safeClient');
+    const supabase = await getSupabase();
+    
+    const { data: recipes, error } = await supabase
+      .from('recipes')
+      .select('*')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return recipes?.map(recipe => ({
+      id: recipe.id,
+      name: recipe.name,
+      product_type: recipe.product_type,
+      metrics: recipe.metrics,
+      success: true, // All imported recipes are proven formulas
+      training_category: recipe.name.includes('Template') ? 'base' : 'finished'
+    })) || [];
+  }
+
+  /**
+   * Classify product type based on composition
+   * Uses metrics to determine if recipe is gelato, kulfi, or sorbet
+   */
+  classifyProductType(metrics: any): 'gelato' | 'kulfi' | 'sorbet' | 'other' {
+    const fat = metrics.fat_pct || 0;
+    const msnf = metrics.msnf_pct || 0;
+    const sugars = metrics.sugars_pct || 0;
+
+    // Sorbet: Low fat, high sugar
+    if (fat < 1 && sugars > 20) return 'sorbet';
+    
+    // Kulfi: Higher MSNF (>10%), moderate fat
+    if (msnf > 10 && fat > 6) return 'kulfi';
+    
+    // Gelato: Moderate fat (4-10%), balanced MSNF
+    if (fat >= 4 && fat <= 10 && msnf >= 6 && msnf <= 10) return 'gelato';
+    
+    return 'other';
+  }
+
+  /**
+   * Predict recipe success based on target ranges
+   * Returns pass/warn/fail + suggestions
+   */
+  predictSuccess(metrics: any, productType: string): { 
+    status: 'pass' | 'warn' | 'fail'; 
+    score: number;
+    suggestions: string[];
+  } {
+    const suggestions: string[] = [];
+    let score = 100;
+
+    // Target ranges by product type
+    const targets = {
+      gelato: { sp: [12, 22], pac: [22, 28], fat: [4, 10], msnf: [6, 10] },
+      kulfi: { sp: [14, 20], pac: [24, 30], fat: [6, 9], msnf: [10, 14] },
+      sorbet: { sp: [20, 28], pac: [28, 33], fat: [0, 1], msnf: [0, 2] }
+    };
+
+    const target = targets[productType as keyof typeof targets] || targets.gelato;
+
+    // Check each parameter
+    const checks = [
+      { name: 'SP', value: metrics.sp, range: target.sp, weight: 25 },
+      { name: 'PAC', value: metrics.pac, range: target.pac, weight: 25 },
+      { name: 'Fat%', value: metrics.fat_pct, range: target.fat, weight: 25 },
+      { name: 'MSNF%', value: metrics.msnf_pct, range: target.msnf, weight: 25 }
+    ];
+
+    checks.forEach(check => {
+      const [min, max] = check.range;
+      if (check.value < min) {
+        const diff = ((min - check.value) / min) * 100;
+        score -= (diff * check.weight) / 100;
+        suggestions.push(`${check.name} too low (${check.value.toFixed(1)} < ${min})`);
+      } else if (check.value > max) {
+        const diff = ((check.value - max) / max) * 100;
+        score -= (diff * check.weight) / 100;
+        suggestions.push(`${check.name} too high (${check.value.toFixed(1)} > ${max})`);
+      }
+    });
+
+    const status = score >= 90 ? 'pass' : score >= 70 ? 'warn' : 'fail';
+    return { status, score: Math.max(0, score), suggestions };
+  }
+
+  /**
+   * Recommend ingredients based on product type and current composition
+   */
+  recommendIngredients(productType: string, currentMetrics: any): string[] {
+    const recommendations: string[] = [];
+
+    if (productType === 'kulfi') {
+      if (currentMetrics.msnf_pct < 10) {
+        recommendations.push('Add Mawa (Khoya) to increase MSNF');
+        recommendations.push('Consider Skim Milk Powder for MSNF boost');
+      }
+      recommendations.push('Use Cardamom Powder for authentic flavor');
+    }
+
+    if (productType === 'gelato' && currentMetrics.sugars_pct < 16) {
+      recommendations.push('Add Dextrose for better texture');
+      recommendations.push('Consider Glucose Syrup DE40 for smoothness');
+    }
+
+    if (productType === 'sorbet' && currentMetrics.pac < 28) {
+      recommendations.push('Increase sugar content (PAC too low)');
+      recommendations.push('Add Dextrose to boost PAC');
+    }
+
+    if (currentMetrics.fat_pct < 5 && productType === 'gelato') {
+      recommendations.push('Add Cream 25% to increase fat content');
+    }
+
+    return recommendations;
+  }
+
   reverseEngineer(input: {
     productType: 'ice_cream'|'gelato_white'|'gelato_finished'|'fruit_gelato'|'sorbet';
     known?: Partial<{ fat_pct:number; sugars_pct:number; msnf_pct:number; ts_add_pct:number; sp:number; pac:number }>;

@@ -16,6 +16,8 @@ import EnhancedCalculator from "@/components/EnhancedCalculator";
 import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
 import { ProductionPlanner } from "@/components/ProductionPlanner";
+import { RecipeImporter } from "@/components/RecipeImporter";
+import { MLTrainingPanel } from "@/components/MLTrainingPanel";
 import CopyProtection from "@/components/CopyProtection";
 import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
@@ -323,6 +325,24 @@ const Index = () => {
               🏭 Production
             </TabsTrigger>
             <TabsTrigger 
+              value="import" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              📥 Import
+            </TabsTrigger>
+            <TabsTrigger 
+              value="ml-training" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              🧠 ML Training
+            </TabsTrigger>
+            <TabsTrigger 
               value="diagnostics" 
               className={isMobile 
                 ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
@@ -388,6 +408,14 @@ const Index = () => {
             <ProductionPlanner />
           </TabsContent>
 
+          <TabsContent value="import" className="mt-4 md:mt-6">
+            <RecipeImporter />
+          </TabsContent>
+
+          <TabsContent value="ml-training" className="mt-4 md:mt-6">
+            <MLTrainingPanel />
+          </TabsContent>
+
           <TabsContent value="diagnostics" className="mt-4 md:mt-6">
             <DiagnosticsPanel />
           </TabsContent>
@@ -405,11 +433,13 @@ const Index = () => {
             <CardContent className="p-4">
               <h3 className="font-semibold text-sm mb-2 text-foreground">📱 Mobile Features:</h3>
               <div className="space-y-1 text-xs text-muted-foreground">
-                <p>• All 10 tabs available - swipe to access</p>
+                <p>• All 12 tabs available - swipe to access</p>
                 <p>• Touch-optimized ingredient input</p>
                 <p>• Voice input for hands-free recipe creation</p>
                 <p>• Real-time parameter evaluation</p>
                 <p>• Mobile-friendly charts and analysis</p>
+                <p>• Recipe import from Excel/CSV</p>
+                <p>• ML training dashboard with model testing</p>
                 <p>• System diagnostics in 🔧 Diagnostics tab</p>
               </div>
             </CardContent>
