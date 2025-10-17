@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { fetchThermoMetrics, type ThermoMetricsResult } from "@/services/metricsService";
 import { Loader2 } from "lucide-react";
 import { showApiErrorToast } from "@/lib/ui/errors";
+import { safeDivide, clamp } from "@/lib/math";
 
 export default function ScienceMetricsPanel({
   podIndex, fpdt, mode,
@@ -68,14 +69,17 @@ export default function ScienceMetricsPanel({
   };
 
   const TargetBar = ({ label, value, min, max }:{label:string; value:number; min:number; max:number}) => {
-    const ok = value >= min && value <= max;
+    const safeValue = isFinite(value) ? value : 0;
+    const ok = safeValue >= min && safeValue <= max;
+    const width = clamp(safeValue, 0, 100);
+    
     return (
       <div className="mb-2">
         <div className="flex justify-between text-xs mb-1">
-          <span>{label}</span><span>{value.toFixed(1)}% (target {min}–{max}%)</span>
+          <span>{label}</span><span>{safeValue.toFixed(1)}% (target {min}–{max}%)</span>
         </div>
         <div className="h-2 bg-muted rounded overflow-hidden">
-          <div className={`h-2 ${ok?'bg-success':'bg-warning'}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+          <div className={`h-2 ${ok?'bg-success':'bg-warning'}`} style={{ width: `${width}%` }} />
         </div>
       </div>
     );
@@ -139,14 +143,14 @@ export default function ScienceMetricsPanel({
               <div 
                 className="absolute top-0 h-full bg-success/30 border-x-2 border-success"
                 style={{ 
-                  left: `${((lo - 1.0) / 3.5) * 100}%`,
-                  width: `${((hi - lo) / 3.5) * 100}%`
+                  left: `${clamp(safeDivide((lo - 1.0), 3.5) * 100, 0, 100)}%`,
+                  width: `${clamp(safeDivide((hi - lo), 3.5) * 100, 0, 100)}%`
                 }}
               />
               {/* Current value marker */}
               <div 
                 className="absolute top-0 h-full w-1 bg-foreground"
-                style={{ left: `${Math.max(0, Math.min(100, ((thermoMetrics.base.FPDT - 1.0) / 3.5) * 100))}%` }}
+                style={{ left: `${clamp(safeDivide((thermoMetrics.base.FPDT - 1.0), 3.5) * 100, 0, 100)}%` }}
               />
             </div>
             

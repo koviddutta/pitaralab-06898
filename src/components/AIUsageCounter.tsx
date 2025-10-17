@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useAIUsageLimit } from '@/hooks/useAIUsageLimit';
 import { Progress } from '@/components/ui/progress';
+import { safeDivide, clamp } from '@/lib/math';
 import {
   Tooltip,
   TooltipContent,
@@ -46,7 +47,7 @@ export const AIUsageCounter: React.FC<AIUsageCounterProps> = ({
     );
   }
 
-  const percentage = (used / limit) * 100;
+  const percentage = clamp(safeDivide(used, limit) * 100, 0, 100);
   const isNearLimit = remaining <= 2;
   const isAtLimit = remaining === 0;
 

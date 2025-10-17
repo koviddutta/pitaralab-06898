@@ -2,6 +2,7 @@ import { MetricsV2 } from "@/lib/calc.v2";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { clamp, safePercent } from "@/lib/math";
 
 interface CompositionBarProps {
   metrics: MetricsV2;
@@ -11,31 +12,31 @@ export const CompositionBar = ({ metrics }: CompositionBarProps) => {
   const segments = [
     { 
       label: 'Fat', 
-      value: metrics.fat_pct, 
+      value: isFinite(metrics.fat_pct) ? metrics.fat_pct : 0, 
       color: 'bg-yellow-400 dark:bg-yellow-600',
       description: 'Contributes richness and smooth mouthfeel'
     },
     { 
       label: 'MSNF', 
-      value: metrics.msnf_pct, 
+      value: isFinite(metrics.msnf_pct) ? metrics.msnf_pct : 0, 
       color: 'bg-blue-400 dark:bg-blue-600',
       description: 'Milk solids: protein + lactose + minerals'
     },
     { 
       label: 'Sugars', 
-      value: metrics.totalSugars_pct, 
+      value: isFinite(metrics.totalSugars_pct) ? metrics.totalSugars_pct : 0, 
       color: 'bg-pink-400 dark:bg-pink-600',
       description: 'Total sugars including lactose'
     },
     { 
       label: 'Other', 
-      value: metrics.other_pct, 
+      value: isFinite(metrics.other_pct) ? metrics.other_pct : 0, 
       color: 'bg-gray-400 dark:bg-gray-600',
       description: 'Stabilizers, emulsifiers, flavors'
     },
     { 
       label: 'Water', 
-      value: metrics.water_pct, 
+      value: isFinite(metrics.water_pct) ? metrics.water_pct : 0, 
       color: 'bg-cyan-200 dark:bg-cyan-800',
       description: 'Water content (will freeze)'
     },
@@ -58,18 +59,18 @@ export const CompositionBar = ({ metrics }: CompositionBarProps) => {
                         seg.color, 
                         "transition-all hover:opacity-80 cursor-pointer flex items-center justify-center"
                       )}
-                      style={{ width: `${seg.value}%` }}
+                      style={{ width: `${clamp(seg.value, 0, 100)}%` }}
                     >
                       {seg.value > 8 && (
                         <span className="text-xs font-semibold text-white drop-shadow">
-                          {seg.value.toFixed(1)}%
+                          {safePercent(seg.value, 1)}
                         </span>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <div className="text-sm">
-                      <div className="font-semibold">{seg.label}: {seg.value.toFixed(2)}%</div>
+                      <div className="font-semibold">{seg.label}: {safePercent(seg.value, 2)}</div>
                       <div className="text-xs text-muted-foreground">{seg.description}</div>
                     </div>
                   </TooltipContent>
@@ -84,7 +85,7 @@ export const CompositionBar = ({ metrics }: CompositionBarProps) => {
             <div key={i} className="flex items-center gap-1.5">
               <div className={cn(seg.color, "w-4 h-4 rounded border border-gray-300")} />
               <span className="font-medium">{seg.label}</span>
-              <span className="text-muted-foreground">({seg.value.toFixed(1)}%)</span>
+              <span className="text-muted-foreground">({safePercent(seg.value, 1)})</span>
             </div>
           ))}
         </div>
