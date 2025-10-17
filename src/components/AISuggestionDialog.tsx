@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Plus } from 'lucide-react';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
+import { logEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface Suggestion {
   ingredient: string;
@@ -37,7 +38,7 @@ export const AISuggestionDialog: React.FC<AISuggestionDialogProps> = ({
 
   const handleAddSuggestion = async (suggestion: Suggestion) => {
     try {
-      // Log acceptance to database
+      // Log acceptance to database for detailed telemetry
       const supabase = await getSupabase();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -48,6 +49,12 @@ export const AISuggestionDialog: React.FC<AISuggestionDialogProps> = ({
           accepted: true,
         });
       }
+
+      // Log to general events for aggregate analytics
+      logEvent(ANALYTICS_EVENTS.AI_SUGGEST_ACCEPT, {
+        ingredient: suggestion.ingredient,
+        grams: suggestion.grams
+      });
 
       // Apply the suggestion
       onAddSuggestion(suggestion);

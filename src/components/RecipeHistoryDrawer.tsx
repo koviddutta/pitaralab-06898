@@ -22,6 +22,7 @@ import {
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { logEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface RecipeVersion {
   id: string;
@@ -148,11 +149,20 @@ export function RecipeHistoryDrawer({
     const versionsToCompare = versions.filter((v) =>
       selectedVersions.includes(v.id)
     );
+    
+    logEvent(ANALYTICS_EVENTS.VERSION_COMPARE, { 
+      count: versionsToCompare.length 
+    });
+    
     onCompareVersions(versionsToCompare);
     setSelectedVersions([]);
   };
 
   const handleRestore = (version: RecipeVersion) => {
+    logEvent(ANALYTICS_EVENTS.VERSION_RESTORE, {
+      version_number: version.version_number,
+    });
+    
     onRestoreVersion(version);
     toast({
       title: 'Version restored',

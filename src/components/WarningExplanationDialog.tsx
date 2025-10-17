@@ -12,6 +12,7 @@ import { AlertTriangle, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
 import { showApiErrorToast } from '@/lib/ui/errors';
+import { logEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface WarningExplanationDialogProps {
   open: boolean;
@@ -41,6 +42,11 @@ export const WarningExplanationDialog: React.FC<WarningExplanationDialogProps> =
   const fetchExplanation = async () => {
     setIsLoading(true);
     setExplanation('');
+
+    logEvent(ANALYTICS_EVENTS.WARN_EXPLAIN_OPEN, {
+      warning_type: warning.substring(0, 50), // First 50 chars for categorization
+      mode
+    });
 
     try {
       const supabase = await getSupabase();

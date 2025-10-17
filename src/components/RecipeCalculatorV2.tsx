@@ -18,6 +18,7 @@ import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow, RecipeServ
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { fetchWithRetry } from '@/lib/fetchWithRetry';
+import { logEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 import { ModeSelector } from './ModeSelector';
 import { MetricsDisplayV2 } from './MetricsDisplayV2';
 import { EnhancedWarningsPanel } from './EnhancedWarningsPanel';
@@ -471,6 +472,11 @@ const RecipeCalculatorV2 = () => {
       return;
     }
 
+    logEvent(ANALYTICS_EVENTS.AI_SUGGEST_OPEN, { 
+      ingredient_count: rows.length,
+      mode 
+    });
+
     setIsLoadingSuggestions(true);
     setAiSuggestionsOpen(true);
     setAiSuggestions([]);
@@ -525,23 +531,21 @@ const RecipeCalculatorV2 = () => {
       setRows(prev => [...prev, { ingredientId: matchingIng.id, grams: suggestion.grams }]);
       
       // Log telemetry for accepted suggestion
-      try {
-        const supabase = await getSupabase();
-        await supabase.from('ai_suggestion_events').insert({
-          ingredient: suggestion.ingredient,
-          reason: suggestion.reason,
-          accepted: true
-        });
-      } catch (error) {
-        console.error('Failed to log suggestion telemetry:', error);
-        // Non-blocking - don't show error to user
-      }
+      logEvent(ANALYTICS_EVENTS.AI_SUGGEST_ACCEPT, {
+        ingredient: suggestion.ingredient,
+        grams: suggestion.grams
+      });
       
       toast({
         title: "Ingredient Added",
         description: `Added ${matchingIng.name} (${suggestion.grams}g)`
       });
     } else {
+      logEvent(ANALYTICS_EVENTS.AI_SUGGEST_DISMISS, {
+        ingredient: suggestion.ingredient,
+        reason: 'not_found'
+      });
+      
       toast({
         title: "Ingredient Not Found",
         description: `Could not find "${suggestion.ingredient}" in library. Add it manually.`,
@@ -559,6 +563,11 @@ const RecipeCalculatorV2 = () => {
       });
       return;
     }
+
+    logEvent(ANALYTICS_EVENTS.OPTIMIZE_OPEN, {
+      ingredient_count: rows.length,
+      mode
+    });
 
     // Convert to optimize format
     const optimizeRows = rows.map(row => ({
@@ -578,6 +587,11 @@ const RecipeCalculatorV2 = () => {
   };
 
   const applyOptimization = () => {
+    logEvent(ANALYTICS_EVENTS.OPTIMIZE_APPLY, {
+      original_count: rows.length,
+      optimized_count: optimizedRows.length
+    });
+    
     setRows(optimizedRows);
     toast({
       title: "Recipe Optimized",

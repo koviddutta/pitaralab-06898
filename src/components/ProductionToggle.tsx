@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { EyeOff, Eye, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { logEvent, ANALYTICS_EVENTS } from '@/lib/analytics';
 
 interface ProductionToggleProps {
   isProduction: boolean;
@@ -40,7 +41,13 @@ export const ProductionToggle: React.FC<ProductionToggleProps> = ({
         variant={isProduction ? "default" : "outline"}
         size="sm"
         onClick={() => {
-          onToggle(!isProduction);
+          const nextState = !isProduction;
+          onToggle(nextState);
+          
+          if (nextState) {
+            logEvent(ANALYTICS_EVENTS.PRODUCTION_MODE_ENABLE);
+          }
+          
           toast({
             title: !isProduction ? "Production Mode" : "Normal Mode",
             description: !isProduction 
@@ -61,6 +68,7 @@ export const ProductionToggle: React.FC<ProductionToggleProps> = ({
           variant="outline"
           size="sm"
           onClick={() => {
+            logEvent(ANALYTICS_EVENTS.PRODUCTION_MODE_PRINT);
             window.print();
             toast({
               title: "Print Preview",
