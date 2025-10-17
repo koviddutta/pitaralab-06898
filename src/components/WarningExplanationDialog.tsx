@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertTriangle, Loader2, BookOpen, Sparkles } from 'lucide-react';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
+import { showApiErrorToast } from '@/lib/ui/errors';
 
 interface WarningExplanationDialogProps {
   open: boolean;
@@ -50,21 +51,13 @@ export const WarningExplanationDialog: React.FC<WarningExplanationDialogProps> =
       if (error) throw error;
 
       if (data?.error) {
-        if (data.error.includes('Rate limit')) {
-          toast({
-            title: "Rate Limit Exceeded",
-            description: "Too many AI requests. Please try again later.",
-            variant: "destructive"
-          });
-        } else if (data.error.includes('credits') || data.error.includes('Payment')) {
-          toast({
-            title: "AI Credits Exhausted",
-            description: "Please add credits to your Lovable workspace.",
-            variant: "destructive"
-          });
-        } else {
-          throw new Error(data.error);
-        }
+        // Treat data.error as an error response with status code hints
+        const errorObj = { 
+          message: data.error,
+          status: data.error.includes('Rate limit') ? 429 : 
+                  data.error.includes('credits') || data.error.includes('Payment') ? 402 : 500
+        };
+        showApiErrorToast(errorObj, "Explanation Failed");
         onOpenChange(false);
         return;
       }
@@ -72,11 +65,7 @@ export const WarningExplanationDialog: React.FC<WarningExplanationDialogProps> =
       setExplanation(data.explanation || 'Unable to generate explanation.');
     } catch (error) {
       console.error('Warning explanation error:', error);
-      toast({
-        title: "Explanation Failed",
-        description: error instanceof Error ? error.message : "Failed to get explanation",
-        variant: "destructive"
-      });
+      showApiErrorToast(error, "Explanation Failed");
       onOpenChange(false);
     } finally {
       setIsLoading(false);

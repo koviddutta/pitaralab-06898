@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
+import { showApiErrorToast } from '@/lib/ui/errors';
 import { IngredientData } from '@/types/ingredients';
 import { getAllIngredients } from '@/services/ingredientService';
 import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow, RecipeService } from '@/services/recipeService';
@@ -411,11 +412,7 @@ const RecipeCalculatorV2 = () => {
       // Don't clear the recipe after saving - keep it for further edits
     } catch (error) {
       console.error('Error saving recipe:', error);
-      toast({
-        title: "Save Failed",
-        description: error instanceof Error ? error.message : "Failed to save recipe",
-        variant: "destructive"
-      });
+      showApiErrorToast(error, "Save Failed");
     } finally {
       setIsSaving(false);
     }
@@ -476,21 +473,13 @@ const RecipeCalculatorV2 = () => {
       if (error) throw error;
 
       if (data?.error) {
-        if (data.error.includes('Rate limit')) {
-          toast({
-            title: "Rate Limit Exceeded",
-            description: "You can make 10 AI suggestions per hour. Please try again later.",
-            variant: "destructive"
-          });
-        } else if (data.error.includes('credits') || data.error.includes('Payment')) {
-          toast({
-            title: "AI Credits Exhausted",
-            description: "Please add credits to your Lovable workspace to continue using AI features.",
-            variant: "destructive"
-          });
-        } else {
-          throw new Error(data.error);
-        }
+        // Treat data.error as an error response with status code hints
+        const errorObj = { 
+          message: data.error,
+          status: data.error.includes('Rate limit') ? 429 : 
+                  data.error.includes('credits') || data.error.includes('Payment') ? 402 : 500
+        };
+        showApiErrorToast(errorObj, "AI Suggestion Failed");
         setAiSuggestionsOpen(false);
         return;
       }
@@ -506,11 +495,7 @@ const RecipeCalculatorV2 = () => {
       }
     } catch (error) {
       console.error('AI suggestion error:', error);
-      toast({
-        title: "AI Suggestion Failed",
-        description: error instanceof Error ? error.message : "Failed to get suggestions. Please try again.",
-        variant: "destructive"
-      });
+      showApiErrorToast(error, "AI Suggestion Failed");
       setAiSuggestionsOpen(false);
     } finally {
       setIsLoadingSuggestions(false);

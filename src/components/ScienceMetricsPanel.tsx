@@ -4,6 +4,7 @@ import { ResponsiveContainer, RadialBarChart, RadialBar, PieChart, Pie, Cell, Ba
 import { useState, useEffect } from "react";
 import { fetchThermoMetrics, type ThermoMetricsResult } from "@/services/metricsService";
 import { Loader2 } from "lucide-react";
+import { showApiErrorToast } from "@/lib/ui/errors";
 
 export default function ScienceMetricsPanel({
   podIndex, fpdt, mode,
@@ -31,6 +32,7 @@ export default function ScienceMetricsPanel({
         setThermoMetrics(result);
       } catch (error) {
         console.error('Failed to fetch thermo metrics:', error);
+        showApiErrorToast(error, "Thermo Metrics Failed");
       } finally {
         setIsLoadingThermo(false);
       }
