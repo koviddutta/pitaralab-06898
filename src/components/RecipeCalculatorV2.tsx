@@ -27,6 +27,7 @@ import { OptimizeDialog } from './OptimizeDialog';
 import { WarningTooltip } from './WarningTooltip';
 import { RecipeBrowserDrawer } from './RecipeBrowserDrawer';
 import { RecipeCompareDialog } from './RecipeCompareDialog';
+import { RecipeHistoryDrawer } from './RecipeHistoryDrawer';
 import { ProductionToggle } from './ProductionToggle';
 import { MobileIngredientRow } from './MobileIngredientRow';
 import { MobileActionBar } from './MobileActionBar';
@@ -67,8 +68,10 @@ const RecipeCalculatorV2 = () => {
   const [optimizedRows, setOptimizedRows] = useState<RecipeRow[]>([]);
   const [preOptimizeSnapshot, setPreOptimizeSnapshot] = useState<RecipeRow[] | null>(null);
   const [browserDrawerOpen, setBrowserDrawerOpen] = useState(false);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [compareDialogOpen, setCompareDialogOpen] = useState(false);
   const [recipesToCompare, setRecipesToCompare] = useState<RecipeDBRow[]>([]);
+  const [versionsToCompare, setVersionsToCompare] = useState<any[]>([]);
   const [metricsVisible, setMetricsVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   
@@ -446,8 +449,16 @@ const RecipeCalculatorV2 = () => {
 
   const handleCompareRecipes = (recipes: RecipeDBRow[]) => {
     setRecipesToCompare(recipes);
+    setVersionsToCompare([]); // Clear version comparison
     setCompareDialogOpen(true);
     setBrowserDrawerOpen(false);
+  };
+
+  const handleCompareVersions = (versions: any[]) => {
+    setVersionsToCompare(versions);
+    setRecipesToCompare([]); // Clear recipe comparison
+    setCompareDialogOpen(true);
+    setHistoryDrawerOpen(false);
   };
 
   const handleAISuggest = async () => {
@@ -751,52 +762,15 @@ const RecipeCalculatorV2 = () => {
                 v{currentVersion}
               </Badge>
             )}
-            {versions.length > 1 && (
-              <Popover open={versionsOpen} onOpenChange={setVersionsOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <History className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Version History</h4>
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {versions.map((version: any) => (
-                        <div 
-                          key={version.id} 
-                          className="flex items-center justify-between p-2 hover:bg-muted rounded-sm"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={version.version_number === currentVersion ? "default" : "outline"}>
-                                v{version.version_number}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(version.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            {version.change_notes && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {version.change_notes}
-                              </p>
-                            )}
-                          </div>
-                          {version.version_number !== currentVersion && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRestoreVersion(version)}
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+            {recipeId && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setHistoryDrawerOpen(true)}
+                title="View version history"
+              >
+                <History className="h-4 w-4" />
+              </Button>
             )}
           </div>
 
@@ -1306,6 +1280,17 @@ const RecipeCalculatorV2 = () => {
         open={compareDialogOpen}
         onOpenChange={setCompareDialogOpen}
         recipes={recipesToCompare}
+        versions={versionsToCompare}
+      />
+
+      <RecipeHistoryDrawer
+        open={historyDrawerOpen}
+        onOpenChange={setHistoryDrawerOpen}
+        recipeId={recipeId}
+        onRestoreVersion={(version) => {
+          handleRestoreVersion(version);
+        }}
+        onCompareVersions={handleCompareVersions}
       />
     </div>
   );

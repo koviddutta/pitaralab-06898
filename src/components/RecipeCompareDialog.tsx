@@ -4,30 +4,48 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { RecipeRow } from "@/services/recipeService";
+import { format } from "date-fns";
+
+interface RecipeVersion {
+  id: string;
+  version_number: number;
+  name: string;
+  label?: string | null;
+  rows_json: any;
+  metrics?: any;
+  created_at: string;
+  profile_version?: string;
+  product_type?: string;
+}
 
 interface RecipeCompareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  recipes: RecipeRow[];
+  recipes?: RecipeRow[];
+  versions?: RecipeVersion[];
 }
 
-export function RecipeCompareDialog({ open, onOpenChange, recipes }: RecipeCompareDialogProps) {
-  if (recipes.length < 2) return null;
+export function RecipeCompareDialog({ open, onOpenChange, recipes, versions }: RecipeCompareDialogProps) {
+  // Support both recipe comparison and version comparison
+  const items = versions || recipes || [];
+  if (items.length < 2) return null;
+  
+  const isVersionComparison = !!versions;
 
-  const getIngredients = (recipe: RecipeRow) => {
-    if (!Array.isArray(recipe.rows_json)) return [];
-    return recipe.rows_json.map((row: any) => ({
+  const getIngredients = (item: RecipeRow | RecipeVersion) => {
+    if (!Array.isArray(item.rows_json)) return [];
+    return item.rows_json.map((row: any) => ({
       name: row.ingredientName || row.name || "Unknown",
       grams: row.grams || 0,
     }));
   };
 
   const allIngredientNames = Array.from(
-    new Set(recipes.flatMap((r) => getIngredients(r).map((i) => i.name)))
+    new Set(items.flatMap((r) => getIngredients(r).map((i) => i.name)))
   );
 
-  const getValueForIngredient = (recipe: RecipeRow, ingredientName: string) => {
-    const ingredients = getIngredients(recipe);
+  const getValueForIngredient = (item: RecipeRow | RecipeVersion, ingredientName: string) => {
+    const ingredients = getIngredients(item);
     return ingredients.find((i) => i.name === ingredientName)?.grams || 0;
   };
 
@@ -80,7 +98,7 @@ export function RecipeCompareDialog({ open, onOpenChange, recipes }: RecipeCompa
   };
 
   const renderMetricRow = (label: string, key: string, unit = "%") => {
-    const values = recipes.map((r) => r.metrics?.[key] || 0);
+    const values = items.map((r) => r.metrics?.[key] || 0);
     const baseValue = values[0];
     
     return (
@@ -98,6 +116,23 @@ export function RecipeCompareDialog({ open, onOpenChange, recipes }: RecipeCompa
     );
   };
 
+  const getItemLabel = (item: RecipeRow | RecipeVersion, idx: number) => {
+    if (isVersionComparison) {
+      const version = item as RecipeVersion;
+      return {
+        title: version.label || `Version ${version.version_number}`,
+        subtitle: format(new Date(version.created_at), 'MMM d, yyyy • h:mm a'),
+        badge: `v${version.version_number}`,
+      };
+    }
+    const recipe = item as RecipeRow;
+    return {
+      title: recipe.name,
+      subtitle: recipe.product_type || '',
+      badge: recipe.profile_version || 'v1',
+    };
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -107,23 +142,28 @@ export function RecipeCompareDialog({ open, onOpenChange, recipes }: RecipeCompa
 
         <ScrollArea className="h-[70vh]">
           <div className="space-y-6 p-1">
-            {/* Header with recipe names */}
+            {/* Header with recipe/version names */}
             <div className="sticky top-0 bg-background z-10 pb-4 border-b">
-              <div className="grid gap-4" style={{ gridTemplateColumns: `200px repeat(${recipes.length}, 1fr)` }}>
+              <div className="grid gap-4" style={{ gridTemplateColumns: `200px repeat(${items.length}, 1fr)` }}>
                 <div className="flex items-center">
-                  <span className="text-sm font-medium text-muted-foreground">Comparing {recipes.length} recipes</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Comparing {items.length} {isVersionComparison ? 'versions' : 'recipes'}
+                  </span>
                 </div>
-                {recipes.map((recipe, idx) => (
-                  <div key={idx} className="text-center p-3 rounded-lg bg-muted/50">
-                    <div className="font-bold text-base mb-1">{recipe.name}</div>
-                    <Badge variant={idx === 0 ? "default" : "outline"} className="mb-1">
-                      {idx === 0 ? "Base" : `Compare ${idx}`} • {recipe.profile_version || "v1"}
-                    </Badge>
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {recipe.product_type}
+                {items.map((item, idx) => {
+                  const labelData = getItemLabel(item, idx);
+                  return (
+                    <div key={idx} className="text-center p-3 rounded-lg bg-muted/50">
+                      <div className="font-bold text-base mb-1">{labelData.title}</div>
+                      <Badge variant={idx === 0 ? "default" : "outline"} className="mb-1">
+                        {idx === 0 ? "Base" : `Compare ${idx}`} • {labelData.badge}
+                      </Badge>
+                      <div className="text-xs text-muted-foreground">
+                        {labelData.subtitle}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -170,16 +210,16 @@ export function RecipeCompareDialog({ open, onOpenChange, recipes }: RecipeCompa
                 <thead>
                   <tr className="border-b-2 bg-muted/30">
                     <th className="py-3 px-4 text-left font-semibold">Ingredient</th>
-                    {recipes.map((recipe, idx) => (
+                    {items.map((item, idx) => (
                       <th key={idx} className="py-3 px-4 text-center font-semibold">
-                        {idx === 0 ? "Base" : `Recipe ${idx + 1}`}
+                        {idx === 0 ? "Base" : `${isVersionComparison ? 'Version' : 'Recipe'} ${idx + 1}`}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {allIngredientNames.map((name) => {
-                    const values = recipes.map((r) => getValueForIngredient(r, name));
+                    const values = items.map((r) => getValueForIngredient(r, name));
                     const baseValue = values[0];
                     
                     return (

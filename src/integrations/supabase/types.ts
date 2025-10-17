@@ -375,6 +375,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          label: string | null
           metrics: Json | null
           name: string
           product_type: string | null
@@ -390,6 +391,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          label?: string | null
           metrics?: Json | null
           name: string
           product_type?: string | null
@@ -405,6 +407,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          label?: string | null
           metrics?: Json | null
           name?: string
           product_type?: string | null
