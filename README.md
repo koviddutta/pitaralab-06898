@@ -80,6 +80,8 @@ The app features comprehensive AI-powered capabilities powered by **Google Gemin
 - **AI Insights Engine**: ML-driven recipe success predictions and flavor analysis
 - **Rate Limiting**: Built-in usage tracking (10 requests/hour per user)
 
+> **Feature Toggle**: AI features can be disabled via environment variable `VITE_FLAG_AI=off`
+
 ### AI Flavour Engine
 Advanced machine learning-powered recipe development:
 - **AI Insights**: ML-driven recipe success predictions and flavor analysis
@@ -177,6 +179,39 @@ npm i
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
+
+### Environment Variables & Feature Flags
+
+You can control major features via environment variables without code changes. Create a `.env` file in the project root:
+
+```bash
+# Feature Flags (set to "on" or "off")
+VITE_FLAG_AI=on                    # Enable/disable AI features (suggestions, explanations)
+VITE_FLAG_SCIENCE_PANEL=on         # Enable/disable science metrics visualization panel
+VITE_FLAG_PRODUCTION_MODE=on       # Enable/disable production mode toggle
+
+# Supabase Configuration (auto-configured via Lovable Cloud)
+VITE_SUPABASE_URL=<your-supabase-url>
+VITE_SUPABASE_PUBLISHABLE_KEY=<your-key>
+VITE_SUPABASE_PROJECT_ID=<your-project-id>
+```
+
+**Feature Flag Defaults**: All features default to "on" (enabled) if environment variables are not set.
+
+**To disable a feature**: Set the corresponding flag to anything other than "on" (e.g., "off", "false", or omit it entirely):
+
+```bash
+# Disable AI features
+VITE_FLAG_AI=off
+
+# Disable science panel
+VITE_FLAG_SCIENCE_PANEL=off
+
+# Disable production mode
+VITE_FLAG_PRODUCTION_MODE=off
+```
+
+After changing environment variables, restart the dev server for changes to take effect.
 
 **Edit a file directly in GitHub**
 
