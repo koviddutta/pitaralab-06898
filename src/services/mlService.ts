@@ -33,6 +33,33 @@ export interface MLPrediction {
   confidence: number;
 }
 
+// ML Training structures
+export interface FeatureVector {
+  fat_pct: number;
+  msnf_pct: number;
+  sugars_pct: number;
+  total_solids_pct: number;
+  fat_to_msnf_ratio: number;
+  sugar_to_solids_ratio: number;
+  pac: number;
+  sp: number;
+  fpdt: number;
+  frozen_water_pct: number;
+  ingredient_count: number;
+  ingredient_diversity: number;
+  is_gelato: number;
+  is_kulfi: number;
+  is_sorbet: number;
+}
+
+export interface ModelWeights {
+  version: string;
+  trained_at: string;
+  accuracy: number;
+  feature_importance: { [key: string]: number };
+  success_thresholds: { [key: string]: { min: number; max: number } };
+}
+
 export interface IngredientSimilarity {
   ingredient: string;
   similarity: number;
@@ -48,6 +75,8 @@ interface OptimizationSuggestion {
 }
 
 export class MLService {
+  private modelWeights: ModelWeights | null = null;
+  
   predictRecipeSuccess(_: any): MLPrediction { 
     return {
       successScore: 0.75,
@@ -63,6 +92,117 @@ export class MLService {
       similarRecipes: ['Classic Vanilla', 'Traditional Base'],
       confidence: 70
     };
+  }
+
+  // Feature extraction for ML
+  extractFeatures(recipe: any, metrics: any, productType: string): FeatureVector {
+    const ingredientCount = recipe.rows?.length || Object.keys(recipe).length;
+    const categories = new Set();
+    if (recipe.rows) {
+      recipe.rows.forEach((row: any) => {
+        if (row.ing?.category) categories.add(row.ing.category);
+      });
+    }
+
+    return {
+      fat_pct: metrics.fat_pct || metrics.fatPercentage || 0,
+      msnf_pct: metrics.msnf_pct || metrics.msnf || 0,
+      sugars_pct: metrics.sugars_pct || metrics.sugarPercentage || 0,
+      total_solids_pct: metrics.total_solids_pct || metrics.totalSolids || 0,
+      fat_to_msnf_ratio: (metrics.msnf || metrics.msnf_pct) > 0 ? 
+        (metrics.fat_pct || metrics.fatPercentage || 0) / (metrics.msnf || metrics.msnf_pct) : 0,
+      sugar_to_solids_ratio: (metrics.totalSolids || metrics.total_solids_pct) > 0 ?
+        (metrics.sugars_pct || metrics.sugarPercentage || 0) / (metrics.totalSolids || metrics.total_solids_pct) : 0,
+      pac: metrics.pac || 0,
+      sp: metrics.sp || 0,
+      fpdt: metrics.afp || metrics.fpdt || 0,
+      frozen_water_pct: metrics.frozenWater || 0,
+      ingredient_count: ingredientCount,
+      ingredient_diversity: categories.size,
+      is_gelato: productType === 'gelato' ? 1 : 0,
+      is_kulfi: productType === 'kulfi' ? 1 : 0,
+      is_sorbet: productType === 'sorbet' ? 1 : 0,
+    };
+  }
+
+  // Load trained model
+  loadModel(): ModelWeights | null {
+    if (this.modelWeights) return this.modelWeights;
+
+    try {
+      const stored = localStorage.getItem('ml_model_weights');
+      if (stored) {
+        this.modelWeights = JSON.parse(stored);
+        return this.modelWeights;
+      }
+    } catch (e) {
+      console.error('Failed to load model weights:', e);
+    }
+
+    return null;
+  }
+
+  // Train model on collected data
+  async trainModel(): Promise<ModelWeights> {
+    const allData = await this.exportTrainingData();
+    const { getSupabase } = await import('@/integrations/supabase/safeClient');
+    const supabase = await getSupabase();
+    
+    // Get outcome data
+    const { data: outcomes } = await supabase
+      .from('recipe_outcomes')
+      .select('*');
+
+    const outcomeMap = new Map(outcomes?.map(o => [o.recipe_id, o]) || []);
+    const successExamples = allData.filter(d => {
+      const outcome = outcomeMap.get(d.id);
+      return outcome?.outcome === 'success';
+    });
+
+    if (successExamples.length < 5) {
+      throw new Error('Need at least 5 successful recipes to train model');
+    }
+
+    // Extract features
+    const successFeatures = successExamples.map(r => 
+      this.extractFeatures(r, r.metrics, r.product_type)
+    );
+
+    // Calculate feature importance and thresholds
+    const featureKeys = Object.keys(successFeatures[0]) as Array<keyof FeatureVector>;
+    const featureImportance: { [key: string]: number } = {};
+    const thresholds: { [key: string]: { min: number; max: number } } = {};
+
+    featureKeys.forEach(key => {
+      const values = successFeatures.map(f => f[key]);
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      const variance = values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / values.length;
+      const stdDev = Math.sqrt(variance);
+      
+      featureImportance[key] = variance;
+      thresholds[key] = {
+        min: mean - 2 * stdDev,
+        max: mean + 2 * stdDev,
+      };
+    });
+
+    const weights: ModelWeights = {
+      version: '1.0.0',
+      trained_at: new Date().toISOString(),
+      accuracy: successExamples.length / allData.length,
+      feature_importance: featureImportance,
+      success_thresholds: thresholds,
+    };
+
+    this.modelWeights = weights;
+    
+    try {
+      localStorage.setItem('ml_model_weights', JSON.stringify(weights));
+    } catch (e) {
+      console.error('Failed to persist model weights:', e);
+    }
+
+    return weights;
   }
 
   /**
@@ -233,7 +373,56 @@ export class MLService {
     status: 'pass' | 'warn' | 'fail'; 
     score: number;
     suggestions: string[];
+    confidence?: number;
   } {
+    const model = this.loadModel();
+    
+    if (model) {
+      // Use ML model if available
+      const features = this.extractFeatures({}, metrics, productType);
+      const thresholds = model.success_thresholds;
+
+      let score = 100;
+      const suggestions: string[] = [];
+      let totalDeviation = 0;
+      let featureCount = 0;
+
+      Object.keys(features).forEach(key => {
+        const value = features[key as keyof FeatureVector];
+        const threshold = thresholds[key];
+        
+        if (threshold) {
+          const midpoint = (threshold.min + threshold.max) / 2;
+          const range = threshold.max - threshold.min;
+          
+          if (range > 0) {
+            const deviation = Math.abs(value - midpoint) / range;
+            totalDeviation += deviation;
+            featureCount++;
+
+            if (value < threshold.min || value > threshold.max) {
+              score -= 10 * deviation;
+              
+              if (key === 'fat_pct' && value < threshold.min) {
+                suggestions.push('Consider increasing fat content for better texture');
+              } else if (key === 'sugars_pct' && value > threshold.max) {
+                suggestions.push('Sugar content is high - may affect freezing point');
+              }
+            }
+          }
+        }
+      });
+
+      score = Math.max(0, Math.min(100, score));
+      const confidence = featureCount > 0 ? 1 - (totalDeviation / featureCount) : 0.5;
+
+      return {
+        status: score >= 80 ? 'pass' : score >= 60 ? 'warn' : 'fail',
+        score: Math.round(score),
+        suggestions: suggestions.slice(0, 3),
+        confidence: Math.round(confidence * 100) / 100,
+      };
+    }
     const suggestions: string[] = [];
     let score = 100;
 

@@ -8,12 +8,15 @@ import { mlService } from '@/services/mlService';
 
 export function MLTrainingPanel() {
   const [isExporting, setIsExporting] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
   const [trainingData, setTrainingData] = useState<any[]>([]);
   const [modelStats, setModelStats] = useState({
     totalRecipes: 0,
     baseTemplates: 0,
     finishedProducts: 0,
-    accuracy: 85
+    accuracy: 0,
+    version: 'untrained',
+    lastTrained: null as string | null,
   });
 
   const handleExportTrainingData = async () => {
@@ -26,7 +29,9 @@ export function MLTrainingPanel() {
         totalRecipes: data.length,
         baseTemplates: data.filter(r => r.training_category === 'base').length,
         finishedProducts: data.filter(r => r.training_category === 'finished').length,
-        accuracy: 85
+        accuracy: modelStats.accuracy,
+        version: modelStats.version,
+        lastTrained: modelStats.lastTrained,
       };
       setModelStats(stats);
 
@@ -45,6 +50,31 @@ export function MLTrainingPanel() {
       toast.error('Failed to export training data');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleTrainModel = async () => {
+    setIsTraining(true);
+    try {
+      const weights = await mlService.trainModel();
+      
+      setModelStats({
+        ...modelStats,
+        accuracy: Math.round(weights.accuracy * 100),
+        version: weights.version,
+        lastTrained: weights.trained_at,
+      });
+
+      toast.success('Model trained successfully!', {
+        description: `Accuracy: ${Math.round(weights.accuracy * 100)}%`,
+      });
+    } catch (error: any) {
+      console.error('Training error:', error);
+      toast.error('Failed to train model', {
+        description: error.message,
+      });
+    } finally {
+      setIsTraining(false);
     }
   };
 
@@ -67,7 +97,7 @@ export function MLTrainingPanel() {
       <div className="space-y-2">
         <div className="font-semibold">
           {result.status === 'pass' ? '✅' : result.status === 'warn' ? '⚠️' : '❌'} 
-          {' '}{result.status.toUpperCase()} (Score: {result.score.toFixed(0)})
+          {' '}{result.status.toUpperCase()} (Score: {result.score}, Confidence: {(result.confidence || 0) * 100}%)
         </div>
         {result.suggestions.length > 0 && (
           <div className="text-sm space-y-1">
@@ -80,6 +110,26 @@ export function MLTrainingPanel() {
     );
   };
 
+  const loadModelStats = () => {
+    const model = mlService.loadModel();
+    const performance = mlService.getModelPerformance();
+    
+    if (model) {
+      setModelStats({
+        totalRecipes: trainingData.length || 0,
+        baseTemplates: 0,
+        finishedProducts: 0,
+        accuracy: Math.round((model.accuracy || 0) * 100),
+        version: model.version,
+        lastTrained: model.trained_at,
+      });
+    }
+  };
+
+  useState(() => {
+    loadModelStats();
+  });
+
   return (
     <div className="space-y-4">
       <Card>
@@ -89,7 +139,7 @@ export function MLTrainingPanel() {
             ML Training Dashboard
           </CardTitle>
           <CardDescription>
-            Export training data and test ML models on proven recipes
+            Train models on real recipe data and test predictions
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -116,14 +166,33 @@ export function MLTrainingPanel() {
             <div className="text-sm font-medium">Training Progress</div>
             <Progress value={modelStats.accuracy} />
             <div className="text-xs text-muted-foreground">
-              Model trained on {modelStats.totalRecipes} proven recipes
+              {modelStats.version === 'untrained' 
+                ? 'No model trained yet' 
+                : `Model v${modelStats.version} trained on ${new Date(modelStats.lastTrained || '').toLocaleString()}`
+              }
             </div>
           </div>
 
-          <Button onClick={handleExportTrainingData} disabled={isExporting} className="w-full">
-            <Download className="h-4 w-4 mr-2" />
-            {isExporting ? 'Exporting...' : 'Export Training Dataset'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleExportTrainingData} 
+              disabled={isExporting}
+              variant="outline"
+              className="flex-1"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {isExporting ? 'Exporting...' : 'Export Dataset'}
+            </Button>
+            
+            <Button 
+              onClick={handleTrainModel} 
+              disabled={isTraining || trainingData.length === 0}
+              className="flex-1"
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              {isTraining ? 'Training...' : 'Train Model'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -132,7 +201,7 @@ export function MLTrainingPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Test ML Models
+              Test ML Predictions
             </CardTitle>
             <CardDescription>
               Run classification and success prediction on training data
@@ -140,7 +209,7 @@ export function MLTrainingPanel() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="max-h-96 overflow-y-auto space-y-2">
-              {trainingData.map((recipe, idx) => (
+              {trainingData.slice(0, 20).map((recipe, idx) => (
                 <Card key={idx} className="border-muted">
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between">
@@ -148,6 +217,7 @@ export function MLTrainingPanel() {
                         <div className="font-medium">{recipe.name}</div>
                         <div className="text-sm text-muted-foreground">
                           {recipe.product_type} • {recipe.training_category}
+                          {recipe.outcome && ` • ${recipe.outcome}`}
                         </div>
                       </div>
                       <div className="flex gap-2">
