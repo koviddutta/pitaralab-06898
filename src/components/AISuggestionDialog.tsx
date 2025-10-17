@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Plus } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { getSupabase } from '@/integrations/supabase/safeClient';
 import { useToast } from '@/hooks/use-toast';
 
 interface Suggestion {
@@ -38,6 +38,7 @@ export const AISuggestionDialog: React.FC<AISuggestionDialogProps> = ({
   const handleAddSuggestion = async (suggestion: Suggestion) => {
     try {
       // Log acceptance to database
+      const supabase = await getSupabase();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('ai_suggestion_events').insert({
