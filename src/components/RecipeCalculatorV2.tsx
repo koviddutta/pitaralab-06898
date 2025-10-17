@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle, ChefHat, Activity, Check } from 'lucide-react';
+import { Calculator, Plus, Minus, Save, Download, Trash2, Sparkles, TrendingUp, Bookmark, CheckCircle2, AlertTriangle, XCircle, ChefHat, Activity, Check, History, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
 import { getAllIngredients } from '@/services/ingredientService';
-import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow } from '@/services/recipeService';
+import { saveRecipe as saveRecipeToDb, type RecipeRow as RecipeDBRow, RecipeService } from '@/services/recipeService';
 import { databaseService } from '@/services/databaseService';
 import { getSupabase } from '@/integrations/supabase/safeClient';
 import { ModeSelector } from './ModeSelector';
@@ -48,11 +49,14 @@ const RecipeCalculatorV2 = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState<'gelato' | 'kulfi'>('gelato');
   const [recipeName, setRecipeName] = useState('');
+  const [recipeId, setRecipeId] = useState<string | null>(null);
+  const [currentVersion, setCurrentVersion] = useState<number>(1);
   const [rows, setRows] = useState<RecipeRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [savePopoverOpen, setSavePopoverOpen] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [lastSavedName, setLastSavedName] = useState('');
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [aiSuggestionsOpen, setAiSuggestionsOpen] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -326,6 +330,13 @@ const RecipeCalculatorV2 = () => {
     return `${cleanName} ${mode === 'gelato' ? 'Gelato' : 'Kulfi'}`;
   }, [rows, INGREDIENT_LIBRARY, mode, recipeName]);
 
+  // Fetch recipe versions when recipe is loaded
+  const { data: versions = [], refetch: refetchVersions } = useQuery({
+    queryKey: ['recipe-versions', recipeId],
+    queryFn: () => recipeId ? RecipeService.getRecipeVersions(recipeId) : Promise.resolve([]),
+    enabled: !!recipeId,
+  });
+
   // Check if recipe exists (for version tracking)
   const existingRecipe = useMemo(() => {
     if (!recipeName.trim()) return null;
@@ -355,20 +366,41 @@ const RecipeCalculatorV2 = () => {
 
     setIsSaving(true);
     try {
-      const result = await saveRecipeToDb({
-        name: finalName,
-        rows_json: rows,
-        metrics,
-        product_type: mode
-      });
+      // Use RecipeService which handles versioning
+      const result = recipeId 
+        ? await RecipeService.updateRecipe(recipeId, {
+            name: finalName,
+            rows: rows.map(r => ({ ingredientId: r.ingredientId, grams: r.grams })),
+            metrics,
+          })
+        : await RecipeService.saveRecipe({
+            name: finalName,
+            rows: rows.map(r => ({ ingredientId: r.ingredientId, grams: r.grams })),
+            metrics,
+            product_type: mode,
+          });
+
+      // Update state with new version info
+      setRecipeId(result.recipeId);
+      setCurrentVersion(result.versionNumber);
 
       // Clear draft after successful save
       databaseService.clearDraftRecipe();
+
+      // Refetch versions
+      if (result.recipeId) {
+        await refetchVersions();
+      }
 
       // Show success animation
       setLastSavedName(finalName);
       setShowSaveSuccess(true);
       setSavePopoverOpen(false);
+      
+      toast({
+        title: "Recipe Saved",
+        description: `Saved as version ${result.versionNumber}`,
+      });
       
       setTimeout(() => {
         setShowSaveSuccess(false);
@@ -389,9 +421,20 @@ const RecipeCalculatorV2 = () => {
 
   const handleLoadRecipe = (recipe: RecipeDBRow) => {
     setRecipeName(recipe.name);
+    setRecipeId(recipe.id || null);
     setMode(recipe.product_type as 'gelato' | 'kulfi');
     setRows(Array.isArray(recipe.rows_json) ? recipe.rows_json : []);
     toast({ title: "Recipe Loaded", description: `${recipe.name} loaded successfully` });
+  };
+
+  const handleRestoreVersion = async (version: any) => {
+    setRows(Array.isArray(version.rows_json) ? version.rows_json : []);
+    setCurrentVersion(version.version_number);
+    setVersionsOpen(false);
+    toast({ 
+      title: "Version Restored", 
+      description: `Restored to version ${version.version_number}` 
+    });
   };
 
   const handleDuplicateRecipe = (recipe: RecipeDBRow) => {
@@ -671,38 +714,112 @@ const RecipeCalculatorV2 = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Recipe Name with Version Badge */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Recipe name..."
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              onBlur={async () => {
+                if (recipeName.trim() && recipeId && metrics) {
+                  await saveRecipe();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && recipeName.trim() && metrics) {
+                  saveRecipe();
+                }
+              }}
+              className="flex-1"
+            />
+            {recipeId && (
+              <Badge variant="secondary" className="whitespace-nowrap">
+                v{currentVersion}
+              </Badge>
+            )}
+            {versions.length > 1 && (
+              <Popover open={versionsOpen} onOpenChange={setVersionsOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <History className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Version History</h4>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {versions.map((version: any) => (
+                        <div 
+                          key={version.id} 
+                          className="flex items-center justify-between p-2 hover:bg-muted rounded-sm"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={version.version_number === currentVersion ? "default" : "outline"}>
+                                v{version.version_number}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(version.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            {version.change_notes && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {version.change_notes}
+                              </p>
+                            )}
+                          </div>
+                          {version.version_number !== currentVersion && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRestoreVersion(version)}
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
           <div className="flex gap-2 items-center">
             {/* Toolbar Actions */}
             <div className={`flex gap-2 ${isProductionMode || isMobile ? 'hidden' : ''}`}>
-              {/* Inline Save Popover */}
+              {/* Save Button with Popover */}
               <Popover open={savePopoverOpen} onOpenChange={setSavePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button 
-                    disabled={isSaving || !metrics}
-                    variant={showSaveSuccess ? "default" : "outline"}
-                    className="relative"
-                  >
-                    {showSaveSuccess ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2 animate-scale-in" />
-                        Saved
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save Recipe
-                      </>
-                    )}
-                  </Button>
-                </PopoverTrigger>
+                <Button 
+                  onClick={() => {
+                    if (!recipeName.trim()) {
+                      setSavePopoverOpen(true);
+                    } else {
+                      saveRecipe();
+                    }
+                  }}
+                  disabled={isSaving || !metrics}
+                  variant={showSaveSuccess ? "default" : "outline"}
+                >
+                  {showSaveSuccess ? (
+                    <>
+                      <Check className="h-4 w-4 mr-2 animate-scale-in" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </>
+                  )}
+                </Button>
                 <PopoverContent className="w-80" align="start">
                   <div className="space-y-3">
                     <div className="space-y-1">
                       <h4 className="font-medium text-sm">Save Recipe</h4>
                       <p className="text-xs text-muted-foreground">
-                        {existingRecipe 
-                          ? `Updating existing recipe (v${(existingRecipe as any).version_number || 1})`
-                          : 'Save as new recipe'}
+                        Enter a name for your recipe
                       </p>
                     </div>
                     <div className="space-y-2">
