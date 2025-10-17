@@ -18,7 +18,7 @@ export const MobileActionBar: React.FC<MobileActionBarProps> = ({
   isSaving,
 }) => {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border shadow-lg z-50 md:hidden safe-area-bottom">
+    <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border shadow-lg z-50 md:hidden pb-[env(safe-area-inset-bottom,0px)]">
       <div className="grid grid-cols-3 gap-2 p-3">
         <Button
           variant="outline"

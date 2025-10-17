@@ -942,7 +942,7 @@ const RecipeCalculatorV2 = () => {
       {/* Mode Selector */}
       <ModeSelector mode={mode} onChange={setMode} />
 
-      <div className={`grid ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-6 ${isMobile ? 'pb-20' : ''}`}>
+      <div className={`grid ${isMobile ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-6 ${isMobile ? 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]' : ''}`}>
         {/* Ingredients Column */}
         {isMobile ? (
           <CollapsibleSection title="Ingredients" defaultOpen={true} icon={<ChefHat className="h-5 w-5" />}>

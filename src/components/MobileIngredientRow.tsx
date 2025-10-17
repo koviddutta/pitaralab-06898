@@ -28,27 +28,44 @@ export const MobileIngredientRow: React.FC<MobileIngredientRowProps> = ({
   onRemove,
   isProductionMode = false,
 }) => {
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
+  const [touchStart, setTouchStart] = useState({ x: 0, y: 0 });
+  const [touchEnd, setTouchEnd] = useState({ x: 0, y: 0 });
   const [swipeOffset, setSwipeOffset] = useState(0);
 
   const ing = ingredients[ingredientId];
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
+    setTouchStart({ 
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY 
+    });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-    const offset = touchStart - e.targetTouches[0].clientX;
-    if (offset > 0 && offset < 100) {
-      setSwipeOffset(offset);
+    const currentX = e.targetTouches[0].clientX;
+    const currentY = e.targetTouches[0].clientY;
+    setTouchEnd({ x: currentX, y: currentY });
+    
+    const deltaX = touchStart.x - currentX;
+    const deltaY = Math.abs(touchStart.y - currentY);
+    
+    // Ignore diagonal swipes (vertical scroll)
+    if (deltaY > Math.abs(deltaX)) {
+      setSwipeOffset(0);
+      return;
+    }
+    
+    if (deltaX > 0 && deltaX < 100) {
+      setSwipeOffset(deltaX);
     }
   };
 
   const handleTouchEnd = () => {
-    if (touchStart - touchEnd > 50) {
-      // Swipe left detected
+    const deltaX = touchStart.x - touchEnd.x;
+    const deltaY = Math.abs(touchStart.y - touchEnd.y);
+    
+    // Only trigger delete on deliberate horizontal swipes (72px threshold)
+    if (deltaX > 72 && deltaY <= Math.abs(deltaX)) {
       onRemove(index);
     }
     setSwipeOffset(0);
