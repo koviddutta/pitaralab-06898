@@ -41,6 +41,9 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { RecipeTemplates, resolveTemplateIngredients } from './RecipeTemplates';
 import { FEATURES } from '@/config/features';
 import { AIUsageCounter } from './AIUsageCounter';
+import MilkCreamConverter from './MilkCreamConverter';
+import SugarSpectrumBalance from './SugarSpectrumBalance';
+import DEEffectsPanel from './DEEffectsPanel';
 
 // Lazy load Science panel for better performance
 const ScienceMetricsPanel = lazy(() => import('./ScienceMetricsPanel'));
@@ -1238,6 +1241,56 @@ const RecipeCalculatorV2 = () => {
       {/* AI Insights Panel */}
       {!isProductionMode && metrics && (
         <AIInsightsPanel recipe={rows} />
+      )}
+
+      {/* Enhanced Tools */}
+      {!isProductionMode && metrics && (
+        <>
+          <CollapsibleSection 
+            title="Milk & Cream Converter" 
+            defaultOpen={false}
+            icon={<Calculator className="h-5 w-5" />}
+          >
+            <MilkCreamConverter />
+          </CollapsibleSection>
+
+          <CollapsibleSection 
+            title="Sugar Spectrum Optimizer" 
+            defaultOpen={false}
+            icon={<TrendingUp className="h-5 w-5" />}
+          >
+            <SugarSpectrumBalance
+              totalSugarGrams={metrics.totalSugars_pct * metrics.total_g / 100}
+              onApply={(blend) => {
+                // Find and replace sugar ingredients
+                const nonSugarRows = rows.filter(r => {
+                  const ing = INGREDIENT_LIBRARY[r.ingredientId];
+                  return ing?.category !== 'sugar';
+                });
+                
+                const sucroseId = Object.values(INGREDIENT_LIBRARY).find(i => i.name.toLowerCase().includes('sucrose'))?.id;
+                const dextroseId = Object.values(INGREDIENT_LIBRARY).find(i => i.name.toLowerCase().includes('dextrose'))?.id;
+                const glucoseId = Object.values(INGREDIENT_LIBRARY).find(i => i.name.toLowerCase().includes('glucose'))?.id;
+                
+                const newRows = [...nonSugarRows];
+                if (sucroseId && blend.sucrose_g > 0) newRows.push({ ingredientId: sucroseId, grams: blend.sucrose_g });
+                if (dextroseId && blend.dextrose_g > 0) newRows.push({ ingredientId: dextroseId, grams: blend.dextrose_g });
+                if (glucoseId && blend.glucose_g > 0) newRows.push({ ingredientId: glucoseId, grams: blend.glucose_g });
+                
+                setRows(newRows);
+                toast({ title: 'Sugar blend applied', description: 'Recipe updated with optimized sugar spectrum' });
+              }}
+            />
+          </CollapsibleSection>
+
+          <CollapsibleSection 
+            title="DE Effects Calculator" 
+            defaultOpen={false}
+            icon={<Activity className="h-5 w-5" />}
+          >
+            <DEEffectsPanel />
+          </CollapsibleSection>
+        </>
       )}
 
       {/* Mobile Action Bar */}
