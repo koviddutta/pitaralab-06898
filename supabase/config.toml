@@ -22,3 +22,6 @@ verify_jwt = true
 
 [functions.suggest-ingredient]
 verify_jwt = true
+
+[functions.thermo-metrics]
+verify_jwt = true
