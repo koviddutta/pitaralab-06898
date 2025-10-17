@@ -693,7 +693,8 @@ const RecipeCalculatorV2 = () => {
     setRecipeName('');
   };
 
-  if (isLoadingIngredients && !ingredientsError) {
+  // Don't show loading state on initial load to prevent flicker
+  if (isLoadingIngredients && !ingredientsError && ingredientsArray.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
