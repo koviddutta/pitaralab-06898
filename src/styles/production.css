@@ -82,48 +82,100 @@
   }
 }
 
-/* Print styles */
+/* Print styles - Kitchen-friendly printout */
 @media print {
   body {
-    background: white !important;
-    color: black !important;
+    background: #fff !important;
+    color: #000 !important;
   }
 
+  /* Hide all UI chrome */
   .app-nav,
   .sidebar,
-  .actions,
+  .ai-actions,
   .promo,
+  .charts,
   .footer,
   .warnings-panel,
   .science-metrics,
   .ai-buttons,
-  .export-buttons {
+  .export-buttons,
+  .actions,
+  button,
+  .production-toggle {
     display: none !important;
   }
 
+  /* Large, readable ingredient rows */
+  .ingredient-row {
+    font-size: 18px;
+    line-height: 1.6;
+    padding: 8px 0;
+    border-bottom: 1px solid #ddd;
+  }
+
   .ingredient-name {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 500;
   }
 
+  /* Prominent quantities */
   .ingredient-qty {
-    font-size: 20px;
-    font-weight: 700;
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+  }
+
+  /* Always show totals and FPDT/WF */
+  .totals,
+  .fpdt-wf,
+  .metric-card,
+  .metrics-display {
+    display: block !important;
+    page-break-inside: avoid;
   }
 
   .metric-value {
-    font-size: 24px;
+    font-size: 28px;
     font-weight: 700;
+    color: #000;
   }
 
+  .metric-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  /* Clean card styling */
   .card {
-    border: 1px solid #ccc;
+    border: 2px solid #333;
     box-shadow: none;
     page-break-inside: avoid;
+    margin-bottom: 20px;
+    background: #fff;
+  }
+
+  .card-header {
+    border-bottom: 2px solid #333;
+    padding: 12px;
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
   }
 
   /* Ensure clean page breaks */
   h1, h2, h3 {
     page-break-after: avoid;
+    font-weight: 700;
+  }
+
+  /* Recipe name prominent */
+  .recipe-name {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 16px;
   }
 }

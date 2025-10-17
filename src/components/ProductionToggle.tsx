@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { EyeOff, Eye } from 'lucide-react';
+import { EyeOff, Eye, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
@@ -35,24 +35,46 @@ export const ProductionToggle: React.FC<ProductionToggleProps> = ({
   }, [isProduction, onToggle, toast]);
 
   return (
-    <Button
-      variant={isProduction ? "default" : "outline"}
-      size="sm"
-      onClick={() => {
-        onToggle(!isProduction);
-        toast({
-          title: !isProduction ? "Production Mode" : "Normal Mode",
-          description: !isProduction 
-            ? "Showing kitchen view (Cmd/Ctrl+Shift+P to toggle)" 
-            : "Showing full interface",
-          duration: 2000
-        });
-      }}
-      className="flex items-center gap-2"
-      title="Toggle Production Mode (Cmd/Ctrl+Shift+P)"
-    >
-      {isProduction ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-      {isProduction ? "Exit" : "Production"}
-    </Button>
+    <div className="flex items-center gap-2 production-toggle">
+      <Button
+        variant={isProduction ? "default" : "outline"}
+        size="sm"
+        onClick={() => {
+          onToggle(!isProduction);
+          toast({
+            title: !isProduction ? "Production Mode" : "Normal Mode",
+            description: !isProduction 
+              ? "Showing kitchen view (Cmd/Ctrl+Shift+P to toggle)" 
+              : "Showing full interface",
+            duration: 2000
+          });
+        }}
+        className="flex items-center gap-2"
+        title="Toggle Production Mode (Cmd/Ctrl+Shift+P)"
+      >
+        {isProduction ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+        {isProduction ? "Exit" : "Production"}
+      </Button>
+      
+      {isProduction && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            window.print();
+            toast({
+              title: "Print Preview",
+              description: "Kitchen-friendly format ready",
+              duration: 2000
+            });
+          }}
+          className="flex items-center gap-2"
+          title="Print Recipe (Cmd/Ctrl+P)"
+        >
+          <Printer className="h-4 w-4" />
+          Print
+        </Button>
+      )}
+    </div>
   );
 };
