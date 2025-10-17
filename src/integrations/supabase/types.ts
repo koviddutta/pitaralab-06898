@@ -327,6 +327,48 @@ export type Database = {
         }
         Relationships: []
       }
+      production_plans: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          procurement_list: Json | null
+          recipe_allocations: Json
+          sku_size: number
+          total_cost: number | null
+          total_liters: number
+          updated_at: string | null
+          user_id: string
+          waste_factor: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          procurement_list?: Json | null
+          recipe_allocations?: Json
+          sku_size: number
+          total_cost?: number | null
+          total_liters: number
+          updated_at?: string | null
+          user_id?: string
+          waste_factor?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          procurement_list?: Json | null
+          recipe_allocations?: Json
+          sku_size?: number
+          total_cost?: number | null
+          total_liters?: number
+          updated_at?: string | null
+          user_id?: string
+          waste_factor?: number
+        }
+        Relationships: []
+      }
       recipe_versions: {
         Row: {
           change_notes: string | null

@@ -15,6 +15,7 @@ import MobileRecipeInput from "@/components/MobileRecipeInput";
 import EnhancedCalculator from "@/components/EnhancedCalculator";
 import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
+import { ProductionPlanner } from "@/components/ProductionPlanner";
 import CopyProtection from "@/components/CopyProtection";
 import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
@@ -313,6 +314,15 @@ const Index = () => {
               💵 Cost Calc
             </TabsTrigger>
             <TabsTrigger 
+              value="production" 
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              🏭 Production
+            </TabsTrigger>
+            <TabsTrigger 
               value="diagnostics" 
               className={isMobile 
                 ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
@@ -372,6 +382,10 @@ const Index = () => {
 
           <TabsContent value="cost" className="mt-4 md:mt-6">
             <CostCalculator />
+          </TabsContent>
+
+          <TabsContent value="production" className="mt-4 md:mt-6">
+            <ProductionPlanner />
           </TabsContent>
 
           <TabsContent value="diagnostics" className="mt-4 md:mt-6">
