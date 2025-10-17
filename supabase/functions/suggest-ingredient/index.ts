@@ -5,6 +5,13 @@ const LIMIT_PER_HOUR = 10;
 type Row = { ingredientId: string; grams: number };
 type Body = { rows: Row[]; mode: "gelato" | "kulfi" };
 
+interface Suggestion {
+  ingredient: string;
+  grams: number;
+  reason: string;
+  suggestedPctRange?: string;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -58,28 +65,163 @@ serve(async (req) => {
     // Calculate total batch size for percentage-based suggestions
     const totalGrams = body.rows.reduce((sum, r) => sum + r.grams, 0);
 
-    // Return hardcoded suggestions based on mode with calculated grams
-    const suggestions = [
-      { 
-        ingredient: "Dextrose (Glucose)", 
-        grams: Math.round(totalGrams * 0.02), // 2% of total
-        reason: "Lowers FP (PAC≈1.9) to soften texture; swap a part of sucrose."
-      },
-      { 
-        ingredient: "Glucose Syrup DE60", 
-        grams: Math.round(totalGrams * 0.035), // 3.5% of total
-        reason: "Adds body with lower sweetness; tunes FPDT without oversweetening."
-      },
-      { 
-        ingredient: "Locust Bean Gum (LBG)", 
-        grams: Math.round(totalGrams * 0.0025), // 0.25% of total
-        reason: "Improves body & meltdown; pair with guar for stability."
+    // Fetch ingredient library to build context
+    const { data: ingredients } = await supabase
+      .from("ingredients")
+      .select("id, name, category, water_pct, sugars_pct, fat_pct, msnf_pct, other_solids_pct, sp_coeff, pac_coeff")
+      .in("id", body.rows.map(r => r.ingredientId));
+
+    if (!ingredients || ingredients.length === 0) {
+      console.error("No ingredients found for the provided IDs");
+      return j({ error: "Invalid ingredient IDs" }, 400);
+    }
+
+    // Build recipe context for AI
+    const recipeContext = body.rows.map(row => {
+      const ing = ingredients.find(i => i.id === row.ingredientId);
+      return ing ? `${ing.name}: ${row.grams}g (${ing.category})` : null;
+    }).filter(Boolean).join(", ");
+
+    // Call Lovable AI Gateway for intelligent suggestions
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableApiKey) {
+      console.error("LOVABLE_API_KEY not configured");
+      return j({ error: "AI service not configured" }, 500);
+    }
+
+    const systemPrompt = `You are a gelato formulation expert. Analyze the recipe and suggest 3 intelligent ingredient additions or modifications that will improve the formulation for ${body.mode} production.
+
+Consider:
+- Freezing point depression (FPDT) targets: gelato 2.5-3.5°C, kulfi 2.0-2.5°C
+- Total solids targets: gelato 36-45%, kulfi 38-42%
+- Fat content: gelato 6-9%, kulfi 10-12%
+- Sugar balance and POD index (80-120 ideal)
+- Texture, scoopability, and mouthfeel
+- Stabilizer balance
+
+Provide practical suggestions with specific gram amounts and clear scientific reasoning.`;
+
+    const userPrompt = `Current ${body.mode} recipe (total: ${totalGrams}g):
+${recipeContext}
+
+Suggest 3 specific ingredients to add or modify to improve this formulation.`;
+
+    try {
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "suggest_ingredients",
+              description: "Suggest ingredient additions or modifications for gelato/kulfi formulation",
+              parameters: {
+                type: "object",
+                properties: {
+                  suggestions: {
+                    type: "array",
+                    maxItems: 3,
+                    items: {
+                      type: "object",
+                      properties: {
+                        ingredient: { 
+                          type: "string",
+                          description: "Name of the ingredient to add or modify"
+                        },
+                        grams: { 
+                          type: "number",
+                          description: "Amount in grams to add"
+                        },
+                        reason: { 
+                          type: "string",
+                          description: "Scientific explanation of why this improves the formulation"
+                        },
+                        suggestedPctRange: {
+                          type: "string",
+                          description: "Recommended percentage range (e.g., '2-4%' or '0.25-0.5%')"
+                        }
+                      },
+                      required: ["ingredient", "grams", "reason"],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ["suggestions"],
+                additionalProperties: false
+              }
+            }
+          }],
+          tool_choice: { type: "function", function: { name: "suggest_ingredients" } }
+        })
+      });
+
+      if (!aiResponse.ok) {
+        const errorText = await aiResponse.text();
+        console.error("AI Gateway error:", aiResponse.status, errorText);
+        
+        if (aiResponse.status === 429) {
+          return j({ error: "AI service rate limit exceeded. Please try again later." }, 429);
+        }
+        if (aiResponse.status === 402) {
+          return j({ error: "AI service credits exhausted. Please contact support." }, 402);
+        }
+        
+        return j({ error: "AI service temporarily unavailable" }, 503);
       }
-    ];
-    
-    console.log(`Generated ${suggestions.length} suggestions for user ${userId}`);
-    
-    return j({ suggestions }, 200);
+
+      const aiData = await aiResponse.json();
+      
+      // Extract suggestions from tool call
+      const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+      if (!toolCall?.function?.arguments) {
+        console.error("No tool call found in AI response");
+        return j({ error: "Failed to generate suggestions" }, 500);
+      }
+
+      const parsedArgs = JSON.parse(toolCall.function.arguments);
+      const suggestions: Suggestion[] = parsedArgs.suggestions || [];
+
+      console.log(`AI generated ${suggestions.length} suggestions for user ${userId}`);
+      
+      return j({ suggestions }, 200);
+
+    } catch (aiError) {
+      console.error("AI processing error:", aiError);
+      
+      // Fallback to rule-based suggestions
+      console.log("Falling back to rule-based suggestions");
+      const fallbackSuggestions: Suggestion[] = [
+        { 
+          ingredient: "Dextrose (Glucose)", 
+          grams: Math.round(totalGrams * 0.02),
+          reason: "Lowers freezing point (PAC≈1.9) to improve scoopability without adding excessive sweetness.",
+          suggestedPctRange: "2-4%"
+        },
+        { 
+          ingredient: "Glucose Syrup DE60", 
+          grams: Math.round(totalGrams * 0.035),
+          reason: "Adds body and reduces ice crystal growth while maintaining balanced sweetness.",
+          suggestedPctRange: "3-5%"
+        },
+        { 
+          ingredient: "Locust Bean Gum (LBG)", 
+          grams: Math.round(totalGrams * 0.0025),
+          reason: "Improves body and meltdown resistance; works synergistically with other stabilizers.",
+          suggestedPctRange: "0.2-0.3%"
+        }
+      ];
+      
+      return j({ suggestions: fallbackSuggestions }, 200);
+    }
   } catch (e) {
     console.error("Error in suggest-ingredient function:", e);
     return j({ error: String(e) }, 500);
