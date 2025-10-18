@@ -25,6 +25,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle, Wrench } from "lucide-react";
 import { migratePinProfiles } from "@/lib/migratePinProfiles";
+import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -97,13 +98,20 @@ const Index = () => {
     // Initialize migrations
     migratePinProfiles();
     
+    // Start ML training scheduler
+    mlScheduler.start();
+    
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
     
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      mlScheduler.stop();
+    };
   }, []);
 
   const handleMobileRecipeCreated = (recipe: { name: string; ingredients: any[] }) => {

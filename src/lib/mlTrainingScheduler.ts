@@ -1,0 +1,95 @@
+/**
+ * ML Training Scheduler
+ * Automatically trains ML models when sufficient feedback is collected
+ */
+
+import { mlService } from '@/services/mlService';
+import { getSupabase } from '@/integrations/supabase/safeClient';
+
+export class MLTrainingScheduler {
+  private static instance: MLTrainingScheduler;
+  private intervalId: number | null = null;
+  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  private readonly MIN_OUTCOMES_FOR_TRAINING = 5;
+
+  private constructor() {}
+
+  static getInstance(): MLTrainingScheduler {
+    if (!MLTrainingScheduler.instance) {
+      MLTrainingScheduler.instance = new MLTrainingScheduler();
+    }
+    return MLTrainingScheduler.instance;
+  }
+
+  async start() {
+    if (this.intervalId) {
+      console.log('ML training scheduler already running');
+      return;
+    }
+
+    console.log('🧠 Starting ML training scheduler');
+    
+    // Initial check
+    await this.checkAndTrain();
+
+    // Schedule periodic checks
+    this.intervalId = window.setInterval(() => {
+      this.checkAndTrain();
+    }, this.CHECK_INTERVAL);
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      console.log('ML training scheduler stopped');
+    }
+  }
+
+  async checkAndTrain(): Promise<boolean> {
+    try {
+      const supabase = await getSupabase();
+      const model = mlService.loadModel();
+      const lastTrained = model?.trained_at || '2000-01-01';
+
+      // Count new successful outcomes since last training
+      const { count, error } = await supabase
+        .from('recipe_outcomes')
+        .select('*', { count: 'exact', head: true })
+        .eq('outcome', 'success')
+        .gt('created_at', lastTrained);
+
+      if (error) {
+        console.error('Failed to check training status:', error);
+        return false;
+      }
+
+      if (!count || count < this.MIN_OUTCOMES_FOR_TRAINING) {
+        console.log(`ML: ${count} new outcomes, need ${this.MIN_OUTCOMES_FOR_TRAINING} to train`);
+        return false;
+      }
+
+      console.log(`🎯 ML: ${count} new outcomes detected - triggering training`);
+      
+      const weights = await mlService.trainModel();
+      
+      console.log(`✅ ML: Auto-trained successfully! Accuracy: ${Math.round(weights.accuracy * 100)}%`);
+      
+      // Refresh materialized view for better query performance
+      await supabase.rpc('refresh_ml_training_dataset');
+
+      return true;
+    } catch (error: any) {
+      console.error('ML auto-training failed:', error);
+      return false;
+    }
+  }
+
+  async manualTrain(): Promise<void> {
+    console.log('🚀 Manual ML training triggered');
+    await this.checkAndTrain();
+  }
+}
+
+// Export singleton instance
+export const mlScheduler = MLTrainingScheduler.getInstance();

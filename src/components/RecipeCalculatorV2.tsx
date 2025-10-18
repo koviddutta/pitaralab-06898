@@ -33,7 +33,7 @@ import { ProductionToggle } from './ProductionToggle';
 import { MobileIngredientRow } from './MobileIngredientRow';
 import { MobileActionBar } from './MobileActionBar';
 import { CollapsibleSection } from './CollapsibleSection';
-import { AIInsightsPanel } from './AIInsightsPanel';
+import { SmartInsightsPanel } from './SmartInsightsPanel';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SmartIngredientSearch } from './SmartIngredientSearch';
@@ -1238,9 +1238,9 @@ const RecipeCalculatorV2 = () => {
         </Suspense>
       )}
 
-      {/* AI Insights Panel */}
+      {/* Smart ML & AI Insights Panel */}
       {!isProductionMode && metrics && (
-        <AIInsightsPanel 
+        <SmartInsightsPanel 
           recipe={rows} 
           metrics={metrics}
           productType={mode}
