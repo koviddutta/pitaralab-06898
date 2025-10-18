@@ -17,6 +17,7 @@ import { CostingModule } from "@/components/CostingModule";
 import { ProductionPlanner } from "@/components/ProductionPlanner";
 import { RecipeImporter } from "@/components/RecipeImporter";
 import { MLTrainingPanel } from "@/components/MLTrainingPanel";
+import { AutoTrainingMonitor } from "@/components/AutoTrainingMonitor";
 import CopyProtection from "@/components/CopyProtection";
 import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
@@ -181,6 +182,12 @@ const Index = () => {
           </div>
         )}
         
+        {backendReady && user && (
+          <div className="mb-4">
+            <AutoTrainingMonitor />
+          </div>
+        )}
+
         {!backendReady && (
           <div className="mb-4">
             <Card className="bg-yellow-50 border-yellow-200">
@@ -226,7 +233,7 @@ const Index = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-sm md:text-lg px-4">
-            ML-powered recipe development tools with predictive analysis for artisan ice cream makers
+            🤖 AI-Powered · 🧠 Self-Learning · 📊 Real-time Predictions
           </p>
           {isMobile && (
             <Card className="mt-4 mx-4 bg-info-light border-info/20">
