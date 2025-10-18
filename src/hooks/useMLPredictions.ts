@@ -5,7 +5,7 @@ interface MLPrediction {
   status: 'pass' | 'warn' | 'fail';
   score: number;
   suggestions: string[];
-  confidence: number;
+  confidence?: number;
 }
 
 export function useMLPredictions(metrics: any, productType: string) {

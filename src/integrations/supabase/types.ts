@@ -122,6 +122,13 @@ export type Database = {
             foreignKeyName: "batches_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
+            referencedRelation: "ml_training_dataset"
+            referencedColumns: ["recipe_id"]
+          },
+          {
+            foreignKeyName: "batches_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
             referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
@@ -480,6 +487,13 @@ export type Database = {
             foreignKeyName: "recipe_versions_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
+            referencedRelation: "ml_training_dataset"
+            referencedColumns: ["recipe_id"]
+          },
+          {
+            foreignKeyName: "recipe_versions_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
             referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
@@ -491,6 +505,7 @@ export type Database = {
           id: string
           is_public: boolean | null
           metrics: Json | null
+          ml_score: number | null
           name: string
           product_type: string | null
           profile_id: string | null
@@ -504,6 +519,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           metrics?: Json | null
+          ml_score?: number | null
           name: string
           product_type?: string | null
           profile_id?: string | null
@@ -517,6 +533,7 @@ export type Database = {
           id?: string
           is_public?: boolean | null
           metrics?: Json | null
+          ml_score?: number | null
           name?: string
           product_type?: string | null
           profile_id?: string | null
@@ -604,6 +621,19 @@ export type Database = {
         }
         Relationships: []
       }
+      ml_training_dataset: {
+        Row: {
+          feedback_count: number | null
+          last_feedback_at: string | null
+          metrics: Json | null
+          ml_score: number | null
+          name: string | null
+          product_type: string | null
+          recipe_id: string | null
+          success_rate: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -612,6 +642,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      refresh_ml_training_dataset: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
