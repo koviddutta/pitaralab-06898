@@ -34,6 +34,8 @@ import { MobileIngredientRow } from './MobileIngredientRow';
 import { MobileActionBar } from './MobileActionBar';
 import { CollapsibleSection } from './CollapsibleSection';
 import { SmartInsightsPanel } from './SmartInsightsPanel';
+import { RecipeFeedbackDialog } from './RecipeFeedbackDialog';
+import { MLStatusIndicator } from './MLStatusIndicator';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SmartIngredientSearch } from './SmartIngredientSearch';
@@ -44,9 +46,6 @@ import { AIUsageCounter } from './AIUsageCounter';
 import MilkCreamConverter from './MilkCreamConverter';
 import SugarSpectrumBalance from './SugarSpectrumBalance';
 import DEEffectsPanel from './DEEffectsPanel';
-
-// Lazy load Science panel for better performance
-const ScienceMetricsPanel = lazy(() => import('./ScienceMetricsPanel'));
 
 interface RecipeRow {
   ingredientId: string;
@@ -78,6 +77,7 @@ const RecipeCalculatorV2 = () => {
   const [versionsToCompare, setVersionsToCompare] = useState<any[]>([]);
   const [metricsVisible, setMetricsVisible] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -672,28 +672,57 @@ const RecipeCalculatorV2 = () => {
 
   const handleLoadTemplate = (template: any) => {
     const resolvedRows = resolveTemplateIngredients(template, ingredientsArray);
+    if (resolvedRows.length === 0) {
+      toast({
+        title: "Template Error",
+        description: "Unable to resolve template ingredients. Please try starting from scratch.",
+        variant: "destructive"
+      });
+      return;
+    }
     setRows(resolvedRows);
     setRecipeName(template.name);
     setMode(template.mode);
     toast({
       title: "Template Loaded",
-      description: `${template.name} recipe loaded successfully`
+      description: `${template.name} recipe loaded with ${resolvedRows.length} ingredients`
     });
   };
 
   const handleStartFromScratch = () => {
-    const findIngredientByTag = (tag: string) => 
-      ingredientsArray.find(ing => ing.tags?.includes(tag));
+    // Find ingredients by common names as fallback
+    const findIngredient = (names: string[]) => {
+      for (const name of names) {
+        const found = ingredientsArray.find(ing => 
+          ing.name.toLowerCase().includes(name.toLowerCase()) ||
+          ing.tags?.some(tag => tag.includes(name.toLowerCase()))
+        );
+        if (found) return found;
+      }
+      return null;
+    };
 
-    setRows([
-      { ingredientId: findIngredientByTag('id:milk_3')?.id || ingredientsArray[0]?.id || '', grams: 600 },
-      { ingredientId: findIngredientByTag('id:heavy_cream')?.id || ingredientsArray[1]?.id || '', grams: 200 },
-      { ingredientId: findIngredientByTag('id:smp')?.id || ingredientsArray[2]?.id || '', grams: 40 },
-      { ingredientId: findIngredientByTag('id:sucrose')?.id || ingredientsArray[3]?.id || '', grams: 140 },
-      { ingredientId: findIngredientByTag('id:dextrose')?.id || ingredientsArray[4]?.id || '', grams: 20 },
-      { ingredientId: findIngredientByTag('id:stabilizer')?.id || ingredientsArray[5]?.id || '', grams: 3 }
-    ].filter(row => row.ingredientId));
+    const baseRows = [
+      { ing: findIngredient(['milk', 'whole milk']), grams: 600 },
+      { ing: findIngredient(['cream', 'heavy cream']), grams: 200 },
+      { ing: findIngredient(['smp', 'milk powder', 'skim milk powder']), grams: 40 },
+      { ing: findIngredient(['sucrose', 'sugar', 'table sugar']), grams: 140 },
+      { ing: findIngredient(['dextrose', 'glucose']), grams: 20 },
+      { ing: findIngredient(['stabilizer', 'guar']), grams: 3 }
+    ].filter(row => row.ing !== null) as Array<{ ing: IngredientData; grams: number }>;
+
+    if (baseRows.length === 0) {
+      // Ultimate fallback - use first 3 ingredients
+      setRows(ingredientsArray.slice(0, 3).map(ing => ({ ingredientId: ing.id, grams: 100 })));
+    } else {
+      setRows(baseRows.map(row => ({ ingredientId: row.ing.id, grams: row.grams })));
+    }
+    
     setRecipeName('');
+    toast({
+      title: "Starting Fresh",
+      description: `Created base recipe with ${baseRows.length || 3} ingredients`
+    });
   };
 
   // Don't show loading state on initial load to prevent flicker
@@ -741,6 +770,7 @@ const RecipeCalculatorV2 = () => {
               <span className={isMobile ? 'text-base' : ''}>Recipe Calculator {!isMobile && '(v2.1 Science)'}</span>
             </div>
             <div className="flex items-center gap-3">
+              <MLStatusIndicator />
               {FEATURES.PRODUCTION_MODE && !isMobile && (
                 <ProductionToggle 
                   isProduction={isProductionMode} 
@@ -901,6 +931,16 @@ const RecipeCalculatorV2 = () => {
               <Button onClick={exportToCsv} variant="outline" disabled={!metrics}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+
+              <Button 
+                onClick={() => setFeedbackDialogOpen(true)}
+                variant="outline"
+                disabled={!recipeId}
+                title="Log recipe outcome"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Feedback
               </Button>
 
               {FEATURES.AI_SUGGESTIONS && (
@@ -1240,11 +1280,20 @@ const RecipeCalculatorV2 = () => {
 
       {/* Smart ML & AI Insights Panel */}
       {!isProductionMode && metrics && (
-        <SmartInsightsPanel 
-          recipe={rows} 
-          metrics={metrics}
-          productType={mode}
-        />
+        <Suspense fallback={
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading insights...</p>
+            </CardContent>
+          </Card>
+        }>
+          <SmartInsightsPanel 
+            recipe={rows} 
+            metrics={metrics}
+            productType={mode}
+          />
+        </Suspense>
       )}
 
       {/* Enhanced Tools */}

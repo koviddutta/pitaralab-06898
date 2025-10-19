@@ -155,7 +155,7 @@ SUGGESTIONS: [bullet list of 2-3 specific, actionable suggestions]`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
+        // Note: temperature not supported by gemini-2.5-flash
       }),
     });
 

@@ -144,24 +144,30 @@ export class MLService {
 
   // Train model on collected data
   async trainModel(): Promise<ModelWeights> {
-    const allData = await this.exportTrainingData();
-    const { getSupabase } = await import('@/integrations/supabase/safeClient');
-    const supabase = await getSupabase();
-    
-    // Get outcome data
-    const { data: outcomes } = await supabase
-      .from('recipe_outcomes')
-      .select('*');
+    try {
+      const { isBackendReady } = await import('@/integrations/supabase/safeClient');
+      if (!isBackendReady()) {
+        throw new Error('Backend not available for training');
+      }
 
-    const outcomeMap = new Map(outcomes?.map(o => [o.recipe_id, o]) || []);
-    const successExamples = allData.filter(d => {
-      const outcome = outcomeMap.get(d.id);
-      return outcome?.outcome === 'success';
-    });
+      const allData = await this.exportTrainingData();
+      const { getSupabase } = await import('@/integrations/supabase/safeClient');
+      const supabase = await getSupabase();
+      
+      // Get outcome data
+      const { data: outcomes } = await supabase
+        .from('recipe_outcomes')
+        .select('*');
 
-    if (successExamples.length < 5) {
-      throw new Error('Need at least 5 successful recipes to train model');
-    }
+      const outcomeMap = new Map(outcomes?.map(o => [o.recipe_id, o]) || []);
+      const successExamples = allData.filter(d => {
+        const outcome = outcomeMap.get(d.id);
+        return outcome?.outcome === 'success';
+      });
+
+      if (successExamples.length < 5) {
+        throw new Error(`Need at least 5 successful recipes to train model (have ${successExamples.length})`);
+      }
 
     // Extract features
     const successFeatures = successExamples.map(r => 
@@ -194,15 +200,20 @@ export class MLService {
       success_thresholds: thresholds,
     };
 
-    this.modelWeights = weights;
-    
-    try {
-      localStorage.setItem('ml_model_weights', JSON.stringify(weights));
-    } catch (e) {
-      console.error('Failed to persist model weights:', e);
-    }
+      this.modelWeights = weights;
+      
+      try {
+        localStorage.setItem('ml_model_weights', JSON.stringify(weights));
+        console.log('✅ Model weights saved to localStorage');
+      } catch (e) {
+        console.error('Failed to persist model weights:', e);
+      }
 
-    return weights;
+      return weights;
+    } catch (error: any) {
+      console.error('Model training failed:', error);
+      throw error;
+    }
   }
 
   /**
@@ -323,25 +334,38 @@ export class MLService {
    * Returns recipes tagged with 'ml_training' for model training
    */
   async exportTrainingData() {
-    const { getSupabase } = await import('@/integrations/supabase/safeClient');
-    const supabase = await getSupabase();
-    
-    const { data: recipes, error } = await supabase
-      .from('recipes')
-      .select('*')
-      .eq('is_public', true)
-      .order('created_at', { ascending: false });
+    try {
+      const { isBackendReady, getSupabase } = await import('@/integrations/supabase/safeClient');
+      if (!isBackendReady()) {
+        console.log('Backend not available for training data export');
+        return [];
+      }
 
-    if (error) throw error;
+      const supabase = await getSupabase();
+      
+      const { data: recipes, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    return recipes?.map(recipe => ({
-      id: recipe.id,
-      name: recipe.name,
-      product_type: recipe.product_type,
-      metrics: recipe.metrics,
-      success: true, // All imported recipes are proven formulas
-      training_category: recipe.name.includes('Template') ? 'base' : 'finished'
-    })) || [];
+      if (error) {
+        console.error('Error fetching recipes for training:', error);
+        throw error;
+      }
+
+      return recipes?.map(recipe => ({
+        id: recipe.id,
+        name: recipe.name,
+        product_type: recipe.product_type,
+        metrics: recipe.metrics,
+        rows: recipe.rows_json,
+        success: true,
+        training_category: recipe.name.includes('Template') ? 'base' : 'finished'
+      })) || [];
+    } catch (error) {
+      console.error('Failed to export training data:', error);
+      return [];
+    }
   }
 
   /**

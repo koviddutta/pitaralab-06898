@@ -27,14 +27,25 @@ export class MLTrainingScheduler {
       return;
     }
 
+    // Check if backend is available before starting
+    const { isBackendReady } = await import('@/integrations/supabase/safeClient');
+    if (!isBackendReady()) {
+      console.log('🧠 ML training scheduler: Backend not ready, skipping auto-training');
+      return;
+    }
+
     console.log('🧠 Starting ML training scheduler');
     
     // Initial check
-    await this.checkAndTrain();
+    await this.checkAndTrain().catch(err => {
+      console.log('ML: Initial training check failed, will retry later:', err.message);
+    });
 
     // Schedule periodic checks
     this.intervalId = window.setInterval(() => {
-      this.checkAndTrain();
+      this.checkAndTrain().catch(err => {
+        console.log('ML: Training check failed:', err.message);
+      });
     }, this.CHECK_INTERVAL);
   }
 
@@ -48,6 +59,12 @@ export class MLTrainingScheduler {
 
   async checkAndTrain(): Promise<boolean> {
     try {
+      // Check backend availability first
+      const { isBackendReady } = await import('@/integrations/supabase/safeClient');
+      if (!isBackendReady()) {
+        return false;
+      }
+
       const supabase = await getSupabase();
       const model = mlService.loadModel();
       const lastTrained = model?.trained_at || '2000-01-01';
@@ -76,7 +93,11 @@ export class MLTrainingScheduler {
       console.log(`✅ ML: Auto-trained successfully! Accuracy: ${Math.round(weights.accuracy * 100)}%`);
       
       // Refresh materialized view for better query performance
-      await supabase.rpc('refresh_ml_training_dataset');
+      try {
+        await supabase.rpc('refresh_ml_training_dataset');
+      } catch (viewError) {
+        console.log('Note: Could not refresh training dataset view:', viewError);
+      }
 
       return true;
     } catch (error: any) {
