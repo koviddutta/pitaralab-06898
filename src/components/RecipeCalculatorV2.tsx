@@ -46,9 +46,7 @@ import { AIUsageCounter } from './AIUsageCounter';
 import MilkCreamConverter from './MilkCreamConverter';
 import SugarSpectrumBalance from './SugarSpectrumBalance';
 import DEEffectsPanel from './DEEffectsPanel';
-
-// Lazy load Science panel for better performance
-const ScienceMetricsPanel = lazy(() => import('./ScienceMetricsPanel'));
+import ScienceMetricsPanel from './ScienceMetricsPanel';
 
 interface RecipeRow {
   ingredientId: string;
@@ -1237,48 +1235,39 @@ const RecipeCalculatorV2 = () => {
 
       {/* Science Metrics Visualization - Below ingredient table */}
       {FEATURES.SCIENCE_PANEL && metrics && !isProductionMode && (
-        <Suspense fallback={
-          <Card className="science-metrics">
-            <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading science metrics...</p>
-            </CardContent>
-          </Card>
-        }>
-          <Card className="science-metrics">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                Science Metrics
-                {recipeStatus.status !== 'none' && (
-                  <div className="flex items-center gap-2">
-                    {recipeStatus.icon}
-                    <WarningTooltip warning={recipeStatus.message} />
-                  </div>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScienceMetricsPanel
-                podIndex={metrics.pod_index || 0}
-                fpdt={metrics.fpdt || 0}
-                mode={mode}
-                sugars={{
-                  sucrose_g: sugarBreakdown.sucrose,
-                  dextrose_g: sugarBreakdown.dextrose,
-                  fructose_g: sugarBreakdown.fructose,
-                  lactose_g: sugarBreakdown.lactose
-                }}
-                composition={{
-                  waterPct: metrics.water_pct,
-                  fatPct: metrics.fat_pct,
-                  msnfPct: metrics.msnf_pct,
-                  sugarsPct: metrics.totalSugars_pct,
-                  otherPct: metrics.other_pct
-                }}
-              />
-            </CardContent>
-          </Card>
-        </Suspense>
+        <Card className="science-metrics">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              Science Metrics
+              {recipeStatus.status !== 'none' && (
+                <div className="flex items-center gap-2">
+                  {recipeStatus.icon}
+                  <WarningTooltip warning={recipeStatus.message} />
+                </div>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScienceMetricsPanel
+              podIndex={metrics.pod_index || 0}
+              fpdt={metrics.fpdt || 0}
+              mode={mode}
+              sugars={{
+                sucrose_g: sugarBreakdown.sucrose,
+                dextrose_g: sugarBreakdown.dextrose,
+                fructose_g: sugarBreakdown.fructose,
+                lactose_g: sugarBreakdown.lactose
+              }}
+              composition={{
+                waterPct: metrics.water_pct,
+                fatPct: metrics.fat_pct,
+                msnfPct: metrics.msnf_pct,
+                sugarsPct: metrics.totalSugars_pct,
+                otherPct: metrics.other_pct
+              }}
+            />
+        </CardContent>
+      </Card>
       )}
 
       {/* Smart ML & AI Insights Panel */}
