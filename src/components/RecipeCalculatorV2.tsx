@@ -47,6 +47,9 @@ import MilkCreamConverter from './MilkCreamConverter';
 import SugarSpectrumBalance from './SugarSpectrumBalance';
 import DEEffectsPanel from './DEEffectsPanel';
 
+// Lazy load Science panel for better performance
+const ScienceMetricsPanel = lazy(() => import('./ScienceMetricsPanel'));
+
 interface RecipeRow {
   ingredientId: string;
   grams: number;
@@ -1412,6 +1415,14 @@ const RecipeCalculatorV2 = () => {
           handleRestoreVersion(version);
         }}
         onCompareVersions={handleCompareVersions}
+      />
+
+      <RecipeFeedbackDialog
+        open={feedbackDialogOpen}
+        onOpenChange={setFeedbackDialogOpen}
+        recipeId={recipeId}
+        recipeName={recipeName || suggestedName}
+        metrics={metrics}
       />
     </div>
   );
