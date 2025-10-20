@@ -284,15 +284,6 @@ const Index = () => {
               🤖 AI Engine
             </TabsTrigger>
             <TabsTrigger 
-              value="enhanced" 
-              className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
-                : 'flex-1 min-w-[140px] font-medium'}
-              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
-            >
-              🆕 Enhanced
-            </TabsTrigger>
-            <TabsTrigger 
               value="paste-studio" 
               className={isMobile 
                 ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
