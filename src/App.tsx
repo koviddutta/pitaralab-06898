@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
+import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import ErrorBoundary from "./components/ui/error-boundary";
 
 const queryClient = new QueryClient();
@@ -18,8 +19,16 @@ const Glossary = lazy(() => import("./pages/Glossary"));
 const MLTraining = lazy(() => import("./pages/MLTraining"));
 
 const App = () => {
-  // Lovable Cloud projects have auto-managed environment variables
-  // No need for blocking env checks - let components handle backend availability gracefully
+  // Initialize ML auto-training scheduler
+  useEffect(() => {
+    console.log('🚀 Initializing ML training scheduler...');
+    mlScheduler.start().catch(err => {
+      console.log('ML scheduler initialization deferred:', err.message);
+    });
+    
+    return () => mlScheduler.stop();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>

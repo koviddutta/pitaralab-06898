@@ -2,8 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Fallback to hardcoded values if env vars aren't loaded (Cloud deployment fix)
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://upugwezzqpxzjxpdxuar.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwdWd3ZXp6cXB4emp4cGR4dWFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NTE4MzAsImV4cCI6MjA3NTEyNzgzMH0.TYQJNuWk-WtkL0c-NLE-7q3P8xoZoApUXtMEDkek52U';
 
 // Lazy-initialized client to avoid errors when env vars aren't loaded yet
 let _supabaseClient: ReturnType<typeof createClient<Database>> | null = null;
