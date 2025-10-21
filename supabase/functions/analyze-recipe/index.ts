@@ -134,7 +134,6 @@ SUGGESTIONS: [bullet list of 2-3 specific, actionable suggestions]`;
     await supabase.from('ai_usage_log').insert({
       user_id: user.id,
       function_name: 'analyze-recipe',
-      tokens_used: 500, // Approximate
     });
 
     // Call Lovable AI

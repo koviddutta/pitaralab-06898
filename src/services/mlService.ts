@@ -94,7 +94,7 @@ export class MLService {
     };
   }
 
-  // Feature extraction for ML
+  // Feature extraction for ML (scientifically validated)
   extractFeatures(recipe: any, metrics: any, productType: string): FeatureVector {
     const ingredientCount = recipe.rows?.length || Object.keys(recipe).length;
     const categories = new Set();

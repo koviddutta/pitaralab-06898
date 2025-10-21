@@ -265,6 +265,7 @@ export type Database = {
           id: string
           notes: string | null
           rating: number | null
+          user_id: string | null
         }
         Insert: {
           a_id?: string | null
@@ -273,6 +274,7 @@ export type Database = {
           id?: string
           notes?: string | null
           rating?: number | null
+          user_id?: string | null
         }
         Update: {
           a_id?: string | null
@@ -281,6 +283,7 @@ export type Database = {
           id?: string
           notes?: string | null
           rating?: number | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -636,6 +639,28 @@ export type Database = {
       }
     }
     Functions: {
+      get_ingredient_with_cost: {
+        Args: { ingredient_id: string }
+        Returns: {
+          category: string
+          cost_per_kg: number
+          created_at: string
+          fat_pct: number
+          hardening_factor: number
+          id: string
+          msnf_pct: number
+          name: string
+          notes: string
+          other_solids_pct: number
+          pac_coeff: number
+          sp_coeff: number
+          sugar_split: Json
+          sugars_pct: number
+          tags: string[]
+          updated_at: string
+          water_pct: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
