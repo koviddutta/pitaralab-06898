@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { mlService } from '@/services/mlService';
+import { enhancedMLService } from '@/services/mlService.enhanced';
 
 interface MLPrediction {
   status: 'pass' | 'warn' | 'fail';
@@ -23,16 +23,21 @@ export function useMLPredictions(metrics: any, productType: string) {
     // Debounce predictions
     const timer = setTimeout(() => {
       try {
-        const result = mlService.predictSuccess(metrics, productType);
-        setPrediction(result);
-        console.log('ML Prediction:', result);
+        const result = enhancedMLService.predictRecipeSuccess(metrics, productType);
+        setPrediction({
+          status: result.status,
+          score: result.score,
+          suggestions: result.suggestions,
+          confidence: result.confidence
+        });
+        console.log('Enhanced ML Prediction:', result);
       } catch (error) {
         console.error('ML prediction error:', error);
         // Show a default prediction even on error
         setPrediction({
           status: 'warn',
           score: 70,
-          suggestions: ['Unable to generate full prediction. Add more ingredients for better analysis.'],
+          suggestions: ['Unable to generate prediction. Check recipe composition.'],
           confidence: 0.5
         });
       } finally {
