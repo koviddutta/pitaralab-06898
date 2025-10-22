@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Brain, Download, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Brain, Download, Upload, TrendingUp, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { mlService } from '@/services/mlService';
+import { supabase } from '@/integrations/supabase/client';
+import Papa from 'papaparse';
 
 export function MLTrainingPanel() {
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
   const [trainingData, setTrainingData] = useState<any[]>([]);
   const [modelStats, setModelStats] = useState({
@@ -19,11 +24,38 @@ export function MLTrainingPanel() {
     lastTrained: null as string | null,
   });
 
+  const loadDataFromDatabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('recipe_outcomes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setTrainingData(data || []);
+      
+      const stats = {
+        totalRecipes: data?.length || 0,
+        baseTemplates: data?.filter(r => r.outcome === 'success').length || 0,
+        finishedProducts: data?.filter(r => r.outcome === 'needs_improvement').length || 0,
+        accuracy: modelStats.accuracy,
+        version: modelStats.version,
+        lastTrained: modelStats.lastTrained,
+      };
+      setModelStats(stats);
+
+      toast.success(`Loaded ${data?.length || 0} recipes from database`);
+    } catch (error: any) {
+      console.error('Load error:', error);
+      toast.error('Failed to load training data from database');
+    }
+  };
+
   const handleExportTrainingData = async () => {
     setIsExporting(true);
     try {
       const data = await mlService.exportTrainingData();
-      setTrainingData(data);
       
       const stats = {
         totalRecipes: data.length,
@@ -35,12 +67,13 @@ export function MLTrainingPanel() {
       };
       setModelStats(stats);
 
-      // Download as JSON
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      // Download as CSV for better compatibility
+      const csv = Papa.unparse(data);
+      const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `ml-training-data-${Date.now()}.json`;
+      a.download = `ml-training-data-${Date.now()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
 
@@ -50,6 +83,72 @@ export function MLTrainingPanel() {
       toast.error('Failed to export training data');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+
+      if (fileExt === 'json') {
+        // Parse JSON
+        const text = await file.text();
+        const data = JSON.parse(text);
+        await importToDatabase(Array.isArray(data) ? data : [data]);
+      } else if (fileExt === 'csv') {
+        // Parse CSV
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: async (results) => {
+            await importToDatabase(results.data);
+          },
+          error: (error) => {
+            console.error('CSV parse error:', error);
+            toast.error('Failed to parse CSV file');
+            setIsImporting(false);
+          }
+        });
+      } else {
+        toast.error('Unsupported file format. Please use JSON or CSV files.');
+        setIsImporting(false);
+      }
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast.error(`Failed to import file: ${error.message}`);
+      setIsImporting(false);
+    }
+  };
+
+  const importToDatabase = async (data: any[]) => {
+    try {
+      // Transform data to match recipe_outcomes schema
+      const outcomes = data.map(item => ({
+        user_id: (window as any).supabaseUserId, // Current user
+        recipe_id: item.recipe_id || null,
+        outcome: item.outcome || 'success',
+        metrics: item.metrics || {},
+        actual_texture: item.actual_texture || null,
+        notes: item.notes || null
+      }));
+
+      const { error } = await supabase
+        .from('recipe_outcomes')
+        .insert(outcomes);
+
+      if (error) throw error;
+
+      toast.success(`Imported ${outcomes.length} recipes to database!`);
+      await loadDataFromDatabase();
+    } catch (error: any) {
+      console.error('Database import error:', error);
+      toast.error(`Failed to save to database: ${error.message}`);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -81,7 +180,7 @@ export function MLTrainingPanel() {
   const testClassification = (recipe: any) => {
     if (!recipe.metrics) return;
     const predicted = mlService.classifyProductType(recipe.metrics);
-    const actual = recipe.product_type;
+    const actual = recipe.product_type || 'unknown';
     
     toast(predicted === actual 
       ? `✅ Correct: ${predicted}` 
@@ -91,7 +190,7 @@ export function MLTrainingPanel() {
 
   const testSuccessPrediction = (recipe: any) => {
     if (!recipe.metrics) return;
-    const result = mlService.predictSuccess(recipe.metrics, recipe.product_type);
+    const result = mlService.predictSuccess(recipe.metrics, recipe.product_type || 'gelato');
     
     toast(
       <div className="space-y-2">
@@ -110,9 +209,8 @@ export function MLTrainingPanel() {
     );
   };
 
-  const loadModelStats = () => {
+  const loadModelStats = async () => {
     const model = mlService.loadModel();
-    const performance = mlService.getModelPerformance();
     
     if (model) {
       setModelStats({
@@ -124,6 +222,9 @@ export function MLTrainingPanel() {
         lastTrained: model.trained_at,
       });
     }
+
+    // Load from database
+    await loadDataFromDatabase();
   };
 
   useState(() => {
@@ -139,7 +240,7 @@ export function MLTrainingPanel() {
             ML Training Dashboard
           </CardTitle>
           <CardDescription>
-            Train models on real recipe data and test predictions
+            Train models on real recipe data. Import CSV/JSON files or export training data.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -150,11 +251,11 @@ export function MLTrainingPanel() {
             </div>
             <div className="space-y-1">
               <div className="text-2xl font-bold">{modelStats.baseTemplates}</div>
-              <div className="text-xs text-muted-foreground">Base Templates</div>
+              <div className="text-xs text-muted-foreground">Successful</div>
             </div>
             <div className="space-y-1">
               <div className="text-2xl font-bold">{modelStats.finishedProducts}</div>
-              <div className="text-xs text-muted-foreground">Finished Products</div>
+              <div className="text-xs text-muted-foreground">Needs Work</div>
             </div>
             <div className="space-y-1">
               <div className="text-2xl font-bold">{modelStats.accuracy}%</div>
@@ -173,26 +274,39 @@ export function MLTrainingPanel() {
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleExportTrainingData} 
-              disabled={isExporting}
-              variant="outline"
-              className="flex-1"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {isExporting ? 'Exporting...' : 'Export Dataset'}
-            </Button>
-            
-            <Button 
-              onClick={handleTrainModel} 
-              disabled={isTraining || trainingData.length === 0}
-              className="flex-1"
-            >
-              <Brain className="h-4 w-4 mr-2" />
-              {isTraining ? 'Training...' : 'Train Model'}
-            </Button>
+          <div className="space-y-2">
+            <Label htmlFor="import-file">Import Training Data (CSV/JSON)</Label>
+            <div className="flex gap-2">
+              <Input
+                id="import-file"
+                type="file"
+                accept=".csv,.json"
+                onChange={handleImportFile}
+                disabled={isImporting}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleExportTrainingData} 
+                disabled={isExporting}
+                variant="outline"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+            </div>
+            {isImporting && (
+              <div className="text-sm text-muted-foreground">Importing to database...</div>
+            )}
           </div>
+
+          <Button 
+            onClick={handleTrainModel} 
+            disabled={isTraining || trainingData.length === 0}
+            className="w-full"
+          >
+            <Brain className="h-4 w-4 mr-2" />
+            {isTraining ? 'Training...' : 'Train Model'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -201,7 +315,7 @@ export function MLTrainingPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Test ML Predictions
+              Test ML Predictions ({trainingData.length} recipes)
             </CardTitle>
             <CardDescription>
               Run classification and success prediction on training data
@@ -214,10 +328,10 @@ export function MLTrainingPanel() {
                   <CardContent className="pt-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
-                        <div className="font-medium">{recipe.name}</div>
+                        <div className="font-medium">Recipe {recipe.recipe_id || idx + 1}</div>
                         <div className="text-sm text-muted-foreground">
-                          {recipe.product_type} • {recipe.training_category}
-                          {recipe.outcome && ` • ${recipe.outcome}`}
+                          {recipe.outcome}
+                          {recipe.actual_texture && ` • ${recipe.actual_texture}`}
                         </div>
                       </div>
                       <div className="flex gap-2">

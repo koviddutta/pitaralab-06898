@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { calcMetricsV2 } from '@/lib/calc.v2';
-import { optimizeRecipe } from '@/lib/optimize';
+import { enhancedMLService } from '@/services/mlService.enhanced';
 import { showApiErrorToast } from '@/lib/ui/errors';
 import { IngredientData } from '@/types/ingredients';
 import { getAllIngredients } from '@/services/ingredientService';
@@ -579,14 +579,16 @@ const RecipeCalculatorV2 = () => {
       grams: row.grams
     }));
 
-    // Set targets based on mode
-    const targets = mode === 'gelato' 
-      ? { fat_pct: 7.5, msnf_pct: 11, sugars_pct: 19, ts_add_pct: 40 }
-      : { fat_pct: 11, msnf_pct: 21.5, sugars_pct: 19, ts_add_pct: 40 };
-
-    const optimized = optimizeRecipe(optimizeRows, targets, 100, 1);
+    // Use enhanced ML service for intelligent optimization
+    const productType = mode === 'gelato' ? 'gelato' : 'ice_cream';
+    const result = enhancedMLService.optimizeRecipe(optimizeRows, productType, 'balanced');
     
-    setOptimizedRows(optimized.map(r => ({ ingredientId: r.ing.id, grams: r.grams })));
+    toast({
+      title: 'Recipe optimized!',
+      description: result.improvements.join(', ')
+    });
+    
+    setOptimizedRows(result.optimizedRows.map(r => ({ ingredientId: r.ing.id, grams: r.grams })));
     setOptimizeDialogOpen(true);
   };
 
