@@ -88,7 +88,7 @@ export const UNIFIED_2025: ParameterSet = {
     ice_cream: { 
       ts: [36, 42],      // Total solids: Goff/Hartel 36-40%, MP field data allows up to 42%
       fat: [10, 16],     // Fat: Science 10-16% for optimal texture
-      sugar: [14, 20],   // Sugar: Goff/Hartel 14-16%, field allows up to 20%
+      sugars: [14, 20],  // Sugar: Goff/Hartel 14-16%, field allows up to 20% (renamed for consistency)
       msnf: [9, 12],     // MSNF: Science 9-12% for body
       sp: [14, 20],      // Sweetness Point: Balanced for perception
       pac: [24, 30],     // PAC: Science 24-28%, field extends to 30% for softer scoop
@@ -98,7 +98,7 @@ export const UNIFIED_2025: ParameterSet = {
     gelato_finished: { 
       ts: [34, 38],      // Lower than ice cream for gelato density
       fat: [4, 9],       // Gelato signature: lower fat than ice cream
-      sugar: [18, 22],   // Higher sugar for texture compensation
+      sugars: [18, 22],  // Higher sugar for texture compensation (renamed for consistency)
       msnf: [8, 11],     // Milk solids for body without fat
       sp: [14, 20],      // Balanced sweetness
       pac: [24, 30],     // Anti-freeze for smooth texture
@@ -108,7 +108,7 @@ export const UNIFIED_2025: ParameterSet = {
     gelato_white: { 
       ts: [32, 36],      // Lower TS for flavoring flexibility
       fat: [3, 7],       // Minimal fat for flavor versatility
-      sugar: [16, 19],   // Moderate sugar for base
+      sugars: [16, 19],  // Moderate sugar for base (renamed for consistency)
       msnf: [8, 11],     // MSNF for structure
       sp: [12, 18],      // Lower SP for adding sweet flavors
       pac: [22, 28],     // Standard anti-freeze
@@ -118,7 +118,7 @@ export const UNIFIED_2025: ParameterSet = {
     fruit_gelato: { 
       ts: [32, 40],      // Variable TS depending on fruit content
       fat: [2, 6],       // Minimal fat to let fruit shine
-      sugar: [20, 24],   // Higher sugar to balance fruit acidity
+      sugars: [20, 24],  // Higher sugar to balance fruit acidity (renamed for consistency)
       msnf: [3, 7],      // Lower MSNF for lighter body
       sp: [16, 24],      // Higher SP for fruit sweetness
       pac: [26, 32],     // Higher PAC for soft scoop with fruit
@@ -129,7 +129,7 @@ export const UNIFIED_2025: ParameterSet = {
     sorbet: { 
       ts: [24, 30],      // Lower TS, no dairy solids
       fat: [0, 0],       // Absolutely no fat for true sorbet
-      sugar: [24, 30],   // High sugar for structure without fat
+      sugars: [24, 30],  // High sugar for structure without fat (renamed for consistency)
       msnf: [0, 0],      // No milk solids
       sp: [22, 30],      // High sweetness for perception
       pac: [28, 35],     // Very high PAC to prevent iciness
@@ -160,11 +160,11 @@ const MP_ARTISAN_V2024: ParameterSet = {
   version: '2024.08',
   style: 'artisan',
   bands: {
-    ice_cream:      { ts:[37,46], fat:[10,20], sugar:[16,22], msnf:[7,12],  sp:[12,22], pac:[22,28] },
-    gelato_finished:{ ts:[32,40], fat:[6,12],  sugar:[18,24], msnf:[7,12],  sp:[12,22], pac:[22,28] },
-    sorbet:         { ts:[22,30], fat:[0,0],   sugar:[26,31], msnf:[0,0],   sp:[20,28], pac:[28,33] },
-    gelato_white:   { ts:[32,37], fat:[3,7],   sugar:[16,19], msnf:[7,12],  sp:[12,22], pac:[22,28] },
-    fruit_gelato:   { ts:[32,42], fat:[3,10],  sugar:[22,24], msnf:[3,7],   sp:[18,26], pac:[25,29] }
+    ice_cream:      { ts:[37,46], fat:[10,20], sugars:[16,22], msnf:[7,12],  sp:[12,22], pac:[22,28] },
+    gelato_finished:{ ts:[32,40], fat:[6,12],  sugars:[18,24], msnf:[7,12],  sp:[12,22], pac:[22,28] },
+    sorbet:         { ts:[22,30], fat:[0,0],   sugars:[26,31], msnf:[0,0],   sp:[20,28], pac:[28,33] },
+    gelato_white:   { ts:[32,37], fat:[3,7],   sugars:[16,19], msnf:[7,12],  sp:[12,22], pac:[22,28] },
+    fruit_gelato:   { ts:[32,42], fat:[3,10],  sugars:[22,24], msnf:[3,7],   sp:[18,26], pac:[25,29] }
   },
   sugar: {},
   notes: ['LEGACY - Use UNIFIED_2025 instead']
@@ -176,11 +176,11 @@ const SCIENCE_V2025: ParameterSet = {
   version: '2025.09',
   style: 'science',
   bands: {
-    ice_cream:      { ts:[36,42], fat:[10,20], sugar:[13,17], msnf:[7,12],  sp:[12,22], pac:[22,28], stabilizer:[0.2,0.5] },
-    gelato_white:   { ts:[36,43], fat:[4,8],   sugar:[16,22], msnf:[11,12], sp:[12,22], pac:[22,28], stabilizer:[0.3,0.6] },
-    gelato_finished:{ ts:[37,46], fat:[7,16],  sugar:[18,22], msnf:[7,12],  sp:[12,22], pac:[22,28], stabilizer:[0.3,0.6] },
-    fruit_gelato:   { ts:[32,42], fat:[3,10],  sugar:[22,24], msnf:[3,7],   sp:[18,26], pac:[25,29], stabilizer:[0.2,0.5] },
-    sorbet:         { ts:[32,42], fat:[0,0],   sugar:[26,31], msnf:[0,0],   sp:[20,28], pac:[28,33], stabilizer:[0.1,0.4], fruitPct:[35,75] }
+    ice_cream:      { ts:[36,42], fat:[10,20], sugars:[13,17], msnf:[7,12],  sp:[12,22], pac:[22,28], stabilizer:[0.2,0.5] },
+    gelato_white:   { ts:[36,43], fat:[4,8],   sugars:[16,22], msnf:[11,12], sp:[12,22], pac:[22,28], stabilizer:[0.3,0.6] },
+    gelato_finished:{ ts:[37,46], fat:[7,16],  sugars:[18,22], msnf:[7,12],  sp:[12,22], pac:[22,28], stabilizer:[0.3,0.6] },
+    fruit_gelato:   { ts:[32,42], fat:[3,10],  sugars:[22,24], msnf:[3,7],   sp:[18,26], pac:[25,29], stabilizer:[0.2,0.5] },
+    sorbet:         { ts:[32,42], fat:[0,0],   sugars:[26,31], msnf:[0,0],   sp:[20,28], pac:[28,33], stabilizer:[0.1,0.4], fruitPct:[35,75] }
   },
   sugar: {},
   process: { ...BASE.process, overrunPct: [20, 50] },
@@ -197,7 +197,7 @@ const HYBRID_BEST_PRACTICE: ParameterSet = {
     ice_cream: { 
       ts:[36,46],      // Wider range for artisan flexibility (MP) with science floor (Goff)
       fat:[10,20],     // Both agree on this range
-      sugar:[14,22],   // Expanded from science 13-17 to allow artisan sweetness
+      sugars:[14,22],  // Expanded from science 13-17 to allow artisan sweetness
       msnf:[7,12],     // Both agree
       sp:[12,22], 
       pac:[22,28],
@@ -208,7 +208,7 @@ const HYBRID_BEST_PRACTICE: ParameterSet = {
     gelato_white: { 
       ts:[34,40],      // Middle ground between MP (32-37) and Science (36-43)
       fat:[3,8],       // Expanded from science 4-8 to allow lighter options
-      sugar:[16,22],   // Science range preferred (more controlled)
+      sugars:[16,22],  // Science range preferred (more controlled)
       msnf:[8,12],     // Tightened from science 11-12 but allows variation
       sp:[12,22], 
       pac:[22,28],
@@ -219,7 +219,7 @@ const HYBRID_BEST_PRACTICE: ParameterSet = {
     gelato_finished: { 
       ts:[34,44],      // Between MP (32-40) and Science (37-46)
       fat:[6,16],      // Full range from both systems
-      sugar:[18,23],   // Middle ground between MP (18-24) and Science (18-22)
+      sugars:[18,23],  // Middle ground between MP (18-24) and Science (18-22)
       msnf:[7,12],     // Both agree
       sp:[12,22], 
       pac:[22,28],
@@ -230,7 +230,7 @@ const HYBRID_BEST_PRACTICE: ParameterSet = {
     fruit_gelato: { 
       ts:[32,42], 
       fat:[3,10], 
-      sugar:[22,24], 
+      sugars:[22,24], 
       msnf:[3,7], 
       sp:[18,26], 
       pac:[25,29],
@@ -242,7 +242,7 @@ const HYBRID_BEST_PRACTICE: ParameterSet = {
     sorbet: { 
       ts:[26,38],      // Between MP (22-30) and Science (32-42) for versatility
       fat:[0,0],       // Both agree
-      sugar:[26,31],   // Both agree on range
+      sugars:[26,31],  // Both agree on range
       msnf:[0,0],      // Both agree
       sp:[20,28], 
       pac:[28,33],

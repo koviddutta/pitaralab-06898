@@ -43,7 +43,7 @@ export default function ScienceChecklist({
       </div>
       {row('Total Solids %', metrics.ts_add_pct, b.ts)}
       {row('Fat %',          metrics.fat_pct,    b.fat)}
-      {row('Sugar %',        metrics.sugars_pct, b.sugar)}
+      {row('Sugar %',        metrics.sugars_pct, b.sugars)}
       {row('MSNF %',         metrics.msnf_pct,   b.msnf)}
       {row('SP',             metrics.sp,         b.sp)}
       {row('PAC',            metrics.pac,        b.pac)}

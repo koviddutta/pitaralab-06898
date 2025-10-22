@@ -1,7 +1,7 @@
 export type Range = [number, number];
 
 export type ProductBands = {
-  ts: Range; fat: Range; sugar: Range; msnf: Range;
+  ts: Range; fat: Range; sugars: Range; msnf: Range;
   sp: Range; pac: Range;
   stabilizer?: Range; fruitPct?: Range;
 };

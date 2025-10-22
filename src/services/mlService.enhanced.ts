@@ -104,9 +104,9 @@ export class EnhancedMLService {
         critical: productType !== 'sorbet'
       },
       { 
-        key: 'sugar', 
+        key: 'sugars', 
         value: metrics.sugars_pct, 
-        range: bands.sugar, 
+        range: bands.sugars, 
         weight: 15,
         label: 'Sugar Content',
         unit: '%'
@@ -231,7 +231,7 @@ export class EnhancedMLService {
     const targets: OptimizeTarget = customTargets || {
       ts_add_pct: (bands.ts[0] + bands.ts[1]) / 2,
       fat_pct: (bands.fat[0] + bands.fat[1]) / 2,
-      sugars_pct: (bands.sugar[0] + bands.sugar[1]) / 2,
+      sugars_pct: (bands.sugars[0] + bands.sugars[1]) / 2,
       msnf_pct: (bands.msnf[0] + bands.msnf[1]) / 2,
       sp: (bands.sp[0] + bands.sp[1]) / 2,
       pac: (bands.pac[0] + bands.pac[1]) / 2
@@ -412,7 +412,7 @@ export class EnhancedMLService {
     const targets = {
       fat_pct: targetComposition.fat_pct || (bands.fat[0] + bands.fat[1]) / 2,
       msnf_pct: targetComposition.msnf_pct || (bands.msnf[0] + bands.msnf[1]) / 2,
-      sugars_pct: targetComposition.sugars_pct || (bands.sugar[0] + bands.sugar[1]) / 2,
+      sugars_pct: targetComposition.sugars_pct || (bands.sugars[0] + bands.sugars[1]) / 2,
       ts_add_pct: targetComposition.ts_add_pct || (bands.ts[0] + bands.ts[1]) / 2
     };
 

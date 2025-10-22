@@ -42,7 +42,7 @@ export default function TargetPanel({ productType, metrics, onOptimize }: Props)
       <div className="flex flex-wrap gap-2">
         <Chip label="TS"     val={metrics.ts_add_pct} r={band.ts}/>
         <Chip label="Fat"    val={metrics.fat_pct}    r={band.fat}/>
-        <Chip label="Sugar"  val={metrics.sugars_pct} r={band.sugar}/>
+        <Chip label="Sugar"  val={metrics.sugars_pct} r={band.sugars}/>
         <Chip label="MSNF"   val={metrics.msnf_pct}   r={band.msnf}/>
         <Chip label="SP"     val={metrics.sp}         r={band.sp}/>
         <Chip label="PAC"    val={metrics.pac}        r={band.pac}/>
