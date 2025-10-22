@@ -668,10 +668,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      refresh_ml_training_dataset: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      refresh_ml_training_dataset: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
