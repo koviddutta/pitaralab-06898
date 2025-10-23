@@ -126,9 +126,18 @@ export function MLTrainingPanel() {
 
   const importToDatabase = async (data: any[]) => {
     try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast.error('You must be logged in to import data');
+        setIsImporting(false);
+        return;
+      }
+
       // Transform data to match recipe_outcomes schema
       const outcomes = data.map(item => ({
-        user_id: (window as any).supabaseUserId, // Current user
+        user_id: user.id,
         recipe_id: item.recipe_id || null,
         outcome: item.outcome || 'success',
         metrics: item.metrics || {},

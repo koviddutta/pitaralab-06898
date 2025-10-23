@@ -224,22 +224,67 @@ const FlavourEngine = () => {
   const handleAutoOptimize = async () => {
     setIsOptimizing(true);
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const validation = productParametersService.validateRecipeForProduct(recipe, selectedProduct);
-    const recommendations = productParametersService.generateProductRecommendations(selectedProduct, recipe);
-    
-    suggestions.forEach(suggestion => {
-      if (suggestion.action) {
-        suggestion.action();
-      }
-    });
-    
-    setIsOptimizing(false);
-    toast({
-      title: "Recipe Optimized",
-      description: `AI has optimized your ${selectedProduct} recipe with product-specific parameters.`,
-    });
+    try {
+      // Import optimization functions
+      const { advancedOptimize } = await import('@/lib/optimize.advanced');
+      const { enhancedMLService } = await import('@/services/mlService.enhanced');
+      
+      // Get current metrics and product parameters
+      const params = productParametersService.getProductParameters(selectedProduct);
+      
+      // Build optimization targets from product parameters (use midpoint of ranges)
+      const optimizationTargets = {
+        ts_add_pct: (params.totalSolids[0] + params.totalSolids[1]) / 2,
+        sugars_pct: (params.sugar[0] + params.sugar[1]) / 2,
+        fat_pct: (params.fats[0] + params.fats[1]) / 2,
+        msnf_pct: (params.msnf[0] + params.msnf[1]) / 2,
+      };
+      
+      // Convert recipe to optimization format
+      const rows = Object.entries(recipe).map(([name, grams]) => {
+        const ing = availableIngredients.find(i => i.name === name);
+        return {
+          ing: ing || { name, water_pct: 0, sugars_pct: 0, fat_pct: 0, msnf_pct: 0, other_solids_pct: 0 } as any,
+          grams,
+          lock: false, // All unlocked for full optimization
+        };
+      });
+      
+      // Run advanced optimization (hybrid algorithm for best results)
+      const optimizedRows = advancedOptimize(rows, optimizationTargets, {
+        algorithm: 'hybrid',
+        maxIterations: 150,
+        populationSize: 20,
+      });
+      
+      // Convert back to recipe format
+      const optimizedRecipe = optimizedRows.reduce((acc, row) => {
+        acc[row.ing.name] = Math.round(row.grams * 10) / 10;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Calculate final metrics
+      const finalMetrics = calcMetrics(optimizedRows);
+      
+      // Apply AI predictions and validate
+      const prediction = enhancedMLService.predictRecipeSuccess(finalMetrics, selectedProduct);
+      
+      setRecipe(optimizedRecipe);
+      setIsOptimizing(false);
+      
+      toast({
+        title: "AI-Optimized Recipe Ready!",
+        description: `Recipe optimized with ${prediction.confidence > 0.8 ? 'high' : 'good'} confidence (${Math.round(prediction.confidence * 100)}%). Score: ${prediction.score}/100`,
+      });
+    } catch (error) {
+      console.error('Optimization error:', error);
+      setIsOptimizing(false);
+      toast({
+        title: "Optimization Failed",
+        description: "Could not optimize recipe. Please try manual adjustments.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleOptimizedSugarBlend = (blend: { [sugarType: string]: number }) => {
