@@ -16,7 +16,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const ReverseEngineer = lazy(() => import("./components/ReverseEngineer"));
 const Glossary = lazy(() => import("./pages/Glossary"));
-const MLTraining = lazy(() => import("./pages/MLTraining"));
+const Database = lazy(() => import("./pages/Database"));
 
 const App = () => {
   // Initialize ML auto-training scheduler
@@ -43,7 +43,7 @@ const App = () => {
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/reverse-engineer" element={<ReverseEngineer palette={[]} />} />
                 <Route path="/help/glossary" element={<Glossary />} />
-                <Route path="/ml-training" element={<MLTraining />} />
+                <Route path="/database" element={<Database />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

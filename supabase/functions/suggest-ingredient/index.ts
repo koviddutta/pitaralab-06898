@@ -1,5 +1,6 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const LIMIT_PER_HOUR = 10;
 type Row = { ingredientId: string; grams: number };
@@ -16,6 +17,22 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Simple validation function
+function validateRequest(body: any): body is Body {
+  if (!body || typeof body !== 'object') return false;
+  if (!Array.isArray(body.rows)) return false;
+  if (body.rows.length === 0 || body.rows.length > 50) return false;
+  
+  for (const row of body.rows) {
+    if (typeof row.ingredientId !== 'string') return false;
+    if (typeof row.grams !== 'number' || row.grams < 0 || row.grams > 100000) return false;
+  }
+  
+  if (!['gelato', 'kulfi', 'sorbet', 'ice-cream'].includes(body.mode)) return false;
+  
+  return true;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -53,10 +70,12 @@ serve(async (req) => {
       return j({ error: `Rate limit exceeded. Try again in ~1 hour.` }, 429);
     }
 
-    const body = (await req.json()) as Body;
-    if (!Array.isArray(body?.rows) || !body?.mode) {
-      console.error("Invalid request body");
-      return j({ error: "Bad request" }, 400);
+    const body = await req.json();
+    
+    // Validate input
+    if (!validateRequest(body)) {
+      console.error("Invalid request body:", body);
+      return j({ error: "Invalid request: check rows format, grams range (0-100000), and mode" }, 400);
     }
 
     // Log usage
@@ -190,7 +209,7 @@ Suggest 3 specific ingredients to add or modify to improve this formulation.`;
       const parsedArgs = JSON.parse(toolCall.function.arguments);
       const suggestions: Suggestion[] = parsedArgs.suggestions || [];
 
-      console.log(`AI generated ${suggestions.length} suggestions for user ${userId}`);
+      console.log(`✅ AI generated ${suggestions.length} suggestions for user ${userId}`);
       
       return j({ suggestions }, 200);
 

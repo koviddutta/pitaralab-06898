@@ -422,7 +422,15 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="ml-training" className="mt-4 md:mt-6">
-            <MLTrainingPanel />
+            <Card className="p-6">
+              <div className="text-center space-y-4">
+                <h3 className="text-lg font-semibold">Database & ML Training</h3>
+                <p className="text-muted-foreground">Manage recipes, import data, and train ML models</p>
+                <Button onClick={() => navigate('/database')}>
+                  Open Database Manager
+                </Button>
+              </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="diagnostics" className="mt-4 md:mt-6">
