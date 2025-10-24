@@ -19,24 +19,23 @@ export function DiagnosticsPanel() {
     setIsRunning(true);
     const diagnostics: DiagnosticResult[] = [];
 
-    // Check 1: Environment Variables
-    const hasUrl = Boolean(import.meta.env.VITE_SUPABASE_URL);
-    const hasKey = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-    diagnostics.push({
-      name: 'Environment Variables',
-      status: hasUrl && hasKey ? 'pass' : 'fail',
-      message: hasUrl && hasKey 
-        ? 'All required environment variables are set' 
-        : `Missing: ${!hasUrl ? 'VITE_SUPABASE_URL ' : ''}${!hasKey ? 'VITE_SUPABASE_PUBLISHABLE_KEY' : ''}`
-    });
-
-    // Check 2: Backend Connection
+    // Check 1: Backend Connection (replaces env var check since we have fallbacks)
+    let supabase: any = null;
     try {
-      const supabase = await getSupabase();
+      supabase = await getSupabase();
+      
+      // Test actual connection with a simple query
+      const { error: connectionError } = await supabase
+        .from('ingredients')
+        .select('id')
+        .limit(1);
+      
+      if (connectionError) throw connectionError;
+      
       diagnostics.push({
         name: 'Backend Connection',
         status: 'pass',
-        message: 'Successfully connected to Supabase backend'
+        message: 'Successfully connected to backend database'
       });
 
       // Check 3: Authentication Status
