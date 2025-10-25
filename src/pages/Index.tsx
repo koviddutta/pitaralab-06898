@@ -16,7 +16,6 @@ import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
 import { ProductionPlanner } from "@/components/ProductionPlanner";
 import { RecipeImporter } from "@/components/RecipeImporter";
-import { MLTrainingPanel } from "@/components/MLTrainingPanel";
 import { AutoTrainingMonitor } from "@/components/AutoTrainingMonitor";
 import CopyProtection from "@/components/CopyProtection";
 import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";

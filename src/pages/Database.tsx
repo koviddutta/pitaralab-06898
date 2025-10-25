@@ -8,20 +8,31 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { mlService } from '@/services/mlService';
-import { calcMetrics } from '@/lib/calc';
 import Papa from 'papaparse';
 import { z } from 'zod';
 
-// Validation schemas
+// New validation schema matching the exact format
 const ImportRowSchema = z.object({
-  'Recipe Name': z.string().min(1).max(200),
-  'Ingredient': z.string().min(1).max(200),
-  'Grams': z.number().positive().max(100000)
+  'Ingredient': z.string().min(1),
+  'Quantity (g)': z.number().positive(),
+  'Water (g)': z.number().min(0),
+  'Sugars (g)': z.number().min(0),
+  'Fat (g)': z.number().min(0),
+  'MSNF (g)': z.number().min(0),
+  'Other Solids (g)': z.number().min(0),
+  'Total Solids (g)': z.number().min(0),
+  'Lactose (g)': z.number().min(0)
 });
+
+type RecipeData = {
+  name: string;
+  rows: z.infer<typeof ImportRowSchema>[];
+};
 
 export default function Database() {
   const { toast } = useToast();
@@ -32,7 +43,7 @@ export default function Database() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-  // Check authentication status
+  // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -52,10 +63,9 @@ export default function Database() {
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['database-stats'],
     queryFn: async () => {
-      const [recipesRes, outcomesRes, ingredientsRes] = await Promise.all([
+      const [recipesRes, outcomesRes] = await Promise.all([
         supabase.from('recipes').select('id', { count: 'exact', head: true }),
-        supabase.from('recipe_outcomes').select('id,outcome', { count: 'exact' }),
-        supabase.from('ingredients').select('id', { count: 'exact', head: true })
+        supabase.from('recipe_outcomes').select('id,outcome', { count: 'exact' })
       ]);
 
       const successfulOutcomes = outcomesRes.data?.filter(o => o.outcome === 'success').length || 0;
@@ -64,7 +74,6 @@ export default function Database() {
         totalRecipes: recipesRes.count || 0,
         totalOutcomes: outcomesRes.count || 0,
         successfulOutcomes,
-        totalIngredients: ingredientsRes.count || 0,
         mlReady: successfulOutcomes >= 5
       };
     },
@@ -72,16 +81,39 @@ export default function Database() {
     enabled: isAuthenticated
   });
 
-  // Fetch recent recipes
+  // Fetch recent recipes with their rows
   const { data: recentRecipes } = useQuery({
     queryKey: ['recent-recipes'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data: recipes } = await supabase
         .from('recipes')
-        .select('id, name, product_type, created_at')
+        .select(`
+          id,
+          recipe_name,
+          product_type,
+          created_at,
+          recipe_rows (
+            ingredient,
+            quantity_g,
+            water_g,
+            sugars_g,
+            fat_g,
+            msnf_g,
+            other_solids_g,
+            total_solids_g,
+            lactose_g
+          ),
+          calculated_metrics (
+            total_quantity_g,
+            sp,
+            pac,
+            fat_pct,
+            sugars_pct
+          )
+        `)
         .order('created_at', { ascending: false })
         .limit(10);
-      return data || [];
+      return recipes || [];
     },
     enabled: isAuthenticated
   });
@@ -109,58 +141,41 @@ export default function Database() {
     setImportProgress(0);
 
     try {
-      console.log('📂 Starting CSV import...');
-      
-      // Parse CSV
+      console.log('📂 Starting CSV import with new format...');
+
       Papa.parse(importFile, {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
           try {
             console.log(`📊 Parsed ${results.data.length} rows from CSV`);
-            
-            const { data: ingredients } = await supabase.from('ingredients').select('*');
-            if (!ingredients) throw new Error('Failed to load ingredients from database');
 
-            console.log(`✅ Loaded ${ingredients.length} ingredients from database`);
-
-            const ingredientMap = new Map(ingredients.map(i => [i.name.toLowerCase(), i]));
-            const recipes = new Map<string, Array<{ ingredientId: string; grams: number }>>();
-
-            // Validate and group by recipe
+            // Group by recipe name (first column should be recipe name)
+            const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
             let validRows = 0;
             let invalidRows = 0;
 
             for (const row of results.data as any[]) {
               try {
+                // Extract recipe name from first column or 'Recipe Name' column
+                const recipeName = row['Recipe Name'] || row['recipe_name'] || row['Recipe'] || 'Unnamed Recipe';
+
                 const validated = ImportRowSchema.parse({
-                  'Recipe Name': row['Recipe Name'] || row['recipe_name'] || row['name'],
-                  'Ingredient': row['Ingredient'] || row['ingredient'] || row['ingredient_name'],
-                  'Grams': parseFloat(row['Grams'] || row['grams'] || row['amount'] || '0')
+                  'Ingredient': row['Ingredient'] || row['ingredient'],
+                  'Quantity (g)': parseFloat(row['Quantity (g)'] || row['quantity_g'] || row['Quantity'] || '0'),
+                  'Water (g)': parseFloat(row['Water (g)'] || row['water_g'] || row['Water'] || '0'),
+                  'Sugars (g)': parseFloat(row['Sugars (g)'] || row['sugars_g'] || row['Sugars'] || '0'),
+                  'Fat (g)': parseFloat(row['Fat (g)'] || row['fat_g'] || row['Fat'] || '0'),
+                  'MSNF (g)': parseFloat(row['MSNF (g)'] || row['msnf_g'] || row['MSNF'] || '0'),
+                  'Other Solids (g)': parseFloat(row['Other Solids (g)'] || row['other_solids_g'] || row['Other Solids'] || '0'),
+                  'Total Solids (g)': parseFloat(row['Total Solids (g)'] || row['total_solids_g'] || row['Total Solids'] || '0'),
+                  'Lactose (g)': parseFloat(row['Lactose (g)'] || row['lactose_g'] || row['Lactose'] || '0')
                 });
 
-                const ingredientName = validated.Ingredient.toLowerCase().trim();
-                const ingredient = ingredientMap.get(ingredientName) || 
-                  [...ingredientMap.values()].find(i => 
-                    i.name.toLowerCase().includes(ingredientName) ||
-                    ingredientName.includes(i.name.toLowerCase())
-                  );
-
-                if (!ingredient) {
-                  console.warn(`⚠️ Ingredient not found: "${validated.Ingredient}"`);
-                  invalidRows++;
-                  continue;
+                if (!recipesMap.has(recipeName)) {
+                  recipesMap.set(recipeName, []);
                 }
-
-                if (!recipes.has(validated['Recipe Name'])) {
-                  recipes.set(validated['Recipe Name'], []);
-                }
-
-                recipes.get(validated['Recipe Name'])!.push({
-                  ingredientId: ingredient.id,
-                  grams: validated.Grams
-                });
-                
+                recipesMap.get(recipeName)!.push(validated);
                 validRows++;
               } catch (validationError: any) {
                 console.warn('❌ Invalid row:', row, validationError.message);
@@ -168,169 +183,147 @@ export default function Database() {
               }
             }
 
-            console.log(`✅ Validated ${validRows} rows, ${invalidRows} invalid rows`);
-            console.log(`📦 Grouped into ${recipes.size} recipes`);
+            console.log(`✅ Validated ${validRows} rows into ${recipesMap.size} recipes, ${invalidRows} invalid`);
 
-            if (recipes.size === 0) {
-              throw new Error('No valid recipes found in CSV. Please check the format: Recipe Name, Ingredient, Grams');
+            if (recipesMap.size === 0) {
+              throw new Error('No valid recipes found. Expected format: Recipe Name, Ingredient, Quantity (g), Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)');
             }
 
-            // Import recipes with proper error handling
+            // Import recipes
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('User not authenticated');
+
             let imported = 0;
-            let failed = 0;
-            const total = recipes.size;
-            const errors: string[] = [];
+            const total = recipesMap.size;
 
-            for (const [name, rows] of recipes.entries()) {
-              if (rows.length === 0) continue;
-
+            for (const [recipeName, rows] of recipesMap.entries()) {
               try {
-                console.log(`💾 Importing recipe: ${name} with ${rows.length} ingredients`);
+                console.log(`💾 Importing recipe: ${recipeName}`);
 
-                // Get current user
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) throw new Error('User not authenticated');
-
-                // Build full ingredient rows for metrics calculation  
-                const fullRows = rows.map(r => {
-                  const ing = ingredients.find(i => i.id === r.ingredientId);
-                  if (!ing) throw new Error(`Ingredient not found: ${r.ingredientId}`);
-                  return { 
-                    ing: ing as any, // Type cast database type to IngredientData
-                    grams: r.grams 
-                  };
-                });
-
-                // Calculate proper metrics
-                const metrics = calcMetrics(fullRows);
-                console.log(`📊 Calculated metrics:`, {
-                  sp: metrics.sp.toFixed(1),
-                  pac: metrics.pac.toFixed(1),
-                  fat_pct: metrics.fat_pct.toFixed(1)
-                });
-
-                // Save recipe with explicit user_id and proper metrics
+                // Create recipe
                 const { data: recipe, error: recipeError } = await supabase
                   .from('recipes')
                   .insert({
-                    name,
-                    rows_json: fullRows,
+                    recipe_name: recipeName,
                     product_type: 'ice_cream',
-                    metrics: {
-                      total_g: metrics.total_g,
-                      water_pct: metrics.water_pct,
-                      sugars_pct: metrics.sugars_pct,
-                      fat_pct: metrics.fat_pct,
-                      msnf_pct: metrics.msnf_pct,
-                      ts_add_pct: metrics.ts_add_pct,
-                      sp: metrics.sp,
-                      pac: metrics.pac,
-                      fpdt: metrics.fpdt,
-                      pod_index: metrics.pod_index
-                    },
                     user_id: user.id
                   })
                   .select()
                   .single();
 
-                if (recipeError) {
-                  console.error(`❌ Recipe insert error for "${name}":`, recipeError);
-                  throw recipeError;
-                }
+                if (recipeError) throw recipeError;
 
-                console.log(`✅ Recipe inserted: ${recipe.id}`);
+                // Insert all rows
+                const { error: rowsError } = await supabase
+                  .from('recipe_rows')
+                  .insert(
+                    rows.map(r => ({
+                      recipe_id: recipe.id,
+                      ingredient: r['Ingredient'],
+                      quantity_g: r['Quantity (g)'],
+                      water_g: r['Water (g)'],
+                      sugars_g: r['Sugars (g)'],
+                      fat_g: r['Fat (g)'],
+                      msnf_g: r['MSNF (g)'],
+                      other_solids_g: r['Other Solids (g)'],
+                      total_solids_g: r['Total Solids (g)'],
+                      lactose_g: r['Lactose (g)']
+                    }))
+                  );
 
-                // Create successful outcome for ML training with proper metrics
-                const { error: outcomeError } = await supabase
-                  .from('recipe_outcomes')
+                if (rowsError) throw rowsError;
+
+                // Calculate metrics
+                const totals = rows.reduce((acc, r) => ({
+                  quantity: acc.quantity + r['Quantity (g)'],
+                  water: acc.water + r['Water (g)'],
+                  sugars: acc.sugars + r['Sugars (g)'],
+                  fat: acc.fat + r['Fat (g)'],
+                  msnf: acc.msnf + r['MSNF (g)'],
+                  other: acc.other + r['Other Solids (g)'],
+                  solids: acc.solids + r['Total Solids (g)'],
+                  lactose: acc.lactose + r['Lactose (g)']
+                }), { quantity: 0, water: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0, lactose: 0 });
+
+                const sp = totals.sugars / totals.quantity * 100; // Simplified SP calculation
+                const pac = (totals.sugars * 1.9) / totals.quantity * 100; // Simplified PAC
+
+                // Store calculated metrics
+                const { error: metricsError } = await supabase
+                  .from('calculated_metrics')
                   .insert({
                     recipe_id: recipe.id,
-                    user_id: user.id,
-                    outcome: 'success',
-                    metrics: recipe.metrics,
-                    notes: 'Imported from CSV - ML training data'
+                    total_quantity_g: totals.quantity,
+                    total_water_g: totals.water,
+                    total_sugars_g: totals.sugars,
+                    total_fat_g: totals.fat,
+                    total_msnf_g: totals.msnf,
+                    total_other_solids_g: totals.other,
+                    total_solids_g: totals.solids,
+                    total_lactose_g: totals.lactose,
+                    water_pct: totals.water / totals.quantity * 100,
+                    sugars_pct: totals.sugars / totals.quantity * 100,
+                    fat_pct: totals.fat / totals.quantity * 100,
+                    msnf_pct: totals.msnf / totals.quantity * 100,
+                    other_solids_pct: totals.other / totals.quantity * 100,
+                    total_solids_pct: totals.solids / totals.quantity * 100,
+                    lactose_pct: totals.lactose / totals.quantity * 100,
+                    sp,
+                    pac
                   });
 
-                if (outcomeError) {
-                  console.error(`❌ Outcome insert error for "${name}":`, outcomeError);
-                  // Don't throw here, recipe is already saved
-                  errors.push(`Recipe "${name}" imported but outcome failed: ${outcomeError.message}`);
-                }
+                if (metricsError) throw metricsError;
+
+                // Create outcome for ML training
+                await supabase.from('recipe_outcomes').insert({
+                  recipe_id: recipe.id,
+                  user_id: user.id,
+                  outcome: 'success',
+                  notes: 'Imported from CSV'
+                });
 
                 imported++;
                 setImportProgress((imported / total) * 100);
               } catch (error: any) {
-                console.error(`❌ Failed to import recipe "${name}":`, error);
-                failed++;
-                errors.push(`"${name}": ${error.message}`);
+                console.error(`❌ Failed to import "${recipeName}":`, error);
               }
             }
 
-            // Refetch stats after import
             await refetchStats();
 
-            if (imported > 0) {
-              toast({
-                title: 'Import Complete',
-                description: `Successfully imported ${imported} recipes${failed > 0 ? `, ${failed} failed` : ''}. Ready for ML training!`
-              });
-            } else {
-              throw new Error('No recipes were successfully imported. Check console for details.');
-            }
-
-            if (errors.length > 0) {
-              console.error('Import errors:', errors);
-            }
+            toast({
+              title: 'Import Complete',
+              description: `Successfully imported ${imported} recipes with exact column format`
+            });
 
             setImportFile(null);
           } catch (error: any) {
             console.error('❌ Import error:', error);
             toast({
               title: 'Import Failed',
-              description: error.message || 'Unknown error occurred',
+              description: error.message,
               variant: 'destructive'
             });
           } finally {
             setIsImporting(false);
             setImportProgress(0);
           }
-        },
-        error: (error) => {
-          console.error('❌ CSV Parse error:', error);
-          toast({
-            title: 'File Parse Error',
-            description: 'Invalid CSV format. Expected headers: Recipe Name, Ingredient, Grams',
-            variant: 'destructive'
-          });
-          setIsImporting(false);
-          setImportProgress(0);
         }
       });
     } catch (error: any) {
-      console.error('❌ Import error:', error);
       toast({
         title: 'Import Failed',
         description: error.message,
         variant: 'destructive'
       });
       setIsImporting(false);
-      setImportProgress(0);
     }
   };
 
   const handleTrainModel = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to train the ML model',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     if (!stats?.mlReady) {
       toast({
-        title: 'Insufficient Training Data',
+        title: 'Insufficient Data',
         description: `Need at least 5 successful recipes. Currently have ${stats?.successfulOutcomes || 0}`,
         variant: 'destructive'
       });
@@ -339,20 +332,15 @@ export default function Database() {
 
     setIsTraining(true);
     try {
-      console.log('🧠 Starting ML model training...');
       const weights = await mlService.trainModel();
-      
-      console.log('✅ Training complete:', weights);
-      
       toast({
         title: 'Training Complete',
-        description: `ML model successfully trained with ${Math.round(weights.accuracy * 100)}% accuracy on ${stats.successfulOutcomes} recipes`
+        description: `Model trained with ${Math.round(weights.accuracy * 100)}% accuracy`
       });
     } catch (error: any) {
-      console.error('❌ Training failed:', error);
       toast({
         title: 'Training Failed',
-        description: error.message || 'Unknown error occurred',
+        description: error.message,
         variant: 'destructive'
       });
     } finally {
@@ -361,79 +349,58 @@ export default function Database() {
   };
 
   const handleExportData = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to export data',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     try {
-      const data = await mlService.exportTrainingData();
-      
-      if (data.length === 0) {
-        toast({
-          title: 'No Data Available',
-          description: 'No recipes found to export',
-          variant: 'destructive'
-        });
+      const { data: recipes } = await supabase
+        .from('recipes')
+        .select(`
+          recipe_name,
+          recipe_rows (
+            ingredient,
+            quantity_g,
+            water_g,
+            sugars_g,
+            fat_g,
+            msnf_g,
+            other_solids_g,
+            total_solids_g,
+            lactose_g
+          )
+        `);
+
+      if (!recipes || recipes.length === 0) {
+        toast({ title: 'No Data', description: 'No recipes to export', variant: 'destructive' });
         return;
       }
 
-      const csv = Papa.unparse(data);
+      const flatData: any[] = [];
+      recipes.forEach(recipe => {
+        (recipe.recipe_rows as any[]).forEach(row => {
+          flatData.push({
+            'Recipe Name': recipe.recipe_name,
+            'Ingredient': row.ingredient,
+            'Quantity (g)': row.quantity_g,
+            'Water (g)': row.water_g,
+            'Sugars (g)': row.sugars_g,
+            'Fat (g)': row.fat_g,
+            'MSNF (g)': row.msnf_g,
+            'Other Solids (g)': row.other_solids_g,
+            'Total Solids (g)': row.total_solids_g,
+            'Lactose (g)': row.lactose_g
+          });
+        });
+      });
+
+      const csv = Papa.unparse(flatData);
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `training-data-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `recipes-export-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
-      
-      toast({ 
-        title: 'Export Complete', 
-        description: `Exported ${data.length} recipes` 
-      });
+
+      toast({ title: 'Export Complete', description: `Exported ${recipes.length} recipes` });
     } catch (error: any) {
-      toast({ 
-        title: 'Export Failed', 
-        description: error.message, 
-        variant: 'destructive' 
-      });
-    }
-  };
-
-  const handleClearOrphans = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to clean database',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('recipe_outcomes')
-        .delete()
-        .is('recipe_id', null);
-
-      if (error) throw error;
-
-      await refetchStats();
-
-      toast({
-        title: 'Database Cleaned',
-        description: 'Removed orphaned recipe outcomes'
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Cleanup Failed',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast({ title: 'Export Failed', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -454,7 +421,7 @@ export default function Database() {
             Database Manager
           </h1>
           <p className="text-muted-foreground">
-            Manage recipes, training data, and ML models
+            Import, train, and manage recipe data in standardized format
           </p>
         </div>
       </div>
@@ -463,17 +430,13 @@ export default function Database() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            You must be logged in to manage the database. Please{' '}
-            <a href="/auth" className="font-medium underline">
-              sign in
-            </a>{' '}
-            to continue.
+            You must be logged in. Please <a href="/auth" className="font-medium underline">sign in</a>.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Database Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Total Recipes</CardTitle>
@@ -485,22 +448,13 @@ export default function Database() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Ingredients</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalIngredients || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Training Outcomes</CardTitle>
+            <CardTitle className="text-sm font-medium">Training Data</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.successfulOutcomes || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.mlReady ? '✅ ML Ready' : `Need ${5 - (stats?.successfulOutcomes || 0)} more`}
-            </p>
+            <Badge variant={stats?.mlReady ? 'default' : 'secondary'} className="mt-2">
+              {stats?.mlReady ? 'Ready' : 'Need 5+'}
+            </Badge>
           </CardContent>
         </Card>
 
@@ -509,114 +463,53 @@ export default function Database() {
             <CardTitle className="text-sm font-medium">ML Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge variant={stats?.mlReady ? 'default' : 'secondary'}>
-              {stats?.mlReady ? 'Trainable' : 'Insufficient Data'}
+            <Badge variant={stats?.mlReady ? 'default' : 'outline'}>
+              {stats?.mlReady ? 'Trained' : 'Needs Training'}
             </Badge>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="import" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="import" disabled={!isAuthenticated}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import Data
-          </TabsTrigger>
-          <TabsTrigger value="training" disabled={!isAuthenticated}>
-            <Brain className="h-4 w-4 mr-2" />
-            ML Training
-          </TabsTrigger>
-          <TabsTrigger value="recipes" disabled={!isAuthenticated}>
-            <DatabaseIcon className="h-4 w-4 mr-2" />
-            Recipes
-          </TabsTrigger>
+      <Tabs defaultValue="import" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="import">Import Data</TabsTrigger>
+          <TabsTrigger value="recipes">View Recipes</TabsTrigger>
+          <TabsTrigger value="train">ML Training</TabsTrigger>
         </TabsList>
 
         <TabsContent value="import" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Import Recipes from CSV</CardTitle>
+              <CardTitle>Import CSV Data</CardTitle>
               <CardDescription>
-                Upload a CSV file with columns: Recipe Name, Ingredient, Grams
+                Upload CSV with columns: Recipe Name, Ingredient, Quantity (g), Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="csv-upload">Select CSV File</Label>
+                <Label htmlFor="csv-file">Select CSV File</Label>
                 <Input
-                  id="csv-upload"
+                  id="csv-file"
                   type="file"
                   accept=".csv"
                   onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                  disabled={isImporting || !isAuthenticated}
+                  disabled={!isAuthenticated || isImporting}
                 />
               </div>
-
               {isImporting && (
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Importing recipes... {Math.round(importProgress)}%
-                  </div>
                   <Progress value={importProgress} />
+                  <p className="text-sm text-muted-foreground">Importing... {Math.round(importProgress)}%</p>
                 </div>
               )}
-
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleImportCSV} 
-                  disabled={!importFile || isImporting || !isAuthenticated}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import Recipes
+                <Button onClick={handleImportCSV} disabled={!importFile || isImporting}>
+                  {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  Import CSV
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleClearOrphans}
-                  disabled={!isAuthenticated}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clean Orphans
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="training" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>ML Model Training</CardTitle>
-              <CardDescription>
-                Train the ML model on successful recipes. Requires at least 5 successful outcomes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Training Data Available</span>
-                  <Badge variant={stats?.mlReady ? 'default' : 'secondary'}>
-                    {stats?.successfulOutcomes || 0} recipes
-                  </Badge>
-                </div>
-                <Progress value={Math.min(100, ((stats?.successfulOutcomes || 0) / 5) * 100)} />
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={handleTrainModel} 
-                  disabled={!stats?.mlReady || isTraining || !isAuthenticated}
-                >
-                  <Brain className="h-4 w-4 mr-2" />
-                  {isTraining ? 'Training...' : 'Train Model'}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleExportData}
-                  disabled={!isAuthenticated}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Training Data
+                <Button variant="outline" onClick={handleExportData} disabled={!isAuthenticated}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export CSV
                 </Button>
               </div>
             </CardContent>
@@ -627,27 +520,70 @@ export default function Database() {
           <Card>
             <CardHeader>
               <CardTitle>Recent Recipes</CardTitle>
-              <CardDescription>Last 10 recipes added to the database</CardDescription>
+              <CardDescription>Last 10 imported recipes</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {recentRecipes && recentRecipes.length > 0 ? (
-                  recentRecipes.map((recipe) => (
-                    <div key={recipe.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{recipe.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {recipe.product_type} • {new Date(recipe.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    No recipes yet. Import some data to get started!
-                  </p>
-                )}
-              </div>
+              {recentRecipes && recentRecipes.length > 0 ? (
+                <div className="space-y-4">
+                  {recentRecipes.map((recipe: any) => (
+                    <Card key={recipe.id}>
+                      <CardHeader>
+                        <CardTitle className="text-lg">{recipe.recipe_name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Ingredient</TableHead>
+                              <TableHead>Quantity (g)</TableHead>
+                              <TableHead>Water (g)</TableHead>
+                              <TableHead>Sugars (g)</TableHead>
+                              <TableHead>Fat (g)</TableHead>
+                              <TableHead>MSNF (g)</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {(recipe.recipe_rows as any[])?.map((row: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell>{row.ingredient}</TableCell>
+                                <TableCell>{row.quantity_g}</TableCell>
+                                <TableCell>{row.water_g}</TableCell>
+                                <TableCell>{row.sugars_g}</TableCell>
+                                <TableCell>{row.fat_g}</TableCell>
+                                <TableCell>{row.msnf_g}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {recipe.calculated_metrics && (
+                          <div className="mt-4 flex gap-4">
+                            <Badge>SP: {recipe.calculated_metrics[0]?.sp?.toFixed(1)}</Badge>
+                            <Badge>PAC: {recipe.calculated_metrics[0]?.pac?.toFixed(1)}</Badge>
+                            <Badge>Fat: {recipe.calculated_metrics[0]?.fat_pct?.toFixed(1)}%</Badge>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No recipes imported yet</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="train">
+          <Card>
+            <CardHeader>
+              <CardTitle>ML Model Training</CardTitle>
+              <CardDescription>Train the AI model on imported recipe data</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button onClick={handleTrainModel} disabled={!stats?.mlReady || isTraining}>
+                {isTraining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
+                Train Model
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

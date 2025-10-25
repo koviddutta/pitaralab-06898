@@ -117,18 +117,89 @@ export type Database = {
           scoop_temp_c?: number | null
           user_id?: string
         }
+        Relationships: []
+      }
+      calculated_metrics: {
+        Row: {
+          created_at: string | null
+          fat_pct: number
+          fpdt: number | null
+          id: string
+          lactose_pct: number
+          msnf_pct: number
+          other_solids_pct: number
+          pac: number | null
+          pod_index: number | null
+          recipe_id: string
+          sp: number | null
+          sugars_pct: number
+          total_fat_g: number
+          total_lactose_g: number
+          total_msnf_g: number
+          total_other_solids_g: number
+          total_quantity_g: number
+          total_solids_g: number
+          total_solids_pct: number
+          total_sugars_g: number
+          total_water_g: number
+          updated_at: string | null
+          water_pct: number
+        }
+        Insert: {
+          created_at?: string | null
+          fat_pct: number
+          fpdt?: number | null
+          id?: string
+          lactose_pct: number
+          msnf_pct: number
+          other_solids_pct: number
+          pac?: number | null
+          pod_index?: number | null
+          recipe_id: string
+          sp?: number | null
+          sugars_pct: number
+          total_fat_g: number
+          total_lactose_g: number
+          total_msnf_g: number
+          total_other_solids_g: number
+          total_quantity_g: number
+          total_solids_g: number
+          total_solids_pct: number
+          total_sugars_g: number
+          total_water_g: number
+          updated_at?: string | null
+          water_pct: number
+        }
+        Update: {
+          created_at?: string | null
+          fat_pct?: number
+          fpdt?: number | null
+          id?: string
+          lactose_pct?: number
+          msnf_pct?: number
+          other_solids_pct?: number
+          pac?: number | null
+          pod_index?: number | null
+          recipe_id?: string
+          sp?: number | null
+          sugars_pct?: number
+          total_fat_g?: number
+          total_lactose_g?: number
+          total_msnf_g?: number
+          total_other_solids_g?: number
+          total_quantity_g?: number
+          total_solids_g?: number
+          total_solids_pct?: number
+          total_sugars_g?: number
+          total_water_g?: number
+          updated_at?: string | null
+          water_pct?: number
+        }
         Relationships: [
           {
-            foreignKeyName: "batches_recipe_id_fkey"
+            foreignKeyName: "calculated_metrics_recipe_id_fkey"
             columns: ["recipe_id"]
-            isOneToOne: false
-            referencedRelation: "ml_training_dataset"
-            referencedColumns: ["recipe_id"]
-          },
-          {
-            foreignKeyName: "batches_recipe_id_fkey"
-            columns: ["recipe_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "recipes"
             referencedColumns: ["id"]
           },
@@ -406,95 +477,87 @@ export type Database = {
       recipe_outcomes: {
         Row: {
           actual_texture: string | null
-          created_at: string
+          created_at: string | null
           id: string
-          metrics: Json | null
           notes: string | null
           outcome: string
-          recipe_id: string | null
+          recipe_id: string
           user_id: string
         }
         Insert: {
           actual_texture?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
-          metrics?: Json | null
           notes?: string | null
           outcome: string
-          recipe_id?: string | null
+          recipe_id: string
           user_id: string
         }
         Update: {
           actual_texture?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
-          metrics?: Json | null
           notes?: string | null
           outcome?: string
-          recipe_id?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      recipe_versions: {
-        Row: {
-          change_notes: string | null
-          created_at: string | null
-          created_by: string | null
-          id: string
-          label: string | null
-          metrics: Json | null
-          name: string
-          product_type: string | null
-          profile_id: string | null
-          profile_version: string | null
-          recipe_id: string
-          rows_json: Json
-          user_id: string
-          version_number: number
-        }
-        Insert: {
-          change_notes?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          label?: string | null
-          metrics?: Json | null
-          name: string
-          product_type?: string | null
-          profile_id?: string | null
-          profile_version?: string | null
-          recipe_id: string
-          rows_json: Json
-          user_id?: string
-          version_number: number
-        }
-        Update: {
-          change_notes?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          label?: string | null
-          metrics?: Json | null
-          name?: string
-          product_type?: string | null
-          profile_id?: string | null
-          profile_version?: string | null
           recipe_id?: string
-          rows_json?: Json
           user_id?: string
-          version_number?: number
         }
         Relationships: [
           {
-            foreignKeyName: "recipe_versions_recipe_id_fkey"
+            foreignKeyName: "recipe_outcomes_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
-            referencedRelation: "ml_training_dataset"
-            referencedColumns: ["recipe_id"]
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
           },
+        ]
+      }
+      recipe_rows: {
+        Row: {
+          created_at: string | null
+          fat_g: number
+          id: string
+          ingredient: string
+          lactose_g: number
+          msnf_g: number
+          other_solids_g: number
+          quantity_g: number
+          recipe_id: string
+          sugars_g: number
+          total_solids_g: number
+          water_g: number
+        }
+        Insert: {
+          created_at?: string | null
+          fat_g?: number
+          id?: string
+          ingredient: string
+          lactose_g?: number
+          msnf_g?: number
+          other_solids_g?: number
+          quantity_g: number
+          recipe_id: string
+          sugars_g?: number
+          total_solids_g?: number
+          water_g?: number
+        }
+        Update: {
+          created_at?: string | null
+          fat_g?: number
+          id?: string
+          ingredient?: string
+          lactose_g?: number
+          msnf_g?: number
+          other_solids_g?: number
+          quantity_g?: number
+          recipe_id?: string
+          sugars_g?: number
+          total_solids_g?: number
+          water_g?: number
+        }
+        Relationships: [
           {
-            foreignKeyName: "recipe_versions_recipe_id_fkey"
+            foreignKeyName: "recipe_rows_recipe_id_fkey"
             columns: ["recipe_id"]
             isOneToOne: false
             referencedRelation: "recipes"
@@ -506,42 +569,24 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          is_public: boolean | null
-          metrics: Json | null
-          ml_score: number | null
-          name: string
           product_type: string | null
-          profile_id: string | null
-          profile_version: string | null
-          rows_json: Json
+          recipe_name: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          is_public?: boolean | null
-          metrics?: Json | null
-          ml_score?: number | null
-          name: string
           product_type?: string | null
-          profile_id?: string | null
-          profile_version?: string | null
-          rows_json: Json
+          recipe_name: string
           updated_at?: string | null
-          user_id?: string
+          user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          is_public?: boolean | null
-          metrics?: Json | null
-          ml_score?: number | null
-          name?: string
           product_type?: string | null
-          profile_id?: string | null
-          profile_version?: string | null
-          rows_json?: Json
+          recipe_name?: string
           updated_at?: string | null
           user_id?: string
         }
@@ -621,19 +666,6 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string | null
           water_pct?: number | null
-        }
-        Relationships: []
-      }
-      ml_training_dataset: {
-        Row: {
-          feedback_count: number | null
-          last_feedback_at: string | null
-          metrics: Json | null
-          ml_score: number | null
-          name: string | null
-          product_type: string | null
-          recipe_id: string | null
-          success_rate: number | null
         }
         Relationships: []
       }
