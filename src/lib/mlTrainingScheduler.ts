@@ -69,11 +69,12 @@ export class MLTrainingScheduler {
       const model = mlService.loadModel();
       const lastTrained = model?.trained_at || '2000-01-01';
 
-      // Count new successful outcomes since last training
+      // Count new successful outcomes since last training (must have recipe_id)
       const { count, error } = await supabase
         .from('recipe_outcomes')
         .select('*', { count: 'exact', head: true })
         .eq('outcome', 'success')
+        .not('recipe_id', 'is', null)
         .gt('created_at', lastTrained);
 
       if (error) {
@@ -82,7 +83,7 @@ export class MLTrainingScheduler {
       }
 
       if (!count || count < this.MIN_OUTCOMES_FOR_TRAINING) {
-        console.log(`ML: ${count} new outcomes, need ${this.MIN_OUTCOMES_FOR_TRAINING} to train`);
+        console.log(`ML: ${count} new valid outcomes, need ${this.MIN_OUTCOMES_FOR_TRAINING} to train`);
         return false;
       }
 

@@ -154,19 +154,26 @@ export class MLService {
       const { getSupabase } = await import('@/integrations/supabase/safeClient');
       const supabase = await getSupabase();
       
-      // Get outcome data
+      // Get successful outcomes (must have recipe_id and metrics)
       const { data: outcomes } = await supabase
         .from('recipe_outcomes')
-        .select('*');
+        .select('*')
+        .eq('outcome', 'success')
+        .not('recipe_id', 'is', null)
+        .not('metrics', 'is', null);
 
-      const outcomeMap = new Map(outcomes?.map(o => [o.recipe_id, o]) || []);
-      const successExamples = allData.filter(d => {
-        const outcome = outcomeMap.get(d.id);
-        return outcome?.outcome === 'success';
-      });
+      if (!outcomes || outcomes.length < 5) {
+        throw new Error(`Need at least 5 successful recipes to train model (have ${outcomes?.length || 0})`);
+      }
+
+      // Map recipes with their outcomes
+      const recipeMap = new Map(allData.map(r => [r.id, r]));
+      const successExamples = outcomes
+        .map(o => recipeMap.get(o.recipe_id))
+        .filter(r => r !== undefined) as any[];
 
       if (successExamples.length < 5) {
-        throw new Error(`Need at least 5 successful recipes to train model (have ${successExamples.length})`);
+        throw new Error(`Need at least 5 successful recipes with data (have ${successExamples.length})`);
       }
 
     // Extract features

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { mlService } from '@/services/mlService';
+import { calcMetrics } from '@/lib/calc';
 import Papa from 'papaparse';
 import { z } from 'zod';
 
@@ -190,14 +191,43 @@ export default function Database() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) throw new Error('User not authenticated');
 
-                // Save recipe with explicit user_id
+                // Build full ingredient rows for metrics calculation  
+                const fullRows = rows.map(r => {
+                  const ing = ingredients.find(i => i.id === r.ingredientId);
+                  if (!ing) throw new Error(`Ingredient not found: ${r.ingredientId}`);
+                  return { 
+                    ing: ing as any, // Type cast database type to IngredientData
+                    grams: r.grams 
+                  };
+                });
+
+                // Calculate proper metrics
+                const metrics = calcMetrics(fullRows);
+                console.log(`📊 Calculated metrics:`, {
+                  sp: metrics.sp.toFixed(1),
+                  pac: metrics.pac.toFixed(1),
+                  fat_pct: metrics.fat_pct.toFixed(1)
+                });
+
+                // Save recipe with explicit user_id and proper metrics
                 const { data: recipe, error: recipeError } = await supabase
                   .from('recipes')
                   .insert({
                     name,
-                    rows_json: rows,
-                    product_type: 'gelato',
-                    metrics: {},
+                    rows_json: fullRows,
+                    product_type: 'ice_cream',
+                    metrics: {
+                      total_g: metrics.total_g,
+                      water_pct: metrics.water_pct,
+                      sugars_pct: metrics.sugars_pct,
+                      fat_pct: metrics.fat_pct,
+                      msnf_pct: metrics.msnf_pct,
+                      ts_add_pct: metrics.ts_add_pct,
+                      sp: metrics.sp,
+                      pac: metrics.pac,
+                      fpdt: metrics.fpdt,
+                      pod_index: metrics.pod_index
+                    },
                     user_id: user.id
                   })
                   .select()
@@ -210,15 +240,15 @@ export default function Database() {
 
                 console.log(`✅ Recipe inserted: ${recipe.id}`);
 
-                // Create successful outcome for ML training
+                // Create successful outcome for ML training with proper metrics
                 const { error: outcomeError } = await supabase
                   .from('recipe_outcomes')
                   .insert({
                     recipe_id: recipe.id,
                     user_id: user.id,
                     outcome: 'success',
-                    metrics: {},
-                    notes: 'Imported from CSV'
+                    metrics: recipe.metrics,
+                    notes: 'Imported from CSV - ML training data'
                   });
 
                 if (outcomeError) {
