@@ -17,7 +17,7 @@ const TEST_INGREDIENTS: IngredientData[] = [
 ];
 
 export default function SystemCheck() {
-  const [checks, setChecks] = useState<Array<{name: string; status: 'pending' | 'pass' | 'fail'; message: string}>>([
+  const [checks, setChecks] = useState<Array<{name: string; status: 'pending' | 'pass' | 'fail' | 'warn'; message: string}>>([
     { name: 'Core Calculation Engine', status: 'pending', message: '' },
     { name: 'ML Service Integration', status: 'pending', message: '' },
     { name: 'Flavor Pairing System', status: 'pending', message: '' },

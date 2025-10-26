@@ -41,7 +41,7 @@ const App = () => {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<Index />} />
                 <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/reverse-engineer" element={<ReverseEngineer palette={[]} />} />
+                <Route path="/reverse-engineer" element={<ReverseEngineer />} />
                 <Route path="/help/glossary" element={<Glossary />} />
                 <Route path="/database" element={<Database />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

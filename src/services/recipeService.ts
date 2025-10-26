@@ -16,7 +16,7 @@ export async function saveRecipe(r: RecipeRow) {
     .insert({
       recipe_name: r.recipe_name,
       product_type: r.product_type || 'ice_cream'
-    })
+    } as any)
     .select()
     .single();
 
@@ -85,7 +85,7 @@ export const RecipeService = {
       .insert({
         recipe_name: params.name,
         product_type: params.product_type || 'ice_cream'
-      })
+      } as any)
       .select()
       .single();
 

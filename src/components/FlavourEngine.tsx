@@ -328,9 +328,7 @@ const FlavourEngine = () => {
       });
 
       await saveRecipe({
-        name: currentRecipeName,
-        rows_json: rows,
-        metrics: modernMetricsV2 || undefined,
+        recipe_name: currentRecipeName,
         product_type: selectedProduct as "gelato" | "kulfi" | "sorbet" | "other"
       });
 
@@ -602,12 +600,9 @@ const FlavourEngine = () => {
                   onOptimizedBlend={handleOptimizedSugarBlend}
                 />
                 
-                <AIInsights recipe={recipe} metrics={metrics} />
+                <AIInsights />
                 
-                <IngredientAnalyzer 
-                  availableIngredients={ingredients.map(ing => ing.name)}
-                  onAddIngredient={addIngredientToRecipe}
-                />
+                <IngredientAnalyzer />
               </div>
 
               {/* Cost & Yield + Why Panel */}
@@ -736,7 +731,7 @@ const FlavourEngine = () => {
                 </TabsContent>
 
                 <TabsContent value="reverse" className="mt-3">
-                  <ReverseEngineer palette={availableIngredients} />
+                  <ReverseEngineer />
                 </TabsContent>
 
                 <TabsContent value="paste-studio" className="mt-3">
@@ -790,7 +785,7 @@ const FlavourEngine = () => {
           )}
 
           <TabsContent value="reverse" className={`${isMobile ? 'mt-3' : 'mt-6'}`}>
-            <ReverseEngineer palette={availableIngredients} />
+            <ReverseEngineer />
           </TabsContent>
 
           <TabsContent value="paste-studio" className={`${isMobile ? 'mt-3' : 'mt-6'}`}>

@@ -14,7 +14,7 @@ import FlavourEngine from "@/components/FlavourEngine";
 import MobileRecipeInput from "@/components/MobileRecipeInput";
 import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";
-import { ProductionPlanner } from "@/components/ProductionPlanner";
+import ProductionPlanner from "@/components/ProductionPlanner";
 import { RecipeImporter } from "@/components/RecipeImporter";
 import { AutoTrainingMonitor } from "@/components/AutoTrainingMonitor";
 import CopyProtection from "@/components/CopyProtection";
