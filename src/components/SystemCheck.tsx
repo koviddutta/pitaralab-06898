@@ -49,8 +49,12 @@ export default function SystemCheck() {
 
     try {
       // Test 2: ML Service
-      const performance = mlService.getModelPerformance();
-      updatedChecks[1] = { name: 'ML Service Integration', status: 'pass', message: `Accuracy: ${(performance.accuracy * 100).toFixed(1)}%` };
+      const model = mlService.loadModel();
+      if (model) {
+        updatedChecks[1] = { name: 'ML Service Integration', status: 'pass', message: `Model v${model.version}` };
+      } else {
+        updatedChecks[1] = { name: 'ML Service Integration', status: 'warn', message: 'No model trained yet' };
+      }
     } catch (e) {
       updatedChecks[1] = { name: 'ML Service Integration', status: 'fail', message: 'ML service error' };
     }
