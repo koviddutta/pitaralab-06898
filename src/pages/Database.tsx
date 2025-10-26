@@ -16,22 +16,44 @@ import { mlService } from '@/services/mlService';
 import Papa from 'papaparse';
 import { z } from 'zod';
 
-// New validation schema matching the exact format
+// Flexible validation schema - all columns optional except ingredient and quantity
 const ImportRowSchema = z.object({
-  'Ingredient': z.string().min(1),
-  'Quantity (g)': z.number().positive(),
-  'Water (g)': z.number().min(0),
-  'Sugars (g)': z.number().min(0),
-  'Fat (g)': z.number().min(0),
-  'MSNF (g)': z.number().min(0),
-  'Other Solids (g)': z.number().min(0),
-  'Total Solids (g)': z.number().min(0),
-  'Lactose (g)': z.number().min(0)
+  'Ingredient': z.string().min(1, "Ingredient name is required"),
+  'Quantity (g)': z.number().positive("Quantity must be greater than 0"),
+  'Water (g)': z.number().min(0).optional().default(0),
+  'Sugars (g)': z.number().min(0).optional().default(0),
+  'Fat (g)': z.number().min(0).optional().default(0),
+  'MSNF (g)': z.number().min(0).optional().default(0),
+  'Other Solids (g)': z.number().min(0).optional().default(0),
+  'Total Solids (g)': z.number().min(0).optional().default(0),
+  'Lactose (g)': z.number().min(0).optional().default(0)
 });
 
 type RecipeData = {
   name: string;
   rows: z.infer<typeof ImportRowSchema>[];
+};
+
+// Helper function to safely parse number with default fallback
+const safeParseNumber = (value: any, defaultValue: number = 0): number => {
+  if (value === null || value === undefined || value === '') return defaultValue;
+  const parsed = parseFloat(String(value).trim());
+  return isNaN(parsed) ? defaultValue : Math.max(0, parsed);
+};
+
+// Helper function to find column value case-insensitively
+const getColumnValue = (row: any, ...possibleNames: string[]): any => {
+  for (const name of possibleNames) {
+    // Try exact match
+    if (row[name] !== undefined) return row[name];
+    
+    // Try case-insensitive match
+    const lowerName = name.toLowerCase();
+    for (const key in row) {
+      if (key.toLowerCase() === lowerName) return row[key];
+    }
+  }
+  return undefined;
 };
 
 export default function Database() {
@@ -149,6 +171,7 @@ export default function Database() {
         complete: async (results) => {
           try {
             console.log(`📊 Parsed ${results.data.length} rows from CSV`);
+            console.log('📋 Sample row:', results.data[0]); // Show first row for debugging
 
             // Group by recipe name (first column should be recipe name)
             const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
@@ -157,20 +180,41 @@ export default function Database() {
 
             for (const row of results.data as any[]) {
               try {
-                // Extract recipe name from first column or 'Recipe Name' column
-                const recipeName = row['Recipe Name'] || row['recipe_name'] || row['Recipe'] || 'Unnamed Recipe';
+                // Skip completely empty rows
+                if (Object.values(row).every(v => !v || String(v).trim() === '')) {
+                  continue;
+                }
 
+                // Extract recipe name - try multiple column variations
+                const recipeName = getColumnValue(row, 'Recipe Name', 'recipe_name', 'Recipe', 'Name') || 'Unnamed Recipe';
+                
+                // Get ingredient name
+                const ingredient = getColumnValue(row, 'Ingredient', 'ingredient', 'Item', 'Name');
+                if (!ingredient || String(ingredient).trim() === '') {
+                  console.warn('⚠️ Skipping row without ingredient:', row);
+                  invalidRows++;
+                  continue;
+                }
+
+                // Parse all numeric values with fallbacks
                 const validated = ImportRowSchema.parse({
-                  'Ingredient': row['Ingredient'] || row['ingredient'],
-                  'Quantity (g)': parseFloat(row['Quantity (g)'] || row['quantity_g'] || row['Quantity'] || '0'),
-                  'Water (g)': parseFloat(row['Water (g)'] || row['water_g'] || row['Water'] || '0'),
-                  'Sugars (g)': parseFloat(row['Sugars (g)'] || row['sugars_g'] || row['Sugars'] || '0'),
-                  'Fat (g)': parseFloat(row['Fat (g)'] || row['fat_g'] || row['Fat'] || '0'),
-                  'MSNF (g)': parseFloat(row['MSNF (g)'] || row['msnf_g'] || row['MSNF'] || '0'),
-                  'Other Solids (g)': parseFloat(row['Other Solids (g)'] || row['other_solids_g'] || row['Other Solids'] || '0'),
-                  'Total Solids (g)': parseFloat(row['Total Solids (g)'] || row['total_solids_g'] || row['Total Solids'] || '0'),
-                  'Lactose (g)': parseFloat(row['Lactose (g)'] || row['lactose_g'] || row['Lactose'] || '0')
+                  'Ingredient': String(ingredient).trim(),
+                  'Quantity (g)': safeParseNumber(getColumnValue(row, 'Quantity (g)', 'quantity_g', 'Quantity', 'Grams', 'Amount'), 0),
+                  'Water (g)': safeParseNumber(getColumnValue(row, 'Water (g)', 'water_g', 'Water'), 0),
+                  'Sugars (g)': safeParseNumber(getColumnValue(row, 'Sugars (g)', 'sugars_g', 'Sugars', 'Sugar'), 0),
+                  'Fat (g)': safeParseNumber(getColumnValue(row, 'Fat (g)', 'fat_g', 'Fat'), 0),
+                  'MSNF (g)': safeParseNumber(getColumnValue(row, 'MSNF (g)', 'msnf_g', 'MSNF'), 0),
+                  'Other Solids (g)': safeParseNumber(getColumnValue(row, 'Other Solids (g)', 'other_solids_g', 'Other Solids', 'Other'), 0),
+                  'Total Solids (g)': safeParseNumber(getColumnValue(row, 'Total Solids (g)', 'total_solids_g', 'Total Solids', 'Solids'), 0),
+                  'Lactose (g)': safeParseNumber(getColumnValue(row, 'Lactose (g)', 'lactose_g', 'Lactose'), 0)
                 });
+
+                // Validate that quantity is positive
+                if (validated['Quantity (g)'] <= 0) {
+                  console.warn('⚠️ Skipping row with zero/negative quantity:', row);
+                  invalidRows++;
+                  continue;
+                }
 
                 if (!recipesMap.has(recipeName)) {
                   recipesMap.set(recipeName, []);
@@ -178,15 +222,20 @@ export default function Database() {
                 recipesMap.get(recipeName)!.push(validated);
                 validRows++;
               } catch (validationError: any) {
-                console.warn('❌ Invalid row:', row, validationError.message);
+                console.warn('❌ Invalid row:', row, 'Error:', validationError.message);
                 invalidRows++;
+                // Continue processing other rows instead of failing completely
               }
             }
 
             console.log(`✅ Validated ${validRows} rows into ${recipesMap.size} recipes, ${invalidRows} invalid`);
 
             if (recipesMap.size === 0) {
-              throw new Error('No valid recipes found. Expected format: Recipe Name, Ingredient, Quantity (g), Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)');
+              throw new Error(`No valid recipes found. ${invalidRows > 0 ? `${invalidRows} rows were invalid. ` : ''}Please ensure your CSV has columns: Recipe Name, Ingredient, and Quantity (g) at minimum. Other columns are optional.`);
+            }
+
+            if (invalidRows > 0) {
+              console.log(`⚠️ Warning: ${invalidRows} rows could not be imported (missing required data or invalid format)`);
             }
 
             // Import recipes
@@ -284,8 +333,9 @@ export default function Database() {
 
                 imported++;
                 setImportProgress((imported / total) * 100);
+                console.log(`✅ Imported recipe "${recipeName}" (${imported}/${total})`);
               } catch (error: any) {
-                console.error(`❌ Failed to import "${recipeName}":`, error);
+                console.error(`❌ Failed to import "${recipeName}":`, error.message);
               }
             }
 
@@ -293,7 +343,7 @@ export default function Database() {
 
             toast({
               title: 'Import Complete',
-              description: `Successfully imported ${imported} recipes with exact column format`
+              description: `Successfully imported ${imported} recipe(s). ${validRows} ingredient rows processed${invalidRows > 0 ? `, ${invalidRows} skipped` : ''}`
             });
 
             setImportFile(null);
@@ -482,10 +532,22 @@ export default function Database() {
             <CardHeader>
               <CardTitle>Import CSV Data</CardTitle>
               <CardDescription>
-                Upload CSV with columns: Recipe Name, Ingredient, Quantity (g), Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)
+                Upload CSV with required columns: Recipe Name, Ingredient, Quantity (g). 
+                Optional columns: Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g). 
+                Missing columns will be filled with 0.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Required columns:</strong> Recipe Name, Ingredient, Quantity (g)
+                  <br />
+                  <strong>Optional columns (will default to 0 if missing):</strong> Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)
+                  <br />
+                  <strong>Column names are case-insensitive</strong> and can use underscores (e.g., "recipe_name" or "Recipe Name" both work)
+                </AlertDescription>
+              </Alert>
               <div>
                 <Label htmlFor="csv-file">Select CSV File</Label>
                 <Input
@@ -507,9 +569,63 @@ export default function Database() {
                   {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                   Import CSV
                 </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const sampleData = [
+                      {
+                        'Recipe Name': 'Vanilla Gelato',
+                        'Ingredient': 'Whole Milk',
+                        'Quantity (g)': 600,
+                        'Water (g)': 528,
+                        'Sugars (g)': 30,
+                        'Fat (g)': 18,
+                        'MSNF (g)': 51,
+                        'Other Solids (g)': 0,
+                        'Total Solids (g)': 99,
+                        'Lactose (g)': 28
+                      },
+                      {
+                        'Recipe Name': 'Vanilla Gelato',
+                        'Ingredient': 'Sugar',
+                        'Quantity (g)': 150,
+                        'Water (g)': 0,
+                        'Sugars (g)': 150,
+                        'Fat (g)': 0,
+                        'MSNF (g)': 0,
+                        'Other Solids (g)': 0,
+                        'Total Solids (g)': 150,
+                        'Lactose (g)': 0
+                      },
+                      {
+                        'Recipe Name': 'Vanilla Gelato',
+                        'Ingredient': 'Cream',
+                        'Quantity (g)': 200,
+                        'Water (g)': 136,
+                        'Sugars (g)': 6,
+                        'Fat (g)': 50,
+                        'MSNF (g)': 13.6,
+                        'Other Solids (g)': 0,
+                        'Total Solids (g)': 69.6,
+                        'Lactose (g)': 10
+                      }
+                    ];
+                    const csv = Papa.unparse(sampleData);
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'sample-recipe-format.csv';
+                    a.click();
+                    toast({ title: 'Sample Downloaded', description: 'Use this format for your import' });
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Sample
+                </Button>
                 <Button variant="outline" onClick={handleExportData} disabled={!isAuthenticated}>
                   <Download className="mr-2 h-4 w-4" />
-                  Export CSV
+                  Export All Data
                 </Button>
               </div>
             </CardContent>
