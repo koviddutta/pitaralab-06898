@@ -37,23 +37,196 @@ type RecipeData = {
 // Helper function to safely parse number with default fallback
 const safeParseNumber = (value: any, defaultValue: number = 0): number => {
   if (value === null || value === undefined || value === '') return defaultValue;
-  const parsed = parseFloat(String(value).trim());
+  const parsed = parseFloat(String(value).trim().replace(/[^0-9.-]/g, ''));
   return isNaN(parsed) ? defaultValue : Math.max(0, parsed);
 };
 
-// Helper function to find column value case-insensitively
-const getColumnValue = (row: any, ...possibleNames: string[]): any => {
-  for (const name of possibleNames) {
-    // Try exact match
-    if (row[name] !== undefined) return row[name];
+// Detect CSV format type
+const detectFileFormat = (rows: any[][]): 'side-by-side' | 'simple' | 'unknown' => {
+  if (rows.length < 2) return 'unknown';
+  
+  // Check for multiple sections with "Ingredient" headers
+  let ingredientCount = 0;
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    const row = rows[i];
+    const hasIngredient = row.some((cell: any) => 
+      cell && String(cell).toLowerCase() === 'ingredient'
+    );
+    if (hasIngredient) ingredientCount++;
+  }
+  
+  // Multiple ingredient headers means side-by-side format
+  if (ingredientCount >= 2) return 'side-by-side';
+  
+  // Single ingredient header means simple format
+  if (ingredientCount === 1) return 'simple';
+  
+  return 'unknown';
+};
+
+// Parse side-by-side recipe format
+const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof ImportRowSchema>[]> => {
+  const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
+  
+  // Find rows that contain "Ingredient" - these indicate recipe table starts
+  const ingredientRowIndices: number[] = [];
+  rows.forEach((row, idx) => {
+    if (row.some((cell: any) => cell && String(cell).toLowerCase() === 'ingredient')) {
+      ingredientRowIndices.push(idx);
+    }
+  });
+  
+  console.log(`Found ${ingredientRowIndices.length} recipe table sections`);
+  
+  // Process each recipe table section
+  for (const startIdx of ingredientRowIndices) {
+    const headerRow = rows[startIdx];
     
-    // Try case-insensitive match
-    const lowerName = name.toLowerCase();
-    for (const key in row) {
-      if (key.toLowerCase() === lowerName) return row[key];
+    // Find all "Ingredient" column positions
+    const recipeColumns: number[] = [];
+    headerRow.forEach((cell: any, colIdx: number) => {
+      if (cell && String(cell).toLowerCase() === 'ingredient') {
+        recipeColumns.push(colIdx);
+      }
+    });
+    
+    // For each recipe column, extract the recipe
+    for (const colIdx of recipeColumns) {
+      // Look backwards for recipe name (usually 1-3 rows above)
+      let recipeName = `Recipe ${recipesMap.size + 1}`;
+      for (let i = startIdx - 1; i >= Math.max(0, startIdx - 5); i--) {
+        const potentialName = rows[i][colIdx];
+        if (potentialName && String(potentialName).trim() !== '' && 
+            !String(potentialName).toLowerCase().includes('ingredient') &&
+            !String(potentialName).toLowerCase().includes('quantity') &&
+            !String(potentialName).toLowerCase().includes('sugars') &&
+            !String(potentialName).toLowerCase().includes('base')) {
+          recipeName = String(potentialName).trim();
+          break;
+        }
+      }
+      
+      // Find quantity column (usually next column)
+      let qtyColIdx = colIdx + 1;
+      
+      // Extract ingredient rows
+      const ingredients: z.infer<typeof ImportRowSchema>[] = [];
+      for (let rowIdx = startIdx + 1; rowIdx < rows.length && rowIdx < startIdx + 50; rowIdx++) {
+        const row = rows[rowIdx];
+        const ingredient = row[colIdx];
+        const quantity = row[qtyColIdx];
+        
+        // Stop if ingredient is empty or looks like a total/header
+        if (!ingredient || String(ingredient).trim() === '' ||
+            String(ingredient).toLowerCase().includes('total') ||
+            String(ingredient).toLowerCase() === 'ingredient') {
+          break;
+        }
+        
+        try {
+          const validated = ImportRowSchema.parse({
+            'Ingredient': String(ingredient).trim(),
+            'Quantity (g)': safeParseNumber(quantity),
+            'Water (g)': 0,
+            'Sugars (g)': safeParseNumber(row[qtyColIdx + 1]),
+            'Fat (g)': safeParseNumber(row[qtyColIdx + 2]),
+            'MSNF (g)': safeParseNumber(row[qtyColIdx + 3]),
+            'Other Solids (g)': safeParseNumber(row[qtyColIdx + 4]),
+            'Total Solids (g)': safeParseNumber(row[qtyColIdx + 5]),
+            'Lactose (g)': 0
+          });
+          
+          if (validated['Quantity (g)'] > 0) {
+            ingredients.push(validated);
+          }
+        } catch (e) {
+          // Skip invalid rows
+        }
+      }
+      
+      if (ingredients.length > 0) {
+        const uniqueName = recipeName + (recipesMap.has(recipeName) ? ` (${Date.now()})` : '');
+        recipesMap.set(uniqueName, ingredients);
+        console.log(`✅ Extracted recipe "${uniqueName}" with ${ingredients.length} ingredients`);
+      }
     }
   }
-  return undefined;
+  
+  return recipesMap;
+};
+
+// Parse simple row-by-row format
+const parseSimpleFormat = (rows: any[][]): Map<string, z.infer<typeof ImportRowSchema>[]> => {
+  const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
+  
+  // Find header row
+  let headerRowIdx = 0;
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    if (rows[i].some((cell: any) => cell && String(cell).toLowerCase().includes('ingredient'))) {
+      headerRowIdx = i;
+      break;
+    }
+  }
+  
+  const headers = rows[headerRowIdx].map((h: any) => String(h || '').trim().toLowerCase());
+  
+  // Find column indices
+  const getColIdx = (...names: string[]) => {
+    for (const name of names) {
+      const idx = headers.findIndex(h => h.includes(name.toLowerCase()));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  
+  const recipeNameIdx = getColIdx('recipe', 'name');
+  const ingredientIdx = getColIdx('ingredient');
+  const quantityIdx = getColIdx('quantity', 'grams', 'qty');
+  
+  if (ingredientIdx < 0 || quantityIdx < 0) {
+    throw new Error('Could not find Ingredient and Quantity columns');
+  }
+  
+  let currentRecipeName = 'Unnamed Recipe';
+  
+  // Process data rows
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every((cell: any) => !cell || String(cell).trim() === '')) continue;
+    
+    try {
+      if (recipeNameIdx >= 0 && row[recipeNameIdx]) {
+        currentRecipeName = String(row[recipeNameIdx]).trim();
+      }
+      
+      const ingredient = String(row[ingredientIdx] || '').trim();
+      
+      if (!ingredient || ingredient === '') continue;
+      
+      const validated = ImportRowSchema.parse({
+        'Ingredient': ingredient,
+        'Quantity (g)': safeParseNumber(row[quantityIdx]),
+        'Water (g)': safeParseNumber(row[getColIdx('water')]),
+        'Sugars (g)': safeParseNumber(row[getColIdx('sugar')]),
+        'Fat (g)': safeParseNumber(row[getColIdx('fat')]),
+        'MSNF (g)': safeParseNumber(row[getColIdx('msnf')]),
+        'Other Solids (g)': safeParseNumber(row[getColIdx('other')]),
+        'Total Solids (g)': safeParseNumber(row[getColIdx('total', 'solids')]),
+        'Lactose (g)': safeParseNumber(row[getColIdx('lactose')])
+      });
+      
+      if (validated['Quantity (g)'] > 0) {
+        if (!recipesMap.has(currentRecipeName)) {
+          recipesMap.set(currentRecipeName, []);
+        }
+        recipesMap.get(currentRecipeName)!.push(validated);
+      }
+    } catch (e) {
+      // Skip invalid rows
+    }
+  }
+  
+  return recipesMap;
 };
 
 export default function Database() {
@@ -103,7 +276,7 @@ export default function Database() {
     enabled: isAuthenticated
   });
 
-  // Fetch recent recipes with their rows
+  // Fetch recent recipes
   const { data: recentRecipes } = useQuery({
     queryKey: ['recent-recipes'],
     queryFn: async () => {
@@ -163,79 +336,35 @@ export default function Database() {
     setImportProgress(0);
 
     try {
-      console.log('📂 Starting CSV import with new format...');
+      console.log('📂 Starting CSV import with intelligent format detection...');
 
       Papa.parse(importFile, {
-        header: true,
-        skipEmptyLines: true,
+        header: false,
+        skipEmptyLines: false,
         complete: async (results) => {
           try {
-            console.log(`📊 Parsed ${results.data.length} rows from CSV`);
-            console.log('📋 Sample row:', results.data[0]); // Show first row for debugging
+            const allRows = results.data as any[][];
+            console.log(`📊 Parsed ${allRows.length} rows from CSV`);
+            console.log('📋 First 3 rows:', allRows.slice(0, 3));
 
-            // Group by recipe name (first column should be recipe name)
-            const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
-            let validRows = 0;
-            let invalidRows = 0;
+            // Detect file format
+            const format = detectFileFormat(allRows);
+            console.log(`🔍 Detected format: ${format}`);
 
-            for (const row of results.data as any[]) {
-              try {
-                // Skip completely empty rows
-                if (Object.values(row).every(v => !v || String(v).trim() === '')) {
-                  continue;
-                }
+            let recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
 
-                // Extract recipe name - try multiple column variations
-                const recipeName = getColumnValue(row, 'Recipe Name', 'recipe_name', 'Recipe', 'Name') || 'Unnamed Recipe';
-                
-                // Get ingredient name
-                const ingredient = getColumnValue(row, 'Ingredient', 'ingredient', 'Item', 'Name');
-                if (!ingredient || String(ingredient).trim() === '') {
-                  console.warn('⚠️ Skipping row without ingredient:', row);
-                  invalidRows++;
-                  continue;
-                }
-
-                // Parse all numeric values with fallbacks
-                const validated = ImportRowSchema.parse({
-                  'Ingredient': String(ingredient).trim(),
-                  'Quantity (g)': safeParseNumber(getColumnValue(row, 'Quantity (g)', 'quantity_g', 'Quantity', 'Grams', 'Amount'), 0),
-                  'Water (g)': safeParseNumber(getColumnValue(row, 'Water (g)', 'water_g', 'Water'), 0),
-                  'Sugars (g)': safeParseNumber(getColumnValue(row, 'Sugars (g)', 'sugars_g', 'Sugars', 'Sugar'), 0),
-                  'Fat (g)': safeParseNumber(getColumnValue(row, 'Fat (g)', 'fat_g', 'Fat'), 0),
-                  'MSNF (g)': safeParseNumber(getColumnValue(row, 'MSNF (g)', 'msnf_g', 'MSNF'), 0),
-                  'Other Solids (g)': safeParseNumber(getColumnValue(row, 'Other Solids (g)', 'other_solids_g', 'Other Solids', 'Other'), 0),
-                  'Total Solids (g)': safeParseNumber(getColumnValue(row, 'Total Solids (g)', 'total_solids_g', 'Total Solids', 'Solids'), 0),
-                  'Lactose (g)': safeParseNumber(getColumnValue(row, 'Lactose (g)', 'lactose_g', 'Lactose'), 0)
-                });
-
-                // Validate that quantity is positive
-                if (validated['Quantity (g)'] <= 0) {
-                  console.warn('⚠️ Skipping row with zero/negative quantity:', row);
-                  invalidRows++;
-                  continue;
-                }
-
-                if (!recipesMap.has(recipeName)) {
-                  recipesMap.set(recipeName, []);
-                }
-                recipesMap.get(recipeName)!.push(validated);
-                validRows++;
-              } catch (validationError: any) {
-                console.warn('❌ Invalid row:', row, 'Error:', validationError.message);
-                invalidRows++;
-                // Continue processing other rows instead of failing completely
-              }
+            if (format === 'side-by-side') {
+              recipesMap = parseSideBySideFormat(allRows);
+            } else if (format === 'simple') {
+              recipesMap = parseSimpleFormat(allRows);
+            } else {
+              throw new Error('Unable to detect CSV format. Your file may have a complex layout. Try the sample template format.');
             }
 
-            console.log(`✅ Validated ${validRows} rows into ${recipesMap.size} recipes, ${invalidRows} invalid`);
+            console.log(`✅ Extracted ${recipesMap.size} recipes`);
 
             if (recipesMap.size === 0) {
-              throw new Error(`No valid recipes found. ${invalidRows > 0 ? `${invalidRows} rows were invalid. ` : ''}Please ensure your CSV has columns: Recipe Name, Ingredient, and Quantity (g) at minimum. Other columns are optional.`);
-            }
-
-            if (invalidRows > 0) {
-              console.log(`⚠️ Warning: ${invalidRows} rows could not be imported (missing required data or invalid format)`);
+              throw new Error(`No valid recipes found in CSV. Please check your file format.`);
             }
 
             // Import recipes
@@ -256,7 +385,7 @@ export default function Database() {
                     recipe_name: recipeName,
                     product_type: 'ice_cream',
                     user_id: user.id
-                  })
+                  } as any)
                   .select()
                   .single();
 
@@ -270,13 +399,13 @@ export default function Database() {
                       recipe_id: recipe.id,
                       ingredient: r['Ingredient'],
                       quantity_g: r['Quantity (g)'],
-                      water_g: r['Water (g)'],
-                      sugars_g: r['Sugars (g)'],
-                      fat_g: r['Fat (g)'],
-                      msnf_g: r['MSNF (g)'],
-                      other_solids_g: r['Other Solids (g)'],
-                      total_solids_g: r['Total Solids (g)'],
-                      lactose_g: r['Lactose (g)']
+                      water_g: r['Water (g)'] || 0,
+                      sugars_g: r['Sugars (g)'] || 0,
+                      fat_g: r['Fat (g)'] || 0,
+                      msnf_g: r['MSNF (g)'] || 0,
+                      other_solids_g: r['Other Solids (g)'] || 0,
+                      total_solids_g: r['Total Solids (g)'] || 0,
+                      lactose_g: r['Lactose (g)'] || 0
                     }))
                   );
 
@@ -284,21 +413,21 @@ export default function Database() {
 
                 // Calculate metrics
                 const totals = rows.reduce((acc, r) => ({
-                  quantity: acc.quantity + r['Quantity (g)'],
-                  water: acc.water + r['Water (g)'],
-                  sugars: acc.sugars + r['Sugars (g)'],
-                  fat: acc.fat + r['Fat (g)'],
-                  msnf: acc.msnf + r['MSNF (g)'],
-                  other: acc.other + r['Other Solids (g)'],
-                  solids: acc.solids + r['Total Solids (g)'],
-                  lactose: acc.lactose + r['Lactose (g)']
+                  quantity: acc.quantity + (r['Quantity (g)'] || 0),
+                  water: acc.water + (r['Water (g)'] || 0),
+                  sugars: acc.sugars + (r['Sugars (g)'] || 0),
+                  fat: acc.fat + (r['Fat (g)'] || 0),
+                  msnf: acc.msnf + (r['MSNF (g)'] || 0),
+                  other: acc.other + (r['Other Solids (g)'] || 0),
+                  solids: acc.solids + (r['Total Solids (g)'] || 0),
+                  lactose: acc.lactose + (r['Lactose (g)'] || 0)
                 }), { quantity: 0, water: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0, lactose: 0 });
 
-                const sp = totals.sugars / totals.quantity * 100; // Simplified SP calculation
-                const pac = (totals.sugars * 1.9) / totals.quantity * 100; // Simplified PAC
+                const sp = totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0;
+                const pac = totals.quantity > 0 ? ((totals.sugars * 1.9) / totals.quantity) * 100 : 0;
 
                 // Store calculated metrics
-                const { error: metricsError } = await supabase
+                await supabase
                   .from('calculated_metrics')
                   .insert({
                     recipe_id: recipe.id,
@@ -310,18 +439,16 @@ export default function Database() {
                     total_other_solids_g: totals.other,
                     total_solids_g: totals.solids,
                     total_lactose_g: totals.lactose,
-                    water_pct: totals.water / totals.quantity * 100,
-                    sugars_pct: totals.sugars / totals.quantity * 100,
-                    fat_pct: totals.fat / totals.quantity * 100,
-                    msnf_pct: totals.msnf / totals.quantity * 100,
-                    other_solids_pct: totals.other / totals.quantity * 100,
-                    total_solids_pct: totals.solids / totals.quantity * 100,
-                    lactose_pct: totals.lactose / totals.quantity * 100,
+                    water_pct: totals.quantity > 0 ? (totals.water / totals.quantity) * 100 : 0,
+                    sugars_pct: totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0,
+                    fat_pct: totals.quantity > 0 ? (totals.fat / totals.quantity) * 100 : 0,
+                    msnf_pct: totals.quantity > 0 ? (totals.msnf / totals.quantity) * 100 : 0,
+                    other_solids_pct: totals.quantity > 0 ? (totals.other / totals.quantity) * 100 : 0,
+                    total_solids_pct: totals.quantity > 0 ? (totals.solids / totals.quantity) * 100 : 0,
+                    lactose_pct: totals.quantity > 0 ? (totals.lactose / totals.quantity) * 100 : 0,
                     sp,
                     pac
                   });
-
-                if (metricsError) throw metricsError;
 
                 // Create outcome for ML training
                 await supabase.from('recipe_outcomes').insert({
@@ -343,7 +470,7 @@ export default function Database() {
 
             toast({
               title: 'Import Complete',
-              description: `Successfully imported ${imported} recipe(s). ${validRows} ingredient rows processed${invalidRows > 0 ? `, ${invalidRows} skipped` : ''}`
+              description: `Successfully imported ${imported} out of ${recipesMap.size} recipes`
             });
 
             setImportFile(null);
@@ -374,18 +501,19 @@ export default function Database() {
     if (!stats?.mlReady) {
       toast({
         title: 'Insufficient Data',
-        description: `Need at least 5 successful recipes. Currently have ${stats?.successfulOutcomes || 0}`,
+        description: 'Need at least 5 successful recipes to train the model',
         variant: 'destructive'
       });
       return;
     }
 
     setIsTraining(true);
+
     try {
-      const weights = await mlService.trainModel();
+      const result = await mlService.trainModel();
       toast({
         title: 'Training Complete',
-        description: `Model trained with ${Math.round(weights.accuracy * 100)}% accuracy`
+        description: `Model trained with ${result.accuracy.toFixed(1)}% confidence`,
       });
     } catch (error: any) {
       toast({
@@ -471,7 +599,7 @@ export default function Database() {
             Database Manager
           </h1>
           <p className="text-muted-foreground">
-            Import, train, and manage recipe data in standardized format
+            Import, train, and manage recipe data - supports complex CSV layouts
           </p>
         </div>
       </div>
@@ -502,9 +630,9 @@ export default function Database() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats?.successfulOutcomes || 0}</div>
-            <Badge variant={stats?.mlReady ? 'default' : 'secondary'} className="mt-2">
-              {stats?.mlReady ? 'Ready' : 'Need 5+'}
-            </Badge>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats?.mlReady ? '✓ Ready for training' : '✗ Need 5+ recipes'}
+            </p>
           </CardContent>
         </Card>
 
@@ -513,9 +641,11 @@ export default function Database() {
             <CardTitle className="text-sm font-medium">ML Status</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge variant={stats?.mlReady ? 'default' : 'outline'}>
-              {stats?.mlReady ? 'Trained' : 'Needs Training'}
-            </Badge>
+            {mlService.loadModel() ? (
+              <Badge variant="outline" className="text-green-600">Model Trained</Badge>
+            ) : (
+              <Badge variant="outline" className="text-yellow-600">Not Trained</Badge>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -532,20 +662,22 @@ export default function Database() {
             <CardHeader>
               <CardTitle>Import CSV Data</CardTitle>
               <CardDescription>
-                Upload CSV with required columns: Recipe Name, Ingredient, Quantity (g). 
-                Optional columns: Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g). 
-                Missing columns will be filled with 0.
+                Supports both simple and complex multi-recipe CSV layouts. Missing nutritional columns will be filled with 0.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Required columns:</strong> Recipe Name, Ingredient, Quantity (g)
+                  <strong>✅ Supports your complex CSV files!</strong>
                   <br />
-                  <strong>Optional columns (will default to 0 if missing):</strong> Water (g), Sugars (g), Fat (g), MSNF (g), Other Solids (g), Total Solids (g), Lactose (g)
+                  • Works with side-by-side recipe layouts (like your MP_recipes.csv)
                   <br />
-                  <strong>Column names are case-insensitive</strong> and can use underscores (e.g., "recipe_name" or "Recipe Name" both work)
+                  • Automatically detects recipe sections
+                  <br />
+                  • Only requires: Recipe Name, Ingredient, and Quantity columns
+                  <br />
+                  • All other nutritional data columns are optional
                 </AlertDescription>
               </Alert>
               <div>
@@ -577,37 +709,15 @@ export default function Database() {
                         'Recipe Name': 'Vanilla Gelato',
                         'Ingredient': 'Whole Milk',
                         'Quantity (g)': 600,
-                        'Water (g)': 528,
                         'Sugars (g)': 30,
-                        'Fat (g)': 18,
-                        'MSNF (g)': 51,
-                        'Other Solids (g)': 0,
-                        'Total Solids (g)': 99,
-                        'Lactose (g)': 28
+                        'Fat (g)': 18
                       },
                       {
                         'Recipe Name': 'Vanilla Gelato',
                         'Ingredient': 'Sugar',
                         'Quantity (g)': 150,
-                        'Water (g)': 0,
                         'Sugars (g)': 150,
-                        'Fat (g)': 0,
-                        'MSNF (g)': 0,
-                        'Other Solids (g)': 0,
-                        'Total Solids (g)': 150,
-                        'Lactose (g)': 0
-                      },
-                      {
-                        'Recipe Name': 'Vanilla Gelato',
-                        'Ingredient': 'Cream',
-                        'Quantity (g)': 200,
-                        'Water (g)': 136,
-                        'Sugars (g)': 6,
-                        'Fat (g)': 50,
-                        'MSNF (g)': 13.6,
-                        'Other Solids (g)': 0,
-                        'Total Solids (g)': 69.6,
-                        'Lactose (g)': 10
+                        'Fat (g)': 0
                       }
                     ];
                     const csv = Papa.unparse(sampleData);
@@ -615,9 +725,9 @@ export default function Database() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'sample-recipe-format.csv';
+                    a.download = 'simple-sample-format.csv';
                     a.click();
-                    toast({ title: 'Sample Downloaded', description: 'Use this format for your import' });
+                    toast({ title: 'Sample Downloaded', description: 'Simple format template' });
                   }}
                 >
                   <Download className="mr-2 h-4 w-4" />
@@ -652,18 +762,16 @@ export default function Database() {
                             <TableRow>
                               <TableHead>Ingredient</TableHead>
                               <TableHead>Quantity (g)</TableHead>
-                              <TableHead>Water (g)</TableHead>
                               <TableHead>Sugars (g)</TableHead>
                               <TableHead>Fat (g)</TableHead>
                               <TableHead>MSNF (g)</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {(recipe.recipe_rows as any[])?.map((row: any, idx: number) => (
+                            {(recipe.recipe_rows as any[])?.slice(0, 5).map((row: any, idx: number) => (
                               <TableRow key={idx}>
                                 <TableCell>{row.ingredient}</TableCell>
                                 <TableCell>{row.quantity_g}</TableCell>
-                                <TableCell>{row.water_g}</TableCell>
                                 <TableCell>{row.sugars_g}</TableCell>
                                 <TableCell>{row.fat_g}</TableCell>
                                 <TableCell>{row.msnf_g}</TableCell>
