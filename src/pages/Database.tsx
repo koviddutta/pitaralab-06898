@@ -64,19 +64,19 @@ const detectFileFormat = (rows: any[][]): 'side-by-side' | 'simple' | 'unknown' 
   return 'unknown';
 };
 
-// Parse side-by-side recipe format
+// Parse side-by-side recipe format (handles complex multi-column layouts)
 const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof ImportRowSchema>[]> => {
   const recipesMap = new Map<string, z.infer<typeof ImportRowSchema>[]>();
   
-  // Find rows that contain "Ingredient" - these indicate recipe table starts
+  // Find rows that contain "Ingredient" header
   const ingredientRowIndices: number[] = [];
   rows.forEach((row, idx) => {
-    if (row.some((cell: any) => cell && String(cell).toLowerCase() === 'ingredient')) {
+    if (row.some((cell: any) => cell && String(cell).toLowerCase().trim() === 'ingredient')) {
       ingredientRowIndices.push(idx);
     }
   });
   
-  console.log(`Found ${ingredientRowIndices.length} recipe table sections`);
+  console.log(`Found ${ingredientRowIndices.length} recipe header sections`);
   
   // Process each recipe table section
   for (const startIdx of ingredientRowIndices) {
@@ -85,7 +85,7 @@ const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof Import
     // Find all "Ingredient" column positions
     const recipeColumns: number[] = [];
     headerRow.forEach((cell: any, colIdx: number) => {
-      if (cell && String(cell).toLowerCase() === 'ingredient') {
+      if (cell && String(cell).toLowerCase().trim() === 'ingredient') {
         recipeColumns.push(colIdx);
       }
     });
@@ -99,55 +99,76 @@ const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof Import
         if (potentialName && String(potentialName).trim() !== '' && 
             !String(potentialName).toLowerCase().includes('ingredient') &&
             !String(potentialName).toLowerCase().includes('quantity') &&
-            !String(potentialName).toLowerCase().includes('sugars') &&
-            !String(potentialName).toLowerCase().includes('base')) {
+            !String(potentialName).toLowerCase().includes('balancing') &&
+            !String(potentialName).toLowerCase().includes('total')) {
           recipeName = String(potentialName).trim();
           break;
         }
       }
       
-      // Find quantity column (usually next column)
-      let qtyColIdx = colIdx + 1;
+      // Map header to column indices for this recipe
+      const columnMap: { [key: string]: number } = { 'ingredient': colIdx };
+      headerRow.forEach((cell: any, idx: number) => {
+        if (!cell || idx < colIdx) return;
+        const header = String(cell).toLowerCase().trim();
+        if (header.includes('quantity') || header.includes('qty')) columnMap['quantity'] = idx;
+        if (header.includes('sugar') && !header.includes('split')) columnMap['sugars'] = idx;
+        if (header.includes('fat')) columnMap['fat'] = idx;
+        if (header.includes('msnf')) columnMap['msnf'] = idx;
+        if (header.includes('other') && header.includes('solid')) columnMap['other_solids'] = idx;
+        if (header.includes('total') && header.includes('solid')) columnMap['total_solids'] = idx;
+        if (header.includes('water')) columnMap['water'] = idx;
+        if (header.includes('lactose')) columnMap['lactose'] = idx;
+      });
+      
+      // If no quantity column found, assume it's next to ingredient
+      if (!columnMap['quantity']) {
+        columnMap['quantity'] = colIdx + 1;
+      }
+      
+      console.log(`📍 Recipe "${recipeName}" column map:`, columnMap);
       
       // Extract ingredient rows
       const ingredients: z.infer<typeof ImportRowSchema>[] = [];
-      for (let rowIdx = startIdx + 1; rowIdx < rows.length && rowIdx < startIdx + 50; rowIdx++) {
+      for (let rowIdx = startIdx + 1; rowIdx < rows.length && rowIdx < startIdx + 100; rowIdx++) {
         const row = rows[rowIdx];
-        const ingredient = row[colIdx];
-        const quantity = row[qtyColIdx];
+        const ingredient = row[columnMap['ingredient']];
+        const quantity = row[columnMap['quantity']];
         
-        // Stop if ingredient is empty or looks like a total/header
+        // Stop if ingredient is empty, numeric, or looks like a total/header
         if (!ingredient || String(ingredient).trim() === '' ||
+            /^\d+$/.test(String(ingredient).trim()) ||
             String(ingredient).toLowerCase().includes('total') ||
             String(ingredient).toLowerCase() === 'ingredient') {
-          break;
+          continue;
         }
+        
+        const parsedQty = safeParseNumber(quantity);
+        if (parsedQty <= 0) continue;
         
         try {
           const validated = ImportRowSchema.parse({
             'Ingredient': String(ingredient).trim(),
-            'Quantity (g)': safeParseNumber(quantity),
-            'Water (g)': 0,
-            'Sugars (g)': safeParseNumber(row[qtyColIdx + 1]),
-            'Fat (g)': safeParseNumber(row[qtyColIdx + 2]),
-            'MSNF (g)': safeParseNumber(row[qtyColIdx + 3]),
-            'Other Solids (g)': safeParseNumber(row[qtyColIdx + 4]),
-            'Total Solids (g)': safeParseNumber(row[qtyColIdx + 5]),
-            'Lactose (g)': 0
+            'Quantity (g)': parsedQty,
+            'Water (g)': columnMap['water'] ? safeParseNumber(row[columnMap['water']]) : 0,
+            'Sugars (g)': columnMap['sugars'] ? safeParseNumber(row[columnMap['sugars']]) : 0,
+            'Fat (g)': columnMap['fat'] ? safeParseNumber(row[columnMap['fat']]) : 0,
+            'MSNF (g)': columnMap['msnf'] ? safeParseNumber(row[columnMap['msnf']]) : 0,
+            'Other Solids (g)': columnMap['other_solids'] ? safeParseNumber(row[columnMap['other_solids']]) : 0,
+            'Total Solids (g)': columnMap['total_solids'] ? safeParseNumber(row[columnMap['total_solids']]) : 0,
+            'Lactose (g)': columnMap['lactose'] ? safeParseNumber(row[columnMap['lactose']]) : 0
           });
           
-          if (validated['Quantity (g)'] > 0) {
-            ingredients.push(validated);
-          }
+          ingredients.push(validated);
         } catch (e) {
-          // Skip invalid rows
+          // Skip invalid rows silently
         }
       }
       
       if (ingredients.length > 0) {
         const uniqueName = recipeName + (recipesMap.has(recipeName) ? ` (${Date.now()})` : '');
         recipesMap.set(uniqueName, ingredients);
-        console.log(`✅ Extracted recipe "${uniqueName}" with ${ingredients.length} ingredients`);
+        console.log(`✅ Extracted "${uniqueName}" with ${ingredients.length} ingredients`);
       }
     }
   }
@@ -312,6 +333,37 @@ export default function Database() {
     },
     enabled: isAuthenticated
   });
+
+  // Generate and download sample CSV
+  const handleDownloadSample = () => {
+    const sampleData = [
+      ['Recipe Name', 'Ingredient', 'Quantity (g)', 'Water (g)', 'Sugars (g)', 'Fat (g)', 'MSNF (g)', 'Other Solids (g)', 'Total Solids (g)', 'Lactose (g)'],
+      ['Vanilla Ice Cream', 'Whole Milk', '500', '435', '0', '17.5', '42.5', '0', '60', '24'],
+      ['Vanilla Ice Cream', 'Heavy Cream', '200', '116', '0', '80', '8', '0', '88', '4'],
+      ['Vanilla Ice Cream', 'Sugar', '150', '0', '150', '0', '0', '0', '150', '0'],
+      ['Vanilla Ice Cream', 'Skim Milk Powder', '50', '1.75', '0', '0.5', '46.5', '0', '47', '25.5'],
+      ['Vanilla Ice Cream', 'Vanilla Extract', '10', '8', '1', '0', '0', '0', '1', '0'],
+      ['Vanilla Ice Cream', 'Stabilizer', '5', '0', '0', '0', '0', '5', '5', '0'],
+      ['', '', '', '', '', '', '', '', '', ''],
+      ['Chocolate Gelato', 'Whole Milk', '600', '522', '0', '21', '51', '0', '72', '28.8'],
+      ['Chocolate Gelato', 'Sugar', '180', '0', '180', '0', '0', '0', '180', '0'],
+      ['Chocolate Gelato', 'Cocoa Powder', '80', '0', '0.4', '18.4', '0', '49.92', '68.72', '0'],
+      ['Chocolate Gelato', 'Cream', '100', '58', '0', '40', '4', '0', '44', '2'],
+      ['Chocolate Gelato', 'Stabilizer', '4', '0', '0', '0', '0', '4', '4', '0']
+    ];
+
+    const csv = Papa.unparse(sampleData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'recipe_import_sample.csv';
+    link.click();
+
+    toast({
+      title: 'Sample Downloaded',
+      description: 'Fill in this template and upload to import your recipes'
+    });
+  };
 
   const handleImportCSV = async () => {
     if (!importFile) {
@@ -801,13 +853,65 @@ export default function Database() {
           <Card>
             <CardHeader>
               <CardTitle>ML Model Training</CardTitle>
-              <CardDescription>Train the AI model on imported recipe data</CardDescription>
+              <CardDescription>Mark recipes as successful and train the AI model</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button onClick={handleTrainModel} disabled={!stats?.mlReady || isTraining}>
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div>
+                  <div className="text-2xl font-bold">{stats?.totalRecipes || 0}</div>
+                  <p className="text-xs text-muted-foreground">Total Recipes</p>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{stats?.successfulOutcomes || 0}</div>
+                  <p className="text-xs text-muted-foreground">Marked Successful</p>
+                </div>
+                <div>
+                  <Badge variant={stats?.mlReady ? 'default' : 'secondary'}>
+                    {stats?.mlReady ? 'Ready' : 'Need 5+'}
+                  </Badge>
+                </div>
+              </div>
+              
+              <Button onClick={handleTrainModel} disabled={!stats?.mlReady || isTraining} className="w-full">
                 {isTraining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
-                Train Model
+                Train Model Now
               </Button>
+
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-semibold mb-3">Recent Recipes - Mark as Successful</h4>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {recentRecipes?.map((recipe: any) => (
+                    <div key={recipe.id} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{recipe.recipe_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {recipe.recipe_rows?.length || 0} ingredients
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const { data: { user } } = await supabase.auth.getUser();
+                            await supabase.from('recipe_outcomes').insert({
+                              recipe_id: recipe.id,
+                              user_id: user!.id,
+                              outcome: 'success'
+                            });
+                            toast({ title: 'Marked Successful' });
+                            refetchStats();
+                          } catch (error: any) {
+                            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        Mark Success
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
