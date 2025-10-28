@@ -125,7 +125,6 @@ export type Database = {
           fat_pct: number
           fpdt: number | null
           id: string
-          lactose_pct: number
           msnf_pct: number
           other_solids_pct: number
           pac: number | null
@@ -134,23 +133,19 @@ export type Database = {
           sp: number | null
           sugars_pct: number
           total_fat_g: number
-          total_lactose_g: number
           total_msnf_g: number
           total_other_solids_g: number
           total_quantity_g: number
           total_solids_g: number
           total_solids_pct: number
           total_sugars_g: number
-          total_water_g: number
           updated_at: string | null
-          water_pct: number
         }
         Insert: {
           created_at?: string | null
           fat_pct: number
           fpdt?: number | null
           id?: string
-          lactose_pct: number
           msnf_pct: number
           other_solids_pct: number
           pac?: number | null
@@ -159,23 +154,19 @@ export type Database = {
           sp?: number | null
           sugars_pct: number
           total_fat_g: number
-          total_lactose_g: number
           total_msnf_g: number
           total_other_solids_g: number
           total_quantity_g: number
           total_solids_g: number
           total_solids_pct: number
           total_sugars_g: number
-          total_water_g: number
           updated_at?: string | null
-          water_pct: number
         }
         Update: {
           created_at?: string | null
           fat_pct?: number
           fpdt?: number | null
           id?: string
-          lactose_pct?: number
           msnf_pct?: number
           other_solids_pct?: number
           pac?: number | null
@@ -184,16 +175,13 @@ export type Database = {
           sp?: number | null
           sugars_pct?: number
           total_fat_g?: number
-          total_lactose_g?: number
           total_msnf_g?: number
           total_other_solids_g?: number
           total_quantity_g?: number
           total_solids_g?: number
           total_solids_pct?: number
           total_sugars_g?: number
-          total_water_g?: number
           updated_at?: string | null
-          water_pct?: number
         }
         Relationships: [
           {
@@ -518,42 +506,36 @@ export type Database = {
           fat_g: number
           id: string
           ingredient: string
-          lactose_g: number
           msnf_g: number
           other_solids_g: number
           quantity_g: number
           recipe_id: string
           sugars_g: number
           total_solids_g: number
-          water_g: number
         }
         Insert: {
           created_at?: string | null
           fat_g?: number
           id?: string
           ingredient: string
-          lactose_g?: number
           msnf_g?: number
           other_solids_g?: number
           quantity_g: number
           recipe_id: string
           sugars_g?: number
           total_solids_g?: number
-          water_g?: number
         }
         Update: {
           created_at?: string | null
           fat_g?: number
           id?: string
           ingredient?: string
-          lactose_g?: number
           msnf_g?: number
           other_solids_g?: number
           quantity_g?: number
           recipe_id?: string
           sugars_g?: number
           total_solids_g?: number
-          water_g?: number
         }
         Relationships: [
           {

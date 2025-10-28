@@ -18,7 +18,6 @@ interface Recipe {
   recipe_rows: Array<{
     ingredient: string;
     quantity_g: number;
-    water_g: number;
     sugars_g: number;
     fat_g: number;
     msnf_g: number;
@@ -77,7 +76,6 @@ export function RecipeBrowserDrawer({
           recipe_rows (
             ingredient,
             quantity_g,
-            water_g,
             sugars_g,
             fat_g,
             msnf_g

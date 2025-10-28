@@ -15,31 +15,25 @@ interface IngredientRow {
   id?: string;
   ingredient: string;
   quantity_g: number;
-  water_g: number;
   sugars_g: number;
   fat_g: number;
   msnf_g: number;
   other_solids_g: number;
   total_solids_g: number;
-  lactose_g: number;
 }
 
 interface CalculatedMetrics {
   total_quantity_g: number;
-  total_water_g: number;
   total_sugars_g: number;
   total_fat_g: number;
   total_msnf_g: number;
   total_other_solids_g: number;
   total_solids_g: number;
-  total_lactose_g: number;
-  water_pct: number;
   sugars_pct: number;
   fat_pct: number;
   msnf_pct: number;
   other_solids_pct: number;
   total_solids_pct: number;
-  lactose_pct: number;
   sp: number;
   pac: number;
   fpdt: number;
@@ -74,13 +68,11 @@ export default function RecipeCalculatorV2() {
     setRows([...rows, {
       ingredient: '',
       quantity_g: 0,
-      water_g: 0,
       sugars_g: 0,
       fat_g: 0,
       msnf_g: 0,
       other_solids_g: 0,
-      total_solids_g: 0,
-      lactose_g: 0
+      total_solids_g: 0
     }]);
   };
 
@@ -106,14 +98,12 @@ export default function RecipeCalculatorV2() {
 
     const totals = rows.reduce((acc, row) => ({
       quantity: acc.quantity + Number(row.quantity_g),
-      water: acc.water + Number(row.water_g),
       sugars: acc.sugars + Number(row.sugars_g),
       fat: acc.fat + Number(row.fat_g),
       msnf: acc.msnf + Number(row.msnf_g),
       other: acc.other + Number(row.other_solids_g),
-      solids: acc.solids + Number(row.total_solids_g),
-      lactose: acc.lactose + Number(row.lactose_g)
-    }), { quantity: 0, water: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0, lactose: 0 });
+      solids: acc.solids + Number(row.total_solids_g)
+    }), { quantity: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0 });
 
     const sp = totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0;
     const pac = totals.quantity > 0 ? ((totals.sugars * 1.9) / totals.quantity) * 100 : 0;
@@ -122,20 +112,16 @@ export default function RecipeCalculatorV2() {
 
     const calculated: CalculatedMetrics = {
       total_quantity_g: totals.quantity,
-      total_water_g: totals.water,
       total_sugars_g: totals.sugars,
       total_fat_g: totals.fat,
       total_msnf_g: totals.msnf,
       total_other_solids_g: totals.other,
       total_solids_g: totals.solids,
-      total_lactose_g: totals.lactose,
-      water_pct: totals.quantity > 0 ? (totals.water / totals.quantity) * 100 : 0,
       sugars_pct: totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0,
       fat_pct: totals.quantity > 0 ? (totals.fat / totals.quantity) * 100 : 0,
       msnf_pct: totals.quantity > 0 ? (totals.msnf / totals.quantity) * 100 : 0,
       other_solids_pct: totals.quantity > 0 ? (totals.other / totals.quantity) * 100 : 0,
       total_solids_pct: totals.quantity > 0 ? (totals.solids / totals.quantity) * 100 : 0,
-      lactose_pct: totals.quantity > 0 ? (totals.lactose / totals.quantity) * 100 : 0,
       sp,
       pac,
       fpdt,
@@ -228,13 +214,11 @@ export default function RecipeCalculatorV2() {
             recipe_id: recipeId,
             ingredient: r.ingredient,
             quantity_g: r.quantity_g,
-            water_g: r.water_g,
             sugars_g: r.sugars_g,
             fat_g: r.fat_g,
             msnf_g: r.msnf_g,
             other_solids_g: r.other_solids_g,
-            total_solids_g: r.total_solids_g,
-            lactose_g: r.lactose_g
+            total_solids_g: r.total_solids_g
           }))
         );
 
@@ -329,7 +313,6 @@ export default function RecipeCalculatorV2() {
                 <TableRow>
                   <TableHead>Ingredient</TableHead>
                   <TableHead>Qty (g)</TableHead>
-                  <TableHead>Water (g)</TableHead>
                   <TableHead>Sugars (g)</TableHead>
                   <TableHead>Fat (g)</TableHead>
                   <TableHead>MSNF (g)</TableHead>
@@ -351,13 +334,6 @@ export default function RecipeCalculatorV2() {
                         type="number"
                         value={row.quantity_g}
                         onChange={(e) => updateRow(index, 'quantity_g', parseFloat(e.target.value) || 0)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={row.water_g}
-                        onChange={(e) => updateRow(index, 'water_g', parseFloat(e.target.value) || 0)}
                       />
                     </TableCell>
                     <TableCell>

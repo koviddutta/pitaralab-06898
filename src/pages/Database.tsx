@@ -20,13 +20,11 @@ import { z } from 'zod';
 const ImportRowSchema = z.object({
   'Ingredient': z.string().min(1, "Ingredient name is required"),
   'Quantity (g)': z.number().positive("Quantity must be greater than 0"),
-  'Water (g)': z.number().min(0).optional().default(0),
   'Sugars (g)': z.number().min(0).optional().default(0),
   'Fat (g)': z.number().min(0).optional().default(0),
   'MSNF (g)': z.number().min(0).optional().default(0),
   'Other Solids (g)': z.number().min(0).optional().default(0),
-  'Total Solids (g)': z.number().min(0).optional().default(0),
-  'Lactose (g)': z.number().min(0).optional().default(0)
+  'Total Solids (g)': z.number().min(0).optional().default(0)
 });
 
 type RecipeData = {
@@ -34,10 +32,12 @@ type RecipeData = {
   rows: z.infer<typeof ImportRowSchema>[];
 };
 
-// Helper function to safely parse number with default fallback
+// Helper function to safely parse number with default fallback - flexible for any format
 const safeParseNumber = (value: any, defaultValue: number = 0): number => {
   if (value === null || value === undefined || value === '') return defaultValue;
-  const parsed = parseFloat(String(value).trim().replace(/[^0-9.-]/g, ''));
+  const str = String(value).trim();
+  if (str === '' || str === '-' || str.toLowerCase() === 'n/a') return defaultValue;
+  const parsed = parseFloat(str.replace(/[^0-9.-]/g, ''));
   return isNaN(parsed) ? defaultValue : Math.max(0, parsed);
 };
 
@@ -117,8 +117,6 @@ const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof Import
         if (header.includes('msnf')) columnMap['msnf'] = idx;
         if (header.includes('other') && header.includes('solid')) columnMap['other_solids'] = idx;
         if (header.includes('total') && header.includes('solid')) columnMap['total_solids'] = idx;
-        if (header.includes('water')) columnMap['water'] = idx;
-        if (header.includes('lactose')) columnMap['lactose'] = idx;
       });
       
       // If no quantity column found, assume it's next to ingredient
@@ -150,13 +148,11 @@ const parseSideBySideFormat = (rows: any[][]): Map<string, z.infer<typeof Import
           const validated = ImportRowSchema.parse({
             'Ingredient': String(ingredient).trim(),
             'Quantity (g)': parsedQty,
-            'Water (g)': columnMap['water'] ? safeParseNumber(row[columnMap['water']]) : 0,
             'Sugars (g)': columnMap['sugars'] ? safeParseNumber(row[columnMap['sugars']]) : 0,
             'Fat (g)': columnMap['fat'] ? safeParseNumber(row[columnMap['fat']]) : 0,
             'MSNF (g)': columnMap['msnf'] ? safeParseNumber(row[columnMap['msnf']]) : 0,
             'Other Solids (g)': columnMap['other_solids'] ? safeParseNumber(row[columnMap['other_solids']]) : 0,
-            'Total Solids (g)': columnMap['total_solids'] ? safeParseNumber(row[columnMap['total_solids']]) : 0,
-            'Lactose (g)': columnMap['lactose'] ? safeParseNumber(row[columnMap['lactose']]) : 0
+            'Total Solids (g)': columnMap['total_solids'] ? safeParseNumber(row[columnMap['total_solids']]) : 0
           });
           
           ingredients.push(validated);
@@ -227,13 +223,11 @@ const parseSimpleFormat = (rows: any[][]): Map<string, z.infer<typeof ImportRowS
       const validated = ImportRowSchema.parse({
         'Ingredient': ingredient,
         'Quantity (g)': safeParseNumber(row[quantityIdx]),
-        'Water (g)': safeParseNumber(row[getColIdx('water')]),
         'Sugars (g)': safeParseNumber(row[getColIdx('sugar')]),
         'Fat (g)': safeParseNumber(row[getColIdx('fat')]),
         'MSNF (g)': safeParseNumber(row[getColIdx('msnf')]),
         'Other Solids (g)': safeParseNumber(row[getColIdx('other')]),
-        'Total Solids (g)': safeParseNumber(row[getColIdx('total', 'solids')]),
-        'Lactose (g)': safeParseNumber(row[getColIdx('lactose')])
+        'Total Solids (g)': safeParseNumber(row[getColIdx('total', 'solids')])
       });
       
       if (validated['Quantity (g)'] > 0) {
@@ -311,13 +305,11 @@ export default function Database() {
           recipe_rows (
             ingredient,
             quantity_g,
-            water_g,
             sugars_g,
             fat_g,
             msnf_g,
             other_solids_g,
-            total_solids_g,
-            lactose_g
+            total_solids_g
           ),
           calculated_metrics (
             total_quantity_g,
@@ -337,19 +329,19 @@ export default function Database() {
   // Generate and download sample CSV
   const handleDownloadSample = () => {
     const sampleData = [
-      ['Recipe Name', 'Ingredient', 'Quantity (g)', 'Water (g)', 'Sugars (g)', 'Fat (g)', 'MSNF (g)', 'Other Solids (g)', 'Total Solids (g)', 'Lactose (g)'],
-      ['Vanilla Ice Cream', 'Whole Milk', '500', '435', '0', '17.5', '42.5', '0', '60', '24'],
-      ['Vanilla Ice Cream', 'Heavy Cream', '200', '116', '0', '80', '8', '0', '88', '4'],
-      ['Vanilla Ice Cream', 'Sugar', '150', '0', '150', '0', '0', '0', '150', '0'],
-      ['Vanilla Ice Cream', 'Skim Milk Powder', '50', '1.75', '0', '0.5', '46.5', '0', '47', '25.5'],
-      ['Vanilla Ice Cream', 'Vanilla Extract', '10', '8', '1', '0', '0', '0', '1', '0'],
-      ['Vanilla Ice Cream', 'Stabilizer', '5', '0', '0', '0', '0', '5', '5', '0'],
-      ['', '', '', '', '', '', '', '', '', ''],
-      ['Chocolate Gelato', 'Whole Milk', '600', '522', '0', '21', '51', '0', '72', '28.8'],
-      ['Chocolate Gelato', 'Sugar', '180', '0', '180', '0', '0', '0', '180', '0'],
-      ['Chocolate Gelato', 'Cocoa Powder', '80', '0', '0.4', '18.4', '0', '49.92', '68.72', '0'],
-      ['Chocolate Gelato', 'Cream', '100', '58', '0', '40', '4', '0', '44', '2'],
-      ['Chocolate Gelato', 'Stabilizer', '4', '0', '0', '0', '0', '4', '4', '0']
+      ['Recipe Name', 'Ingredient', 'Quantity (g)', 'Sugars (g)', 'Fat (g)', 'MSNF (g)', 'Other Solids (g)', 'Total Solids (g)'],
+      ['Vanilla Ice Cream', 'Whole Milk', '500', '0', '17.5', '42.5', '0', '60'],
+      ['Vanilla Ice Cream', 'Heavy Cream', '200', '0', '80', '8', '0', '88'],
+      ['Vanilla Ice Cream', 'Sugar', '150', '150', '0', '0', '0', '150'],
+      ['Vanilla Ice Cream', 'Skim Milk Powder', '50', '0', '0.5', '46.5', '0', '47'],
+      ['Vanilla Ice Cream', 'Vanilla Extract', '10', '1', '0', '0', '0', '1'],
+      ['Vanilla Ice Cream', 'Stabilizer', '5', '0', '0', '0', '5', '5'],
+      ['', '', '', '', '', '', '', ''],
+      ['Chocolate Gelato', 'Whole Milk', '600', '0', '21', '51', '0', '72'],
+      ['Chocolate Gelato', 'Sugar', '180', '180', '0', '0', '0', '180'],
+      ['Chocolate Gelato', 'Cocoa Powder', '80', '0.4', '18.4', '0', '49.92', '68.72'],
+      ['Chocolate Gelato', 'Cream', '100', '0', '40', '4', '0', '44'],
+      ['Chocolate Gelato', 'Stabilizer', '4', '0', '0', '0', '4', '4']
     ];
 
     const csv = Papa.unparse(sampleData);
@@ -451,13 +443,11 @@ export default function Database() {
                       recipe_id: recipe.id,
                       ingredient: r['Ingredient'],
                       quantity_g: r['Quantity (g)'],
-                      water_g: r['Water (g)'] || 0,
                       sugars_g: r['Sugars (g)'] || 0,
                       fat_g: r['Fat (g)'] || 0,
                       msnf_g: r['MSNF (g)'] || 0,
                       other_solids_g: r['Other Solids (g)'] || 0,
-                      total_solids_g: r['Total Solids (g)'] || 0,
-                      lactose_g: r['Lactose (g)'] || 0
+                      total_solids_g: r['Total Solids (g)'] || 0
                     }))
                   );
 
@@ -466,14 +456,12 @@ export default function Database() {
                 // Calculate metrics
                 const totals = rows.reduce((acc, r) => ({
                   quantity: acc.quantity + (r['Quantity (g)'] || 0),
-                  water: acc.water + (r['Water (g)'] || 0),
                   sugars: acc.sugars + (r['Sugars (g)'] || 0),
                   fat: acc.fat + (r['Fat (g)'] || 0),
                   msnf: acc.msnf + (r['MSNF (g)'] || 0),
                   other: acc.other + (r['Other Solids (g)'] || 0),
-                  solids: acc.solids + (r['Total Solids (g)'] || 0),
-                  lactose: acc.lactose + (r['Lactose (g)'] || 0)
-                }), { quantity: 0, water: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0, lactose: 0 });
+                  solids: acc.solids + (r['Total Solids (g)'] || 0)
+                }), { quantity: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0 });
 
                 const sp = totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0;
                 const pac = totals.quantity > 0 ? ((totals.sugars * 1.9) / totals.quantity) * 100 : 0;
@@ -484,20 +472,16 @@ export default function Database() {
                   .insert({
                     recipe_id: recipe.id,
                     total_quantity_g: totals.quantity,
-                    total_water_g: totals.water,
                     total_sugars_g: totals.sugars,
                     total_fat_g: totals.fat,
                     total_msnf_g: totals.msnf,
                     total_other_solids_g: totals.other,
                     total_solids_g: totals.solids,
-                    total_lactose_g: totals.lactose,
-                    water_pct: totals.quantity > 0 ? (totals.water / totals.quantity) * 100 : 0,
                     sugars_pct: totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0,
                     fat_pct: totals.quantity > 0 ? (totals.fat / totals.quantity) * 100 : 0,
                     msnf_pct: totals.quantity > 0 ? (totals.msnf / totals.quantity) * 100 : 0,
                     other_solids_pct: totals.quantity > 0 ? (totals.other / totals.quantity) * 100 : 0,
                     total_solids_pct: totals.quantity > 0 ? (totals.solids / totals.quantity) * 100 : 0,
-                    lactose_pct: totals.quantity > 0 ? (totals.lactose / totals.quantity) * 100 : 0,
                     sp,
                     pac
                   });
