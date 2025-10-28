@@ -44,13 +44,11 @@ export class MLService {
             recipe_rows (
               ingredient,
               quantity_g,
-              water_g,
               sugars_g,
               fat_g,
               msnf_g,
               other_solids_g,
-              total_solids_g,
-              lactose_g
+              total_solids_g
             ),
             calculated_metrics (
               total_quantity_g,
@@ -144,13 +142,11 @@ export class MLService {
           recipe_rows (
             ingredient,
             quantity_g,
-            water_g,
             sugars_g,
             fat_g,
             msnf_g,
             other_solids_g,
-            total_solids_g,
-            lactose_g
+            total_solids_g
           ),
           calculated_metrics (
             total_quantity_g,
