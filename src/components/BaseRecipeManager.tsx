@@ -14,8 +14,9 @@ interface BaseRecipe {
   name: string;
   description: string;
   product_type: string;
-  ingredients_json: any[];
+  ingredients_json: any; // Json type from database
   created_at: string;
+  user_id?: string;
 }
 
 export function BaseRecipeManager() {
@@ -41,7 +42,7 @@ export function BaseRecipeManager() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setBases(data || []);
+      setBases((data || []) as BaseRecipe[]);
     } catch (error: any) {
       console.error('Failed to load bases:', error);
       toast.error('Failed to load base recipes');
@@ -110,9 +111,9 @@ export function BaseRecipeManager() {
   const startEdit = (base: BaseRecipe) => {
     setFormData({
       name: base.name,
-      description: base.description,
+      description: base.description || '',
       product_type: base.product_type,
-      ingredients_json: base.ingredients_json
+      ingredients_json: (base.ingredients_json as any[]) || [{ ingredient: '', quantity: 0 }]
     });
     setEditingId(base.id);
     setIsAdding(true);
@@ -277,7 +278,7 @@ export function BaseRecipeManager() {
                       <p className="text-sm text-muted-foreground mb-3">{base.description}</p>
                     )}
                     <div className="space-y-1">
-                      {base.ingredients_json.map((ing: any, idx: number) => (
+                      {(base.ingredients_json as any[] || []).map((ing: any, idx: number) => (
                         <div key={idx} className="text-sm flex justify-between">
                           <span>{ing.ingredient}</span>
                           <span className="text-muted-foreground">{ing.quantity}g</span>

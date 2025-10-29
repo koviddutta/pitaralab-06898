@@ -7,7 +7,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
-import BaseRecipeSelector from "@/components/BaseRecipeSelector";
+import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
 import FlavourEngine from "@/components/FlavourEngine";
@@ -401,7 +401,7 @@ const Index = () => {
 
           {/* All tab content available on all devices */}
           <TabsContent value="base-recipes" className="mt-4 md:mt-6">
-            <BaseRecipeSelector />
+            <BaseRecipeManager />
           </TabsContent>
 
           <TabsContent value="converter" className="mt-4 md:mt-6">

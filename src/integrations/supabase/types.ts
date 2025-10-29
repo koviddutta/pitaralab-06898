@@ -62,6 +62,39 @@ export type Database = {
         }
         Relationships: []
       }
+      base_recipes: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          ingredients_json: Json
+          name: string
+          product_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ingredients_json?: Json
+          name: string
+          product_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ingredients_json?: Json
+          name?: string
+          product_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       batches: {
         Row: {
           age_hours: number | null
