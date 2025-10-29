@@ -6,7 +6,7 @@ import { getSupabase, isBackendReady } from "@/integrations/supabase/safeClient"
 import { Session, User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import SmartCalculator from "@/components/SmartCalculator";
+import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
 import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
@@ -271,7 +271,7 @@ const Index = () => {
                 : 'flex-1 min-w-[140px] font-medium'}
               style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
-              🤖 Smart Calculator
+              📊 Calculator
             </TabsTrigger>
             <TabsTrigger 
               value="flavour-engine" 
@@ -280,7 +280,7 @@ const Index = () => {
                 : 'flex-1 min-w-[140px] font-medium'}
               style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
             >
-              ⚗️ Flavour Engine
+              🤖 AI Engine
             </TabsTrigger>
             <TabsTrigger 
               value="paste-studio" 
@@ -375,7 +375,7 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="calculator" className="mt-4 md:mt-6">
-            <SmartCalculator />
+            <RecipeCalculatorV2 />
           </TabsContent>
 
           <TabsContent value="paste-studio" className="mt-4 md:mt-6">

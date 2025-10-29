@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Save, X, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { OptimizeDialog } from './OptimizeDialog';
-import { optimizeRecipe, Row, OptimizeTarget } from '@/lib/optimize';
 
 interface BaseRecipe {
   id: string;
@@ -31,9 +29,6 @@ export function BaseRecipeManager() {
     product_type: 'ice_cream',
     ingredients_json: [{ ingredient: '', quantity: 0 }]
   });
-  const [optimizeDialogOpen, setOptimizeDialogOpen] = useState(false);
-  const [optimizingRecipe, setOptimizingRecipe] = useState<BaseRecipe | null>(null);
-  const [optimizedRows, setOptimizedRows] = useState<Row[]>([]);
 
   useEffect(() => {
     loadBases();
@@ -133,51 +128,6 @@ export function BaseRecipeManager() {
     });
     setIsAdding(false);
     setEditingId(null);
-  };
-
-  const handleBalance = (recipe: BaseRecipe) => {
-    setOptimizingRecipe(recipe);
-    
-    const ingredientsArray = recipe.ingredients_json as any;
-    const rows: Row[] = ingredientsArray.map((ing: any) => ({
-      ing: { name: ing.ingredient } as any,
-      grams: ing.quantity || 0,
-      lock: false
-    }));
-
-    const targets: OptimizeTarget = recipe.product_type === 'ice_cream' 
-      ? { ts_add_pct: 38, fat_pct: 10, sugars_pct: 20, pac: 280 }
-      : recipe.product_type === 'gelato'
-      ? { ts_add_pct: 36, fat_pct: 7, sugars_pct: 18, pac: 260 }
-      : { ts_add_pct: 30, fat_pct: 0, sugars_pct: 25, pac: 300 };
-
-    const optimized = optimizeRecipe(rows, targets, 100, 0.5);
-    setOptimizedRows(optimized);
-    setOptimizeDialogOpen(true);
-  };
-
-  const applyOptimization = async () => {
-    if (!optimizingRecipe) return;
-
-    try {
-      const newIngredients = optimizedRows.map(row => ({
-        ingredient: row.ing.name,
-        quantity: row.grams
-      }));
-
-      const { error } = await supabase
-        .from('base_recipes')
-        .update({ ingredients_json: newIngredients })
-        .eq('id', optimizingRecipe.id);
-
-      if (error) throw error;
-
-      toast.success(`"${optimizingRecipe.name}" has been balanced`);
-      loadBases();
-    } catch (error: any) {
-      console.error('Failed to balance recipe:', error);
-      toast.error('Failed to balance recipe');
-    }
   };
 
   const addIngredient = () => {
@@ -340,14 +290,6 @@ export function BaseRecipeManager() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleBalance(base)}
-                      title="Balance Recipe"
-                    >
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
                       onClick={() => startEdit(base)}
                     >
                       <Edit className="h-4 w-4" />
@@ -366,23 +308,6 @@ export function BaseRecipeManager() {
           ))}
         </div>
       </CardContent>
-
-      {optimizingRecipe && optimizedRows.length > 0 && (
-        <OptimizeDialog
-          open={optimizeDialogOpen}
-          onOpenChange={setOptimizeDialogOpen}
-          originalRows={((optimizingRecipe.ingredients_json as any) || []).map((ing: any) => ({
-            ingredientId: ing.ingredient,
-            grams: ing.quantity || 0
-          }))}
-          optimizedRows={optimizedRows.map(row => ({
-            ingredientId: row.ing.name,
-            grams: row.grams
-          }))}
-          onApply={applyOptimization}
-          getIngredientName={(id) => id}
-        />
-      )}
     </Card>
   );
 }
