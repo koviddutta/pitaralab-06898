@@ -6,13 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2 } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
+import { IngredientService } from '@/services/ingredientService';
+import type { IngredientData } from '@/lib/ingredientLibrary';
 
 interface IngredientRow {
   id?: string;
+  ingredientData?: IngredientData; // Store full ingredient data
   ingredient: string;
   quantity_g: number;
   sugars_g: number;
@@ -40,7 +45,11 @@ interface CalculatedMetrics {
   pod_index: number;
 }
 
-export default function RecipeCalculatorV2() {
+interface RecipeCalculatorV2Props {
+  onRecipeChange?: (recipe: any[], metrics: CalculatedMetrics | null, productType: string) => void;
+}
+
+export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV2Props) {
   const { toast } = useToast();
   const [recipeName, setRecipeName] = useState('');
   const [productType, setProductType] = useState('ice_cream');
@@ -49,6 +58,21 @@ export default function RecipeCalculatorV2() {
   const [isSaving, setIsSaving] = useState(false);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [availableIngredients, setAvailableIngredients] = useState<IngredientData[]>([]);
+  const [searchOpen, setSearchOpen] = useState<number | null>(null);
+
+  // Load ingredients from database
+  useEffect(() => {
+    const loadIngredients = async () => {
+      try {
+        const ingredients = await IngredientService.getIngredients();
+        setAvailableIngredients(ingredients);
+      } catch (error) {
+        console.error('Failed to load ingredients:', error);
+      }
+    };
+    loadIngredients();
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,6 +87,18 @@ export default function RecipeCalculatorV2() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Notify parent component when recipe changes
+  useEffect(() => {
+    if (onRecipeChange) {
+      const recipeData = rows.map(row => ({
+        ingredient: row.ingredient,
+        quantity: row.quantity_g,
+        ingredientData: row.ingredientData
+      }));
+      onRecipeChange(recipeData, metrics, productType);
+    }
+  }, [rows, metrics, productType, onRecipeChange]);
 
   const addRow = () => {
     setRows([...rows, {
@@ -83,7 +119,36 @@ export default function RecipeCalculatorV2() {
   const updateRow = (index: number, field: keyof IngredientRow, value: string | number) => {
     const newRows = [...rows];
     newRows[index] = { ...newRows[index], [field]: value };
+    
+    // Auto-calculate nutritional values when quantity changes
+    if (field === 'quantity_g' && newRows[index].ingredientData) {
+      const ing = newRows[index].ingredientData!;
+      const qty = Number(value);
+      newRows[index].sugars_g = (ing.sugars_pct / 100) * qty;
+      newRows[index].fat_g = (ing.fat_pct / 100) * qty;
+      newRows[index].msnf_g = (ing.msnf_pct / 100) * qty;
+      newRows[index].other_solids_g = (ing.other_solids_pct / 100) * qty;
+      newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
+    }
+    
     setRows(newRows);
+  };
+
+  const handleIngredientSelect = (index: number, ingredient: IngredientData) => {
+    const newRows = [...rows];
+    newRows[index].ingredient = ingredient.name;
+    newRows[index].ingredientData = ingredient;
+    
+    // Auto-calculate based on current quantity
+    const qty = newRows[index].quantity_g || 0;
+    newRows[index].sugars_g = (ingredient.sugars_pct / 100) * qty;
+    newRows[index].fat_g = (ingredient.fat_pct / 100) * qty;
+    newRows[index].msnf_g = (ingredient.msnf_pct / 100) * qty;
+    newRows[index].other_solids_g = (ingredient.other_solids_pct / 100) * qty;
+    newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
+    
+    setRows(newRows);
+    setSearchOpen(null);
   };
 
   const calculateMetrics = () => {
@@ -323,11 +388,29 @@ export default function RecipeCalculatorV2() {
                 {rows.map((row, index) => (
                   <TableRow key={index}>
                     <TableCell>
-                      <Input
-                        value={row.ingredient}
-                        onChange={(e) => updateRow(index, 'ingredient', e.target.value)}
-                        placeholder="Ingredient name"
-                      />
+                      <Popover open={searchOpen === index} onOpenChange={(open) => setSearchOpen(open ? index : null)}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            {row.ingredient || (
+                              <>
+                                <Search className="mr-2 h-4 w-4" />
+                                Search ingredient...
+                              </>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <SmartIngredientSearch
+                            ingredients={availableIngredients}
+                            onSelect={(ing) => handleIngredientSelect(index, ing)}
+                            open={searchOpen === index}
+                            onOpenChange={(open) => setSearchOpen(open ? index : null)}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </TableCell>
                     <TableCell>
                       <Input
@@ -339,22 +422,25 @@ export default function RecipeCalculatorV2() {
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.sugars_g}
+                        value={row.sugars_g.toFixed(1)}
                         onChange={(e) => updateRow(index, 'sugars_g', parseFloat(e.target.value) || 0)}
+                        className="bg-muted/50"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.fat_g}
+                        value={row.fat_g.toFixed(1)}
                         onChange={(e) => updateRow(index, 'fat_g', parseFloat(e.target.value) || 0)}
+                        className="bg-muted/50"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.msnf_g}
+                        value={row.msnf_g.toFixed(1)}
                         onChange={(e) => updateRow(index, 'msnf_g', parseFloat(e.target.value) || 0)}
+                        className="bg-muted/50"
                       />
                     </TableCell>
                     <TableCell>

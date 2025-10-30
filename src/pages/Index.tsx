@@ -7,6 +7,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
+import { SmartInsightsPanel } from "@/components/SmartInsightsPanel";
 import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
@@ -37,6 +38,9 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [backendReady, setBackendReady] = useState(false);
   const [currentTab, setCurrentTab] = useState("calculator");
+  const [calculatorRecipe, setCalculatorRecipe] = useState<any[]>([]);
+  const [calculatorMetrics, setCalculatorMetrics] = useState<any>(null);
+  const [calculatorProductType, setCalculatorProductType] = useState('ice_cream');
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -375,7 +379,24 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="calculator" className="mt-4 md:mt-6">
-            <RecipeCalculatorV2 />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <RecipeCalculatorV2 
+                  onRecipeChange={(recipe, metrics, productType) => {
+                    setCalculatorRecipe(recipe);
+                    setCalculatorMetrics(metrics);
+                    setCalculatorProductType(productType);
+                  }}
+                />
+              </div>
+              <div className="lg:col-span-1">
+                <SmartInsightsPanel
+                  recipe={calculatorRecipe}
+                  metrics={calculatorMetrics}
+                  productType={calculatorProductType}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="paste-studio" className="mt-4 md:mt-6">

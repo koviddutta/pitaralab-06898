@@ -13,28 +13,17 @@ interface SmartInsightsPanelProps {
   recipe?: any[];
   metrics?: any;
   productType?: string;
-  onRecipeChange?: (recipe: any[], productType: string) => void;
 }
 
-export function SmartInsightsPanel({ recipe = [], metrics, productType = 'ice_cream', onRecipeChange }: SmartInsightsPanelProps) {
+export function SmartInsightsPanel({ recipe = [], metrics, productType = 'ice_cream' }: SmartInsightsPanelProps) {
   const [mode, setMode] = useState<'ml' | 'ai'>('ml');
-  const [localRecipe, setLocalRecipe] = useState(recipe);
-  const [localProductType, setLocalProductType] = useState(productType);
   
-  const { prediction, isLoading: mlLoading } = useMLPredictions(metrics, localProductType);
+  const { prediction, isLoading: mlLoading } = useMLPredictions(metrics, productType);
   const { analysis, isLoading: aiLoading, analyze } = useAIAnalysis();
-
-  const handleRecipeInput = (newRecipe: any[], newProductType: string) => {
-    setLocalRecipe(newRecipe);
-    setLocalProductType(newProductType);
-    if (onRecipeChange) {
-      onRecipeChange(newRecipe, newProductType);
-    }
-  };
 
   const handleAIAnalysis = () => {
     setMode('ai');
-    analyze(localRecipe, metrics, localProductType);
+    analyze(recipe, metrics, productType);
   };
 
   const getStatusIcon = (status: string) => {
@@ -63,25 +52,22 @@ export function SmartInsightsPanel({ recipe = [], metrics, productType = 'ice_cr
             <Brain className="h-5 w-5 text-primary" />
             <CardTitle>Smart Recipe Insights</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
-            <RecipeInputDialog onRecipeSubmit={handleRecipeInput} />
-            <Badge variant="outline" className="gap-1">
-              {mode === 'ml' ? (
-                <>
-                  <TrendingUp className="h-3 w-3" />
-                  ML Prediction
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3 w-3" />
-                  AI Analysis
-                </>
-              )}
-            </Badge>
-          </div>
+          <Badge variant="outline" className="gap-1">
+            {mode === 'ml' ? (
+              <>
+                <TrendingUp className="h-3 w-3" />
+                ML Prediction
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3" />
+                AI Analysis
+              </>
+            )}
+          </Badge>
         </div>
         <CardDescription>
-          Real-time predictions powered by machine learning and AI
+          Real-time predictions from calculator recipe
         </CardDescription>
       </CardHeader>
 
