@@ -1,5 +1,8 @@
 project_id = "upugwezzqpxzjxpdxuar"
 
+[functions.analyze-csv]
+verify_jwt = true
+
 [functions.analyze-recipe]
 verify_jwt = true
 

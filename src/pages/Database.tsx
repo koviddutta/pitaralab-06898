@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { mlService } from '@/services/mlService';
 import Papa from 'papaparse';
 import { z } from 'zod';
+import { IntelligentCSVImporter } from '@/components/IntelligentCSVImporter';
 
 // Flexible validation schema - all columns optional except ingredient and quantity
 const ImportRowSchema = z.object({
@@ -686,12 +687,17 @@ export default function Database() {
         </Card>
       </div>
 
-      <Tabs defaultValue="import" className="space-y-4">
+      <Tabs defaultValue="ai-import" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="import">Import Data</TabsTrigger>
+          <TabsTrigger value="ai-import">🤖 AI Import</TabsTrigger>
+          <TabsTrigger value="import">Manual Import</TabsTrigger>
           <TabsTrigger value="recipes">View Recipes</TabsTrigger>
           <TabsTrigger value="train">ML Training</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ai-import" className="space-y-4">
+          <IntelligentCSVImporter />
+        </TabsContent>
 
         <TabsContent value="import" className="space-y-4">
           <Card>
