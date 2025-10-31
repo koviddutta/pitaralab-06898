@@ -116,9 +116,17 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to analyze recipe');
+      }
 
-      setAnalysis(data.analysis);
+      if (!data) {
+        throw new Error('No data returned from analysis');
+      }
+
+      console.log('Analysis result:', data);
+      setAnalysis(data);
       toast.success('AI analysis complete!');
       refetch(); // Update usage count
     } catch (error) {

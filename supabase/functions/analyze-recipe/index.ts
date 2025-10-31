@@ -57,29 +57,24 @@ serve(async (req) => {
 
     const { recipe, metrics, productType = 'gelato' } = await req.json();
 
-    if (!recipe || !Array.isArray(recipe) || recipe.length === 0) {
+    // Handle both array format and object with rows format
+    const recipeArray = Array.isArray(recipe) ? recipe : recipe?.rows || [];
+    
+    if (recipeArray.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Invalid input: recipe array required' }),
+        JSON.stringify({ error: 'Invalid input: recipe with ingredients required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Analyzing recipe for user ${user.id}, ${recipe.length} ingredients`);
+    console.log(`Analyzing recipe for user ${user.id}, ${recipeArray.length} ingredients`);
 
-    // Fetch ingredient details
-    const ingredientIds = recipe.map((r: any) => r.ingredientId).filter(Boolean);
-    const { data: ingredients } = await supabase
-      .from('ingredients')
-      .select('*')
-      .in('id', ingredientIds);
-
-    const ingMap = new Map(ingredients?.map(ing => [ing.id, ing]) || []);
-
-    // Build recipe context for AI
-    const recipeContext = recipe.map((r: any) => {
-      const ing = ingMap.get(r.ingredientId);
-      return ing ? `${ing.name}: ${r.grams}g` : null;
-    }).filter(Boolean).join('\n');
+    // Build recipe context for AI - handle both formats
+    const recipeContext = recipeArray.map((r: any) => {
+      const ingredientName = r.ingredient || r.name;
+      const quantity = r.quantity_g || r.grams || 0;
+      return `${ingredientName}: ${quantity}g`;
+    }).join('\n');
 
     const metricsContext = metrics ? `
 Recipe Metrics:
@@ -200,12 +195,11 @@ SUGGESTIONS: [bullet list of 2-3 specific, actionable suggestions]`;
     const suggestions = parseList('SUGGESTIONS');
 
     const result = {
-      successScore: Math.max(0, Math.min(100, successScore)),
-      texturePredict,
-      warnings: warnings.length > 0 ? warnings : [],
-      suggestions: suggestions.length > 0 ? suggestions : ['Recipe looks balanced'],
-      confidence: 85,
-      analysisTimestamp: new Date().toISOString(),
+      balance_assessment: `Overall recipe balance score: ${successScore}/100. ${texturePredict} texture predicted.`,
+      texture_prediction: texturePredict,
+      optimization_suggestions: suggestions.length > 0 ? suggestions : ['Recipe looks balanced'],
+      risk_warnings: warnings.length > 0 ? warnings : [],
+      recommended_adjustments: suggestions.length > 1 ? suggestions.slice(0, 2) : [],
     };
 
     console.log('Parsed result:', result);

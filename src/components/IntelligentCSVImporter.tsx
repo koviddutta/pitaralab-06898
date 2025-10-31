@@ -103,18 +103,18 @@ export function IntelligentCSVImporter() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Fetch all ingredients once for efficiency
+      const allIngredients = await IngredientService.getIngredients();
+      const ingredientMap = new Map(allIngredients.map(ing => [ing.id, ing]));
+
       const total = analysis.recipes.length;
 
       for (let i = 0; i < analysis.recipes.length; i++) {
         const recipe = analysis.recipes[i];
 
-        // Get full ingredient data for calculations
-        const ingredientData = await Promise.all(
-          recipe.ingredients.map(ing => 
-            IngredientService.getIngredients().then(ings => 
-              ings.find(i => i.id === ing.matched_id)
-            )
-          )
+        // Get full ingredient data for calculations using pre-fetched map
+        const ingredientData = recipe.ingredients.map(ing => 
+          ingredientMap.get(ing.matched_id)
         );
 
         // Create recipe
