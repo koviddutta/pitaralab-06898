@@ -1,231 +1,323 @@
 import { useState } from 'react';
-import { Brain, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Zap, Lightbulb } from 'lucide-react';
+import { Brain, Lightbulb, TrendingUp, AlertTriangle, Loader2, Database } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMLPredictions } from '@/hooks/useMLPredictions';
-import { useAIAnalysis } from '@/hooks/useAIAnalysis';
-import { RecipeInputDialog } from './RecipeInputDialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAIUsageLimit } from '@/hooks/useAIUsageLimit';
+import { useQuery } from '@tanstack/react-query';
 
-interface SmartInsightsPanelProps {
-  recipe?: any[];
-  metrics?: any;
+type RecipeRow = {
+  ingredient: string;
+  quantity_g: number;
+};
+
+type Recipe = {
+  recipe_name: string;
+  product_type: string;
+  rows: RecipeRow[];
+};
+
+type Metrics = {
+  sugars_pct?: number;
+  fat_pct?: number;
+  msnf_pct?: number;
+  total_solids_pct?: number;
+  sp?: number;
+  pac?: number;
+  fpdt?: number;
+};
+
+type AIAnalysis = {
+  balance_assessment: string;
+  optimization_suggestions: string[];
+  texture_prediction: string;
+  risk_warnings: string[];
+  recommended_adjustments: string[];
+};
+
+type SmartInsightsPanelProps = {
+  recipe?: Recipe | any[];
+  metrics?: Metrics;
   productType?: string;
-}
+};
 
-export function SmartInsightsPanel({ recipe = [], metrics, productType = 'ice_cream' }: SmartInsightsPanelProps) {
-  const [mode, setMode] = useState<'ml' | 'ai'>('ml');
-  
-  const { prediction, isLoading: mlLoading } = useMLPredictions(metrics, productType);
-  const { analysis, isLoading: aiLoading, analyze } = useAIAnalysis();
+export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsightsPanelProps) {
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string>('');
+  const { remaining, refetch } = useAIUsageLimit();
 
-  const handleAIAnalysis = () => {
-    setMode('ai');
-    analyze(recipe, metrics, productType);
-  };
+  // Fetch user's recipes from database
+  const { data: savedRecipes } = useQuery({
+    queryKey: ['user-recipes'],
+    queryFn: async () => {
+      const { data: recipes } = await supabase
+        .from('recipes')
+        .select(`
+          id,
+          recipe_name,
+          product_type,
+          recipe_rows (
+            ingredient,
+            quantity_g,
+            sugars_g,
+            fat_g,
+            msnf_g,
+            other_solids_g,
+            total_solids_g
+          ),
+          calculated_metrics (
+            sugars_pct,
+            fat_pct,
+            msnf_pct,
+            total_solids_pct,
+            sp,
+            pac,
+            fpdt
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      return recipes || [];
+    }
+  });
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pass': return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'warn': return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case 'fail': return <AlertTriangle className="h-5 w-5 text-red-500" />;
-      default: return <Zap className="h-5 w-5" />;
+  const handleAIAnalysis = async (sourceRecipe?: Recipe | any, sourceMetrics?: Metrics) => {
+    if (remaining <= 0) {
+      toast.error('AI usage limit reached. Please wait before making more requests.');
+      return;
+    }
+
+    const recipeToAnalyze = sourceRecipe || recipe;
+    const metricsToAnalyze = sourceMetrics || metrics;
+
+    // Handle both Recipe type and array type
+    const hasRows = Array.isArray(recipeToAnalyze) 
+      ? recipeToAnalyze.length > 0 
+      : recipeToAnalyze?.rows && recipeToAnalyze.rows.length > 0;
+
+    if (!hasRows) {
+      toast.error('No recipe data to analyze');
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-recipe', {
+        body: {
+          recipe: recipeToAnalyze,
+          metrics: metricsToAnalyze,
+          productType: productType || recipeToAnalyze.product_type || 'ice_cream'
+        }
+      });
+
+      if (error) throw error;
+
+      setAnalysis(data.analysis);
+      toast.success('AI analysis complete!');
+      refetch(); // Update usage count
+    } catch (error) {
+      console.error('AI analysis error:', error);
+      toast.error('Failed to analyze recipe');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pass': return 'bg-green-500';
-      case 'warn': return 'bg-yellow-500';
-      case 'fail': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
+  const handleLoadRecipe = async () => {
+    if (!selectedRecipeId || !savedRecipes) return;
+
+    const selected = savedRecipes.find(r => r.id === selectedRecipeId);
+    if (!selected) return;
+
+    const recipeData: Recipe = {
+      recipe_name: selected.recipe_name,
+      product_type: selected.product_type,
+      rows: (selected.recipe_rows as any[] || []).map((r: any) => ({
+        ingredient: r.ingredient,
+        quantity_g: r.quantity_g
+      }))
+    };
+
+    const metricsData: Metrics = (selected.calculated_metrics as any)?.[0] || {};
+
+    await handleAIAnalysis(recipeData, metricsData);
   };
 
   return (
-    <Card className="border-2 border-primary/20">
+    <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            <CardTitle>Smart Recipe Insights</CardTitle>
-          </div>
-          <Badge variant="outline" className="gap-1">
-            {mode === 'ml' ? (
-              <>
-                <TrendingUp className="h-3 w-3" />
-                ML Prediction
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-3 w-3" />
-                AI Analysis
-              </>
-            )}
-          </Badge>
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <Brain className="h-5 w-5" />
+          AI Recipe Insights
+        </CardTitle>
         <CardDescription>
-          Real-time predictions from calculator recipe
+          Get intelligent recommendations and analysis powered by AI
         </CardDescription>
       </CardHeader>
-
       <CardContent className="space-y-4">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as 'ml' | 'ai')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="ml" className="gap-2">
-              <TrendingUp className="h-4 w-4" />
-              ML (Instant)
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              AI (Deep)
-            </TabsTrigger>
-          </TabsList>
+        {/* Recipe selection from database */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Load Recipe from Database</label>
+          <div className="flex gap-2">
+            <Select value={selectedRecipeId} onValueChange={setSelectedRecipeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a saved recipe" />
+              </SelectTrigger>
+              <SelectContent>
+                {savedRecipes?.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.recipe_name} ({r.product_type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button 
+              onClick={handleLoadRecipe} 
+              disabled={!selectedRecipeId || isAnalyzing}
+              variant="outline"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Analyze
+            </Button>
+          </div>
+        </div>
 
-          <TabsContent value="ml" className="space-y-4 mt-4">
-            {mlLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-sm text-muted-foreground mt-2">Analyzing recipe...</p>
-              </div>
-            ) : prediction ? (
-              <>
-                {/* Success Score */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(prediction.status)}
-                      <span className="font-semibold">Success Score</span>
-                    </div>
-                    <span className="text-2xl font-bold">{prediction.score}</span>
-                  </div>
-                  <Progress value={prediction.score} className={getStatusColor(prediction.status)} />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Confidence: {Math.round(prediction.confidence * 100)}%</span>
-                    <span>{prediction.status.toUpperCase()}</span>
-                  </div>
-                </div>
-
-                {/* Suggestions */}
-                {prediction.suggestions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <Lightbulb className="h-4 w-4" />
-                      Suggestions
-                    </div>
-                    <ul className="space-y-1">
-                      {prediction.suggestions.map((suggestion, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>{suggestion}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+        {/* Analyze current calculator recipe */}
+        {recipe && (Array.isArray(recipe) ? recipe.length > 0 : recipe.rows && recipe.rows.length > 0) && (
+          <Alert>
+            <AlertDescription className="flex items-center justify-between">
+              <span>Current recipe: {Array.isArray(recipe) ? 'From Calculator' : (recipe.recipe_name || 'Untitled')}</span>
+              <Button 
+                onClick={() => handleAIAnalysis()} 
+                disabled={isAnalyzing}
+                size="sm"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="h-4 w-4 mr-2" />
+                    Analyze Current Recipe
+                  </>
                 )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
-                <Button 
-                  onClick={handleAIAnalysis} 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full gap-2"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Get AI Deep Analysis
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Brain className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Add ingredients to see ML predictions</p>
-              </div>
+        {isAnalyzing && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {analysis && !isAnalyzing && (
+          <div className="space-y-4">
+            <Card className="border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Balance Assessment
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">{analysis.balance_assessment}</p>
+              </CardContent>
+            </Card>
+
+            {analysis.texture_prediction && (
+              <Card className="border-blue-500/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-blue-500" />
+                    Texture Prediction
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{analysis.texture_prediction}</p>
+                </CardContent>
+              </Card>
             )}
-          </TabsContent>
 
-          <TabsContent value="ai" className="space-y-4 mt-4">
-            {aiLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-sm text-muted-foreground mt-2">AI analyzing...</p>
-              </div>
-            ) : analysis ? (
-              <>
-                {/* Success Score */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">AI Score</span>
+            {analysis.optimization_suggestions && analysis.optimization_suggestions.length > 0 && (
+              <Card className="border-green-500/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-green-500" />
+                    Optimization Suggestions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {analysis.optimization_suggestions.map((suggestion, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Badge variant="outline" className="mt-0.5">
+                        {idx + 1}
+                      </Badge>
+                      <p className="text-sm flex-1">{suggestion}</p>
                     </div>
-                    <span className="text-2xl font-bold">{analysis.successScore}</span>
-                  </div>
-                  <Progress value={analysis.successScore} />
-                  <div className="text-xs text-muted-foreground">
-                    Predicted Texture: <span className="font-semibold">{analysis.texturePredict}</span>
-                  </div>
-                </div>
-
-                {/* Warnings */}
-                {analysis.warnings.length > 0 && (
-                  <div className="space-y-2 bg-destructive/10 p-3 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      Warnings
-                    </div>
-                    <ul className="space-y-1">
-                      {analysis.warnings.map((warning, idx) => (
-                        <li key={idx} className="text-sm text-destructive/80 flex items-start gap-2">
-                          <span>•</span>
-                          <span>{warning}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Suggestions */}
-                {analysis.suggestions.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold">
-                      <Lightbulb className="h-4 w-4" />
-                      AI Suggestions
-                    </div>
-                    <ul className="space-y-1">
-                      {analysis.suggestions.map((suggestion, idx) => (
-                        <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <span className="text-primary">•</span>
-                          <span>{suggestion}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 space-y-4">
-                <Sparkles className="h-12 w-12 mx-auto text-primary opacity-50" />
-                <div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Get deep AI analysis of your recipe
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Uses advanced AI to predict texture, identify issues, and suggest improvements
-                  </p>
-                </div>
-                <Button 
-                  onClick={handleAIAnalysis}
-                  disabled={!recipe || recipe.length === 0}
-                  className="gap-2"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Analyze with AI
-                </Button>
-              </div>
+                  ))}
+                </CardContent>
+              </Card>
             )}
-          </TabsContent>
-        </Tabs>
+
+            {analysis.risk_warnings && analysis.risk_warnings.length > 0 && (
+              <Card className="border-orange-500/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                    Risk Warnings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {analysis.risk_warnings.map((warning, idx) => (
+                    <Alert key={idx} variant="destructive">
+                      <AlertDescription>{warning}</AlertDescription>
+                    </Alert>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {analysis.recommended_adjustments && analysis.recommended_adjustments.length > 0 && (
+              <Card className="border-purple-500/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-purple-500" />
+                    Recommended Adjustments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {analysis.recommended_adjustments.map((adjustment, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <Badge variant="secondary" className="mt-0.5">
+                        {idx + 1}
+                      </Badge>
+                      <p className="text-sm flex-1">{adjustment}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {!analysis && !isAnalyzing && (
+          <Alert>
+            <Brain className="h-4 w-4" />
+            <AlertDescription>
+              Select a recipe from your database or use the calculator to create a recipe, then click "Analyze" to get AI-powered insights.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
     </Card>
   );

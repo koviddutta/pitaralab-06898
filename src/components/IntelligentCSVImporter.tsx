@@ -108,6 +108,15 @@ export function IntelligentCSVImporter() {
       for (let i = 0; i < analysis.recipes.length; i++) {
         const recipe = analysis.recipes[i];
 
+        // Get full ingredient data for calculations
+        const ingredientData = await Promise.all(
+          recipe.ingredients.map(ing => 
+            IngredientService.getIngredients().then(ings => 
+              ings.find(i => i.id === ing.matched_id)
+            )
+          )
+        );
+
         // Create recipe
         const { data: newRecipe, error: recipeError } = await supabase
           .from('recipes')
@@ -121,17 +130,22 @@ export function IntelligentCSVImporter() {
 
         if (recipeError) throw recipeError;
 
-        // Insert ingredients
-        const rows = recipe.ingredients.map(ing => ({
-          recipe_id: newRecipe.id,
-          ingredient: ing.matched_name,
-          quantity_g: ing.quantity,
-          sugars_g: 0,
-          fat_g: 0,
-          msnf_g: 0,
-          other_solids_g: 0,
-          total_solids_g: 0
-        }));
+        // Insert ingredients with calculated nutritional data
+        const rows = recipe.ingredients.map((ing, idx) => {
+          const ingData = ingredientData[idx];
+          const qty = ing.quantity;
+          
+          return {
+            recipe_id: newRecipe.id,
+            ingredient: ing.matched_name,
+            quantity_g: qty,
+            sugars_g: ingData ? (qty * (ingData.sugars_pct / 100)) : 0,
+            fat_g: ingData ? (qty * (ingData.fat_pct / 100)) : 0,
+            msnf_g: ingData ? (qty * (ingData.msnf_pct / 100)) : 0,
+            other_solids_g: ingData ? (qty * (ingData.other_solids_pct / 100)) : 0,
+            total_solids_g: ingData ? (qty * ((100 - ingData.water_pct) / 100)) : 0
+          };
+        });
 
         const { error: rowsError } = await supabase
           .from('recipe_rows')

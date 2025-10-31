@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { IngredientService } from '@/services/ingredientService';
-import { RecipeService } from '@/services/recipeService';
 import { matchIngredientName } from '@/lib/ingredientMapping';
 import type { IngredientData } from '@/types/ingredients';
+import { supabase } from '@/integrations/supabase/client';
 
 type ParsedRow = {
   name: string;
@@ -133,15 +133,45 @@ export function RecipeImporter() {
           continue;
         }
 
-        // Save recipe
-        await RecipeService.saveRecipe({
-          name: recipe.name,
-          rows: recipe.rows.map(r => ({
-            ingredientId: r.matchedIngredient!.id,
-            grams: r.grams
-          })),
-          product_type: 'gelato'
+        // Get user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        // Create recipe
+        const { data: newRecipe, error: recipeError } = await supabase
+          .from('recipes')
+          .insert({
+            recipe_name: recipe.name,
+            product_type: 'gelato',
+            user_id: user.id
+          } as any)
+          .select()
+          .single();
+
+        if (recipeError) throw recipeError;
+
+        // Insert ingredient rows with calculated data
+        const rows = recipe.rows.map(r => {
+          const ingData = r.matchedIngredient!;
+          const qty = r.grams;
+          
+          return {
+            recipe_id: newRecipe.id,
+            ingredient: ingData.name,
+            quantity_g: qty,
+            sugars_g: qty * (ingData.sugars_pct / 100),
+            fat_g: qty * (ingData.fat_pct / 100),
+            msnf_g: qty * (ingData.msnf_pct / 100),
+            other_solids_g: qty * (ingData.other_solids_pct / 100),
+            total_solids_g: qty * ((100 - ingData.water_pct) / 100)
+          };
         });
+
+        const { error: rowsError } = await supabase
+          .from('recipe_rows')
+          .insert(rows);
+
+        if (rowsError) throw rowsError;
 
         setImportProgress(((i + 1) / parsedRecipes.length) * 100);
       }
