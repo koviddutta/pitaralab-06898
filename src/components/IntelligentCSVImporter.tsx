@@ -153,6 +153,41 @@ export function IntelligentCSVImporter() {
 
         if (rowsError) throw rowsError;
 
+        // Calculate and save metrics
+        const totals = rows.reduce((acc, r) => ({
+          quantity: acc.quantity + r.quantity_g,
+          sugars: acc.sugars + r.sugars_g,
+          fat: acc.fat + r.fat_g,
+          msnf: acc.msnf + r.msnf_g,
+          otherSolids: acc.otherSolids + r.other_solids_g,
+          totalSolids: acc.totalSolids + r.total_solids_g
+        }), { quantity: 0, sugars: 0, fat: 0, msnf: 0, otherSolids: 0, totalSolids: 0 });
+
+        const metrics = {
+          recipe_id: newRecipe.id,
+          total_quantity_g: totals.quantity,
+          total_sugars_g: totals.sugars,
+          total_fat_g: totals.fat,
+          total_msnf_g: totals.msnf,
+          total_other_solids_g: totals.otherSolids,
+          total_solids_g: totals.totalSolids,
+          sugars_pct: (totals.sugars / totals.quantity) * 100,
+          fat_pct: (totals.fat / totals.quantity) * 100,
+          msnf_pct: (totals.msnf / totals.quantity) * 100,
+          other_solids_pct: (totals.otherSolids / totals.quantity) * 100,
+          total_solids_pct: (totals.totalSolids / totals.quantity) * 100,
+          sp: 0,
+          pac: 0,
+          fpdt: 0,
+          pod_index: 0
+        };
+
+        const { error: metricsError } = await supabase
+          .from('calculated_metrics')
+          .insert(metrics);
+
+        if (metricsError) console.error('Metrics save error:', metricsError);
+
         setImportProgress(((i + 1) / total) * 100);
       }
 
