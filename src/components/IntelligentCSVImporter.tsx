@@ -132,18 +132,18 @@ export function IntelligentCSVImporter() {
 
         // Insert ingredients with calculated nutritional data
         const rows = recipe.ingredients.map((ing, idx) => {
-          const ingData = ingredientData[idx];
+          const ingredientData = ingredientMap.get(ing.matched_id);
           const qty = ing.quantity;
           
           return {
             recipe_id: newRecipe.id,
             ingredient: ing.matched_name,
             quantity_g: qty,
-            sugars_g: ingData ? (qty * (ingData.sugars_pct / 100)) : 0,
-            fat_g: ingData ? (qty * (ingData.fat_pct / 100)) : 0,
-            msnf_g: ingData ? (qty * (ingData.msnf_pct / 100)) : 0,
-            other_solids_g: ingData ? (qty * (ingData.other_solids_pct / 100)) : 0,
-            total_solids_g: ingData ? (qty * ((100 - ingData.water_pct) / 100)) : 0
+            sugars_g: ingredientData ? (qty * (Number(ingredientData.sugars_pct) / 100)) : 0,
+            fat_g: ingredientData ? (qty * (Number(ingredientData.fat_pct) / 100)) : 0,
+            msnf_g: ingredientData ? (qty * (Number(ingredientData.msnf_pct) / 100)) : 0,
+            other_solids_g: ingredientData ? (qty * (Number(ingredientData.other_solids_pct) / 100)) : 0,
+            total_solids_g: ingredientData ? (qty * ((100 - Number(ingredientData.water_pct)) / 100)) : 0
           };
         });
 

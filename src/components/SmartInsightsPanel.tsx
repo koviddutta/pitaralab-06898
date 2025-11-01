@@ -51,11 +51,11 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>('');
   const { remaining, refetch } = useAIUsageLimit();
 
-  // Fetch user's recipes from database
-  const { data: savedRecipes } = useQuery({
-    queryKey: ['user-recipes'],
+  // Fetch user's recipes from database with proper typing
+  const { data: savedRecipes, isLoading: loadingRecipes } = useQuery({
+    queryKey: ['user-recipes-for-analysis'],
     queryFn: async () => {
-      const { data: recipes } = await supabase
+      const { data: recipes, error } = await supabase
         .from('recipes')
         .select(`
           id,
@@ -80,8 +80,16 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
             fpdt
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
       
+      if (error) {
+        console.error('Error fetching recipes:', error);
+        toast.error('Failed to load recipes from database');
+        return [];
+      }
+      
+      console.log('📚 Loaded recipes for analysis:', recipes?.length || 0);
       return recipes || [];
     }
   });
@@ -138,21 +146,42 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
   };
 
   const handleLoadRecipe = async () => {
-    if (!selectedRecipeId || !savedRecipes) return;
+    if (!selectedRecipeId || !savedRecipes) {
+      toast.error('Please select a recipe to analyze');
+      return;
+    }
 
     const selected = savedRecipes.find(r => r.id === selectedRecipeId);
-    if (!selected) return;
+    if (!selected) {
+      toast.error('Recipe not found');
+      return;
+    }
 
+    console.log('🔍 Selected recipe for analysis:', selected);
+
+    // Build recipe data
     const recipeData: Recipe = {
       recipe_name: selected.recipe_name,
-      product_type: selected.product_type,
+      product_type: selected.product_type || 'ice_cream',
       rows: (selected.recipe_rows as any[] || []).map((r: any) => ({
         ingredient: r.ingredient,
         quantity_g: r.quantity_g
       }))
     };
 
-    const metricsData: Metrics = (selected.calculated_metrics as any)?.[0] || {};
+    // Get metrics from calculated_metrics
+    const metricsArray = Array.isArray(selected.calculated_metrics) 
+      ? selected.calculated_metrics 
+      : (selected.calculated_metrics ? [selected.calculated_metrics] : []);
+    const metricsData: Metrics = metricsArray.length > 0 ? metricsArray[0] : {};
+
+    console.log('📊 Recipe data:', recipeData);
+    console.log('📈 Metrics data:', metricsData);
+
+    if (!recipeData.rows || recipeData.rows.length === 0) {
+      toast.error('This recipe has no ingredients to analyze');
+      return;
+    }
 
     await handleAIAnalysis(recipeData, metricsData);
   };
@@ -171,29 +200,45 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
       <CardContent className="space-y-4">
         {/* Recipe selection from database */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Load Recipe from Database</label>
-          <div className="flex gap-2">
-            <Select value={selectedRecipeId} onValueChange={setSelectedRecipeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a saved recipe" />
-              </SelectTrigger>
-              <SelectContent>
-                {savedRecipes?.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>
-                    {r.recipe_name} ({r.product_type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={handleLoadRecipe} 
-              disabled={!selectedRecipeId || isAnalyzing}
-              variant="outline"
-            >
-              <Database className="h-4 w-4 mr-2" />
-              Analyze
-            </Button>
-          </div>
+          <label className="text-sm font-medium">📚 Analyze Saved Recipe</label>
+          {loadingRecipes ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-sm">Loading recipes...</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Select value={selectedRecipeId} onValueChange={setSelectedRecipeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={savedRecipes && savedRecipes.length > 0 ? "Select a saved recipe" : "No recipes found"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedRecipes && savedRecipes.length > 0 ? (
+                    savedRecipes.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.recipe_name} ({r.product_type || 'ice_cream'}) - {(r.recipe_rows as any[])?.length || 0} ingredients
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>No saved recipes found</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={handleLoadRecipe} 
+                disabled={!selectedRecipeId || isAnalyzing || !savedRecipes || savedRecipes.length === 0}
+                variant="outline"
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Analyze
+              </Button>
+            </div>
+          )}
+          {savedRecipes && savedRecipes.length === 0 && !loadingRecipes && (
+            <p className="text-xs text-muted-foreground">
+              No recipes in database. Create and save recipes in the Calculator tab first.
+            </p>
+          )}
         </div>
 
         {/* Analyze current calculator recipe */}
