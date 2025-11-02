@@ -9,11 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { IngredientService } from '@/services/ingredientService';
 import type { IngredientData } from '@/lib/ingredientLibrary';
+import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
+import { optimizeRecipe } from '@/lib/optimize';
+import type { Row, OptimizeTarget } from '@/lib/optimize';
 
 interface IngredientRow {
   id?: string;
@@ -27,26 +30,8 @@ interface IngredientRow {
   total_solids_g: number;
 }
 
-interface CalculatedMetrics {
-  total_quantity_g: number;
-  total_sugars_g: number;
-  total_fat_g: number;
-  total_msnf_g: number;
-  total_other_solids_g: number;
-  total_solids_g: number;
-  sugars_pct: number;
-  fat_pct: number;
-  msnf_pct: number;
-  other_solids_pct: number;
-  total_solids_pct: number;
-  sp: number;
-  pac: number;
-  fpdt: number;
-  pod_index: number;
-}
-
 interface RecipeCalculatorV2Props {
-  onRecipeChange?: (recipe: any[], metrics: CalculatedMetrics | null, productType: string) => void;
+  onRecipeChange?: (recipe: any[], metrics: MetricsV2 | null, productType: string) => void;
 }
 
 export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV2Props) {
@@ -54,8 +39,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [recipeName, setRecipeName] = useState('');
   const [productType, setProductType] = useState('ice_cream');
   const [rows, setRows] = useState<IngredientRow[]>([]);
-  const [metrics, setMetrics] = useState<CalculatedMetrics | null>(null);
+  const [metrics, setMetrics] = useState<MetricsV2 | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [availableIngredients, setAvailableIngredients] = useState<IngredientData[]>([]);
@@ -161,44 +147,119 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return;
     }
 
-    const totals = rows.reduce((acc, row) => ({
-      quantity: acc.quantity + Number(row.quantity_g),
-      sugars: acc.sugars + Number(row.sugars_g),
-      fat: acc.fat + Number(row.fat_g),
-      msnf: acc.msnf + Number(row.msnf_g),
-      other: acc.other + Number(row.other_solids_g),
-      solids: acc.solids + Number(row.total_solids_g)
-    }), { quantity: 0, sugars: 0, fat: 0, msnf: 0, other: 0, solids: 0 });
+    // Convert rows to format expected by calc.v2
+    const calcRows = rows
+      .filter(r => r.ingredientData && r.quantity_g > 0)
+      .map(r => ({
+        ing: r.ingredientData!,
+        grams: r.quantity_g
+      }));
 
-    const sp = totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0;
-    const pac = totals.quantity > 0 ? ((totals.sugars * 1.9) / totals.quantity) * 100 : 0;
-    const fpdt = totals.quantity > 0 ? (totals.msnf + totals.sugars) / totals.quantity * 100 : 0;
-    const pod_index = totals.quantity > 0 ? (totals.fat + totals.other + totals.msnf) / totals.quantity * 100 : 0;
+    if (calcRows.length === 0) {
+      toast({
+        title: 'Invalid ingredients',
+        description: 'Please select ingredients from the database',
+        variant: 'destructive'
+      });
+      return;
+    }
 
-    const calculated: CalculatedMetrics = {
-      total_quantity_g: totals.quantity,
-      total_sugars_g: totals.sugars,
-      total_fat_g: totals.fat,
-      total_msnf_g: totals.msnf,
-      total_other_solids_g: totals.other,
-      total_solids_g: totals.solids,
-      sugars_pct: totals.quantity > 0 ? (totals.sugars / totals.quantity) * 100 : 0,
-      fat_pct: totals.quantity > 0 ? (totals.fat / totals.quantity) * 100 : 0,
-      msnf_pct: totals.quantity > 0 ? (totals.msnf / totals.quantity) * 100 : 0,
-      other_solids_pct: totals.quantity > 0 ? (totals.other / totals.quantity) * 100 : 0,
-      total_solids_pct: totals.quantity > 0 ? (totals.solids / totals.quantity) * 100 : 0,
-      sp,
-      pac,
-      fpdt,
-      pod_index
-    };
+    // Use the comprehensive v2.1 science engine
+    const mode = productType === 'gelato' ? 'gelato' : 'kulfi';
+    const calculated = calcMetricsV2(calcRows, { mode });
 
     setMetrics(calculated);
     
-    toast({
-      title: 'Metrics Calculated',
-      description: 'Recipe metrics have been computed'
-    });
+    // Show warnings if any
+    if (calculated.warnings.length > 0) {
+      toast({
+        title: 'Recipe Calculated',
+        description: `${calculated.warnings.length} warnings detected`,
+      });
+    } else {
+      toast({
+        title: 'Recipe Balanced ✅',
+        description: 'All parameters within target ranges'
+      });
+    }
+  };
+
+  const balanceRecipe = () => {
+    if (rows.length === 0) {
+      toast({
+        title: 'No ingredients',
+        description: 'Add ingredients before balancing',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsOptimizing(true);
+
+    try {
+      // Define target ranges based on product type
+      const targets: OptimizeTarget = productType === 'gelato' 
+        ? {
+            fat_pct: 7.5,      // Target 7.5% fat (6-9%)
+            msnf_pct: 11,      // Target 11% MSNF (10-12%)
+            sugars_pct: 19,    // Target 19% total sugars (16-22%)
+          }
+        : {
+            fat_pct: 11,       // Target 11% fat (10-12%)
+            msnf_pct: 21.5,    // Target 21.5% MSNF (18-25%)
+            sugars_pct: 18,    // Target 18% sugars
+          };
+
+      // Convert rows to optimization format
+      const optRows: Row[] = rows
+        .filter(r => r.ingredientData && r.quantity_g > 0)
+        .map(r => ({
+          ing: r.ingredientData!,
+          grams: r.quantity_g,
+          min: 0,
+          max: 1000
+        }));
+
+      // Run optimization
+      const optimized = optimizeRecipe(optRows, targets, 500, 0.5);
+
+      // Update rows with optimized quantities
+      const newRows = rows.map((row, i) => {
+        if (i < optimized.length) {
+          const opt = optimized[i];
+          const ing = row.ingredientData!;
+          const qty = opt.grams;
+          return {
+            ...row,
+            quantity_g: qty,
+            sugars_g: (ing.sugars_pct / 100) * qty,
+            fat_g: (ing.fat_pct / 100) * qty,
+            msnf_g: (ing.msnf_pct / 100) * qty,
+            other_solids_g: (ing.other_solids_pct / 100) * qty,
+            total_solids_g: ((ing.sugars_pct + ing.fat_pct + ing.msnf_pct + ing.other_solids_pct) / 100) * qty
+          };
+        }
+        return row;
+      });
+
+      setRows(newRows);
+      
+      // Recalculate with new quantities
+      setTimeout(() => calculateMetrics(), 100);
+
+      toast({
+        title: 'Recipe Balanced',
+        description: 'Quantities optimized to meet science parameters'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Optimization failed',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setIsOptimizing(false);
+    }
   };
 
   const saveRecipe = async () => {
@@ -295,8 +356,22 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           .from('calculated_metrics')
           .insert({
             recipe_id: recipeId,
-            ...metrics
-          });
+            total_quantity_g: metrics.total_g,
+            total_sugars_g: metrics.totalSugars_g,
+            total_fat_g: metrics.fat_g,
+            total_msnf_g: metrics.msnf_g,
+            total_other_solids_g: metrics.other_g,
+            total_solids_g: metrics.ts_g,
+            sugars_pct: metrics.totalSugars_pct,
+            fat_pct: metrics.fat_pct,
+            msnf_pct: metrics.msnf_pct,
+            other_solids_pct: metrics.other_pct,
+            total_solids_pct: metrics.ts_pct,
+            sp: 0, // Legacy field
+            pac: 0, // Legacy field
+            fpdt: metrics.fpdt,
+            pod_index: metrics.pod_index
+          } as any);
 
         if (metricsError) throw metricsError;
       }
@@ -453,20 +528,29 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TableBody>
             </Table>
             
-            <div className="flex gap-2">
-              <Button onClick={addRow} variant="outline">
+            <div className="flex gap-2 flex-wrap">
+              <Button onClick={addRow} variant="outline" size="sm">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Ingredient
               </Button>
-              <Button onClick={calculateMetrics} variant="outline">
+              <Button onClick={calculateMetrics} variant="default" size="sm">
                 <Calculator className="mr-2 h-4 w-4" />
-                Calculate Metrics
+                Calculate
               </Button>
-              <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated}>
+              <Button 
+                onClick={balanceRecipe} 
+                disabled={isOptimizing || rows.length === 0}
+                variant="secondary"
+                size="sm"
+              >
+                {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                Balance Recipe
+              </Button>
+              <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Recipe
+                Save
               </Button>
-              <Button onClick={clearRecipe} variant="ghost">
+              <Button onClick={clearRecipe} variant="ghost" size="sm">
                 Clear
               </Button>
             </div>
@@ -477,43 +561,90 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       {metrics && (
         <Card>
           <CardHeader>
-            <CardTitle>Calculated Metrics</CardTitle>
+            <CardTitle>Calculated Metrics (Science v2.1)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div>
-                <p className="text-sm text-muted-foreground">Total Quantity</p>
-                <p className="text-2xl font-bold">{metrics.total_quantity_g.toFixed(1)}g</p>
+                <p className="text-sm text-muted-foreground">Total Batch</p>
+                <p className="text-2xl font-bold">{metrics.total_g.toFixed(1)}g</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Sugars %</p>
-                <Badge>{metrics.sugars_pct.toFixed(1)}%</Badge>
+                <p className="text-sm text-muted-foreground">Total Sugars</p>
+                <Badge variant={metrics.totalSugars_pct >= 16 && metrics.totalSugars_pct <= 22 ? 'default' : 'destructive'}>
+                  {metrics.totalSugars_pct.toFixed(1)}%
+                </Badge>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Fat %</p>
-                <Badge>{metrics.fat_pct.toFixed(1)}%</Badge>
+                <p className="text-sm text-muted-foreground">Fat</p>
+                <Badge variant={metrics.fat_pct >= 6 && metrics.fat_pct <= 12 ? 'default' : 'destructive'}>
+                  {metrics.fat_pct.toFixed(1)}%
+                </Badge>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">MSNF %</p>
-                <Badge>{metrics.msnf_pct.toFixed(1)}%</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">SP</p>
-                <Badge variant="outline">{metrics.sp.toFixed(1)}</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">PAC</p>
-                <Badge variant="outline">{metrics.pac.toFixed(1)}</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">FPDT</p>
-                <Badge variant="outline">{metrics.fpdt.toFixed(1)}</Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">POD Index</p>
-                <Badge variant="outline">{metrics.pod_index.toFixed(1)}</Badge>
+                <p className="text-sm text-muted-foreground">MSNF</p>
+                <Badge variant={metrics.msnf_pct >= 10 && metrics.msnf_pct <= 25 ? 'default' : 'destructive'}>
+                  {metrics.msnf_pct.toFixed(1)}%
+                </Badge>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Protein</p>
+                <Badge variant="outline">{metrics.protein_pct.toFixed(1)}%</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Lactose</p>
+                <Badge variant="outline">{metrics.lactose_pct.toFixed(1)}%</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Solids</p>
+                <Badge variant={metrics.ts_pct >= 36 && metrics.ts_pct <= 45 ? 'default' : 'destructive'}>
+                  {metrics.ts_pct.toFixed(1)}%
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Water</p>
+                <Badge variant="outline">{metrics.water_pct.toFixed(1)}%</Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-muted-foreground">FPDT (Freezing Point)</p>
+                <Badge variant={metrics.fpdt >= 2.5 && metrics.fpdt <= 3.5 ? 'default' : 'destructive'}>
+                  {metrics.fpdt.toFixed(2)}°C
+                </Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">POD Index (Sweetness)</p>
+                <Badge variant="outline">{metrics.pod_index.toFixed(0)}</Badge>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">SE (Sucrose Equiv)</p>
+                <Badge variant="outline">{metrics.se_g.toFixed(1)}g</Badge>
+              </div>
+            </div>
+
+            {metrics.warnings.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-semibold text-destructive">⚠️ Warnings & Recommendations:</p>
+                {metrics.warnings.map((warning, i) => (
+                  <Alert key={i} variant={warning.includes('⚠️') ? 'destructive' : 'default'}>
+                    <AlertDescription className="text-xs">{warning}</AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            )}
+
+            {metrics.warnings.length === 0 && (
+              <Alert>
+                <AlertDescription className="text-sm font-medium text-green-700">
+                  ✅ All parameters within target ranges! Recipe is balanced.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       )}
