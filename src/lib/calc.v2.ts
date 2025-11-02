@@ -109,11 +109,19 @@ export function calcMetricsV2(
   let water_g = 0, nonLactoseSugars_g = 0, fat_g = 0, msnf_g = 0, other_g = 0;
   for (const { ing, grams } of rows) {
     const g = grams || 0;
-    water_g += g * (ing.water_pct || 0) / 100;
-    nonLactoseSugars_g += g * (ing.sugars_pct || 0) / 100;
-    fat_g += g * (ing.fat_pct || 0) / 100;
-    msnf_g += g * (ing.msnf_pct || 0) / 100;
-    other_g += g * (ing.other_solids_pct || 0) / 100;
+    
+    // Protect against NULL values in database
+    const water_pct = ing.water_pct ?? 0;
+    const sugars_pct = ing.sugars_pct ?? 0;
+    const fat_pct = ing.fat_pct ?? 0;
+    const msnf_pct = ing.msnf_pct ?? 0;
+    const other_pct = ing.other_solids_pct ?? 0;
+    
+    water_g += g * water_pct / 100;
+    nonLactoseSugars_g += g * sugars_pct / 100;
+    fat_g += g * fat_pct / 100;
+    msnf_g += g * msnf_pct / 100;
+    other_g += g * other_pct / 100;
   }
 
   // 2. Apply evaporation

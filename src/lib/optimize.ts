@@ -1,20 +1,20 @@
 import { IngredientData } from '@/types/ingredients';
-import { calcMetrics, Metrics } from './calc';
+import { calcMetricsV2, MetricsV2 } from './calc.v2';
 
 export type Row = { ing: IngredientData; grams: number; lock?: boolean; min?: number; max?: number; };
 
 export type OptimizeTarget = Partial<{
-  ts_add_pct: number; sugars_pct: number; fat_pct: number; msnf_pct: number; sp: number; pac: number;
+  totalSugars_pct: number; sugars_pct: number; fat_pct: number; msnf_pct: number; ts_pct: number; fpdt: number;
 }>;
 
-function objective(m: Metrics, t: OptimizeTarget) {
+function objective(m: MetricsV2, t: OptimizeTarget) {
   let s = 0;
-  if (t.ts_add_pct  != null) s += Math.abs(m.ts_add_pct  - t.ts_add_pct);
-  if (t.sugars_pct  != null) s += Math.abs(m.sugars_pct  - t.sugars_pct);
-  if (t.fat_pct     != null) s += Math.abs(m.fat_pct     - t.fat_pct);
-  if (t.msnf_pct    != null) s += Math.abs(m.msnf_pct    - t.msnf_pct);
-  if (t.sp          != null) s += Math.abs(m.sp          - t.sp);
-  if (t.pac         != null) s += Math.abs(m.pac         - t.pac);
+  if (t.totalSugars_pct != null) s += Math.abs(m.totalSugars_pct - t.totalSugars_pct);
+  if (t.sugars_pct      != null) s += Math.abs(m.nonLactoseSugars_pct - t.sugars_pct);
+  if (t.fat_pct         != null) s += Math.abs(m.fat_pct - t.fat_pct);
+  if (t.msnf_pct        != null) s += Math.abs(m.msnf_pct - t.msnf_pct);
+  if (t.ts_pct          != null) s += Math.abs(m.ts_pct - t.ts_pct);
+  if (t.fpdt            != null) s += Math.abs(m.fpdt - t.fpdt);
   return s;
 }
 
@@ -25,7 +25,7 @@ export function optimizeRecipe(
   step = 1
 ): Row[] {
   const rows = rowsIn.map(r => ({ ...r }));
-  let bestM = calcMetrics(rows);
+  let bestM = calcMetricsV2(rows);
   let best = objective(bestM, targets);
 
   for (let iter = 0; iter < maxIters; iter++) {
@@ -44,7 +44,7 @@ export function optimizeRecipe(
         if (next === test[i].grams) continue;
         test[i].grams = next;
 
-        const m = calcMetrics(test);
+        const m = calcMetricsV2(test);
         const score = objective(m, targets);
         if (score + 1e-6 < best) {
           best = score; bestM = m;

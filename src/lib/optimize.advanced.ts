@@ -30,14 +30,14 @@ export const DEFAULT_CONFIG: OptimizerConfig = {
 };
 
 // Objective function (same for all algorithms)
-function objective(m: Metrics, t: OptimizeTarget): number {
+function objective(m: MetricsV2, t: OptimizeTarget): number {
   let s = 0;
-  if (t.ts_add_pct  != null) s += Math.abs(m.ts_add_pct  - t.ts_add_pct);
-  if (t.sugars_pct  != null) s += Math.abs(m.sugars_pct  - t.sugars_pct);
-  if (t.fat_pct     != null) s += Math.abs(m.fat_pct     - t.fat_pct);
-  if (t.msnf_pct    != null) s += Math.abs(m.msnf_pct    - t.msnf_pct);
-  if (t.sp          != null) s += Math.abs(m.sp          - t.sp);
-  if (t.pac         != null) s += Math.abs(m.pac         - t.pac);
+  if (t.totalSugars_pct != null) s += Math.abs(m.totalSugars_pct - t.totalSugars_pct);
+  if (t.sugars_pct      != null) s += Math.abs(m.nonLactoseSugars_pct - t.sugars_pct);
+  if (t.fat_pct         != null) s += Math.abs(m.fat_pct - t.fat_pct);
+  if (t.msnf_pct        != null) s += Math.abs(m.msnf_pct - t.msnf_pct);
+  if (t.ts_pct          != null) s += Math.abs(m.ts_pct - t.ts_pct);
+  if (t.fpdt            != null) s += Math.abs(m.fpdt - t.fpdt);
   return s;
 }
 

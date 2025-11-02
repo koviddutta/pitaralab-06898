@@ -197,17 +197,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setIsOptimizing(true);
 
     try {
-      // Define target ranges based on product type
+      // Define target ranges based on product type using v2.1 science
       const targets: OptimizeTarget = productType === 'gelato' 
         ? {
-            fat_pct: 7.5,      // Target 7.5% fat (6-9%)
-            msnf_pct: 11,      // Target 11% MSNF (10-12%)
-            sugars_pct: 19,    // Target 19% total sugars (16-22%)
+            fat_pct: 7.5,           // Target 7.5% fat (6-9%)
+            msnf_pct: 11,           // Target 11% MSNF (10-12%)
+            totalSugars_pct: 19,    // Target 19% total sugars (16-22%)
+            ts_pct: 40,             // Target 40% total solids (36-45%)
+            fpdt: 3.0               // Target 3.0°C FPDT (2.5-3.5°C)
           }
         : {
-            fat_pct: 11,       // Target 11% fat (10-12%)
-            msnf_pct: 21.5,    // Target 21.5% MSNF (18-25%)
-            sugars_pct: 18,    // Target 18% sugars
+            fat_pct: 11,            // Target 11% fat (10-12%)
+            msnf_pct: 21.5,         // Target 21.5% MSNF (18-25%)
+            totalSugars_pct: 18,    // Target 18% sugars
+            ts_pct: 40,             // Target 40% total solids (38-42%)
+            fpdt: 2.25              // Target 2.25°C FPDT (2.0-2.5°C)
           };
 
       // Convert rows to optimization format
