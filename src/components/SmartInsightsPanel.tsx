@@ -116,11 +116,18 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
     setIsAnalyzing(true);
 
     try {
+      // Determine correct product type with priority: explicit prop > recipe property > default
+      const finalProductType = productType || 
+                               (typeof recipeToAnalyze === 'object' && recipeToAnalyze.product_type) || 
+                               'ice_cream';
+      
+      console.log('🎯 Analyzing recipe with product type:', finalProductType);
+      
       const { data, error } = await supabase.functions.invoke('analyze-recipe', {
         body: {
           recipe: recipeToAnalyze,
           metrics: metricsToAnalyze,
-          productType: productType || recipeToAnalyze.product_type || 'ice_cream'
+          productType: finalProductType
         }
       });
 

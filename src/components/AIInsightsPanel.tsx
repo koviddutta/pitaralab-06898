@@ -22,7 +22,7 @@ interface AIInsightsPanelProps {
 export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({ 
   recipe, 
   metrics,
-  productType = 'gelato' 
+  productType = 'ice_cream'
 }) => {
   const [analysis, setAnalysis] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
