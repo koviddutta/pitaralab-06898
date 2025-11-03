@@ -8,7 +8,7 @@
  * 4. ML enhancement when training data becomes available
  */
 
-import { calcMetrics } from '@/lib/calc';
+import { calcMetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe, Row, OptimizeTarget } from '@/lib/optimize';
 import { IngredientData } from '@/types/ingredients';
 import { getActiveParameters } from '@/services/productParametersService';
@@ -229,20 +229,20 @@ export class EnhancedMLService {
 
     // CALCULATE TARGET MIDPOINTS (or use custom)
     const targets: OptimizeTarget = customTargets || {
-      ts_add_pct: (bands.ts[0] + bands.ts[1]) / 2,
+      ts_pct: (bands.ts[0] + bands.ts[1]) / 2,
       fat_pct: (bands.fat[0] + bands.fat[1]) / 2,
       sugars_pct: (bands.sugars[0] + bands.sugars[1]) / 2,
       msnf_pct: (bands.msnf[0] + bands.msnf[1]) / 2,
-      sp: (bands.sp[0] + bands.sp[1]) / 2,
-      pac: (bands.pac[0] + bands.pac[1]) / 2
+      totalSugars_pct: (bands.sugars[0] + bands.sugars[1]) / 2,
+      fpdt: 3.0 // Default target
     };
 
     // ADJUST FOR TEXTURE MODE
     if (targetMode === 'soft') {
-      targets.pac = bands.pac[1]; // Higher PAC = softer
+      targets.fpdt = 2.7; // Lower FPDT = softer
       targets.fat_pct = bands.fat[0]; // Lower fat = softer
     } else if (targetMode === 'firm') {
-      targets.pac = bands.pac[0]; // Lower PAC = firmer
+      targets.fpdt = 3.3; // Higher FPDT = firmer
       targets.fat_pct = bands.fat[1]; // Higher fat = firmer
     }
 
@@ -255,20 +255,20 @@ export class EnhancedMLService {
     }));
 
     // RUN OPTIMIZATION
-    const originalMetrics = calcMetrics(rows);
+    const originalMetrics = calcMetricsV2(rows);
     const optimized = optimizeRecipe(optimizeRows, targets, 150, 2);
-    const newMetrics = calcMetrics(optimized);
+    const newMetrics = calcMetricsV2(optimized);
 
     // CALCULATE IMPROVEMENTS
     const improvements: string[] = [];
-    if (Math.abs(newMetrics.ts_add_pct - targets.ts_add_pct!) < Math.abs(originalMetrics.ts_add_pct - targets.ts_add_pct!)) {
-      improvements.push(`Total Solids optimized: ${originalMetrics.ts_add_pct.toFixed(1)}% → ${newMetrics.ts_add_pct.toFixed(1)}%`);
+    if (Math.abs(newMetrics.ts_pct - targets.ts_pct!) < Math.abs(originalMetrics.ts_pct - targets.ts_pct!)) {
+      improvements.push(`Total Solids optimized: ${originalMetrics.ts_pct.toFixed(1)}% → ${newMetrics.ts_pct.toFixed(1)}%`);
     }
-    if (Math.abs(newMetrics.pac - targets.pac!) < Math.abs(originalMetrics.pac - targets.pac!)) {
-      improvements.push(`PAC improved: ${originalMetrics.pac.toFixed(1)} → ${newMetrics.pac.toFixed(1)}`);
+    if (Math.abs(newMetrics.fpdt - targets.fpdt!) < Math.abs(originalMetrics.fpdt - targets.fpdt!)) {
+      improvements.push(`FPDT improved: ${originalMetrics.fpdt.toFixed(2)}°C → ${newMetrics.fpdt.toFixed(2)}°C`);
     }
-    if (Math.abs(newMetrics.sp - targets.sp!) < Math.abs(originalMetrics.sp - targets.sp!)) {
-      improvements.push(`Sweetness optimized: ${originalMetrics.sp.toFixed(1)} → ${newMetrics.sp.toFixed(1)}`);
+    if (Math.abs(newMetrics.nonLactoseSugars_pct - targets.sugars_pct!) < Math.abs(originalMetrics.nonLactoseSugars_pct - targets.sugars_pct!)) {
+      improvements.push(`Sugars optimized: ${originalMetrics.nonLactoseSugars_pct.toFixed(1)}% → ${newMetrics.nonLactoseSugars_pct.toFixed(1)}%`);
     }
 
     // COST IMPACT
@@ -413,7 +413,7 @@ export class EnhancedMLService {
       fat_pct: targetComposition.fat_pct || (bands.fat[0] + bands.fat[1]) / 2,
       msnf_pct: targetComposition.msnf_pct || (bands.msnf[0] + bands.msnf[1]) / 2,
       sugars_pct: targetComposition.sugars_pct || (bands.sugars[0] + bands.sugars[1]) / 2,
-      ts_add_pct: targetComposition.ts_add_pct || (bands.ts[0] + bands.ts[1]) / 2
+      ts_pct: targetComposition.ts_add_pct || (bands.ts[0] + bands.ts[1]) / 2
     };
 
     // Initialize rows
@@ -472,11 +472,11 @@ export class EnhancedMLService {
 
     // OPTIMIZE to exact targets
     const optimized = optimizeRecipe(rows, targets, 200, 2);
-    const metrics = calcMetrics(optimized);
+    const metrics = calcMetricsV2(optimized);
 
     // Calculate confidence based on how close we got
     const fatError = Math.abs(metrics.fat_pct - targets.fat_pct) / targets.fat_pct;
-    const sugarError = Math.abs(metrics.sugars_pct - targets.sugars_pct) / targets.sugars_pct;
+    const sugarError = Math.abs(metrics.nonLactoseSugars_pct - targets.sugars_pct) / targets.sugars_pct;
     const confidence = Math.max(0, 1 - (fatError + sugarError) / 2);
 
     return {

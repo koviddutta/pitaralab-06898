@@ -1,6 +1,6 @@
 // Advanced optimization algorithms: Genetic Algorithm + Particle Swarm Optimization
 import { IngredientData } from '@/types/ingredients';
-import { calcMetrics, Metrics } from './calc';
+import { calcMetricsV2, MetricsV2 } from './calc.v2';
 import { optimizeRecipe as hillClimbOptimize, Row, OptimizeTarget } from './optimize';
 
 // Configuration for advanced optimizers
@@ -60,13 +60,13 @@ function geneticAlgorithm(
   }
   
   let bestIndividual = population[0];
-  let bestScore = objective(calcMetrics(bestIndividual), targets);
+  let bestScore = objective(calcMetricsV2(bestIndividual), targets);
   let noImprovement = 0;
   
   for (let gen = 0; gen < maxIterations; gen++) {
     // Evaluate fitness
     const fitness = population.map(ind => {
-      const m = calcMetrics(ind);
+      const m = calcMetricsV2(ind);
       return 1 / (1 + objective(m, targets)); // Higher is better
     });
     
@@ -119,12 +119,12 @@ function geneticAlgorithm(
     
     // Track best
     const currentBest = population.reduce((best, ind) => {
-      const score = objective(calcMetrics(ind), targets);
+      const score = objective(calcMetricsV2(ind), targets);
       return score < bestScore ? (bestScore = score, bestIndividual = ind, ind) : best;
     }, bestIndividual);
     
     // Convergence check
-    if (Math.abs(objective(calcMetrics(currentBest), targets) - objective(calcMetrics(bestIndividual), targets)) < 0.001) {
+    if (Math.abs(objective(calcMetricsV2(currentBest), targets) - objective(calcMetricsV2(bestIndividual), targets)) < 0.001) {
       noImprovement++;
       if (noImprovement > 20) break; // Early stopping
     } else {
@@ -158,7 +158,7 @@ function particleSwarmOptimization(
       grams: Math.max(r.min ?? 0, Math.min(r.max ?? 1e9, r.grams + (Math.random() - 0.5) * 100))
     }));
     const velocity = position.map(() => (Math.random() - 0.5) * 20);
-    const score = objective(calcMetrics(position), targets);
+    const score = objective(calcMetricsV2(position), targets);
     
     particles.push({
       position,
@@ -195,7 +195,7 @@ function particleSwarmOptimization(
       }
       
       // Evaluate
-      const score = objective(calcMetrics(particle.position), targets);
+      const score = objective(calcMetricsV2(particle.position), targets);
       
       // Update personal best
       if (score < particle.bestScore) {
@@ -271,7 +271,7 @@ export function compareOptimizers(
     const result = advancedOptimize(rowsIn, targets, { algorithm: algo, maxIterations: 100 });
     const end = performance.now();
     
-    const metrics = calcMetrics(result);
+    const metrics = calcMetricsV2(result);
     const score = objective(metrics, targets);
     
     results.push({
