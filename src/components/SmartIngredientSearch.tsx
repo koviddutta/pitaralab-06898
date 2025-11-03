@@ -151,9 +151,9 @@ export function SmartIngredientSearch({
   );
 
   return (
-    <div className="w-full bg-background border rounded-lg shadow-lg">
+    <div className="w-full bg-popover border rounded-lg shadow-lg z-50">
       {/* Search Input */}
-      <div className="p-3 border-b">
+      <div className="p-3 border-b bg-popover">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -174,7 +174,7 @@ export function SmartIngredientSearch({
       </div>
 
       {/* Results */}
-      <ScrollArea className="h-[400px]">
+      <ScrollArea className="h-[400px] bg-popover">
         <div className="p-3 space-y-4">
           {/* Recent Ingredients Section (when no search query) */}
           {!searchQuery && recentIngredients.length > 0 && (
@@ -234,7 +234,7 @@ export function SmartIngredientSearch({
       </ScrollArea>
 
       {/* Footer */}
-      <div className="p-2 border-t bg-muted/50">
+      <div className="p-2 border-t bg-popover">
         <p className="text-xs text-center text-muted-foreground">
           Use ↑↓ to navigate, Enter to select, Esc to close
         </p>

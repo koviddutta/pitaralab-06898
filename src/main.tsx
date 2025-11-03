@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import localforage from 'localforage'
+import { IngredientsProvider } from './contexts/IngredientsContext'
 import App from './App.tsx'
 import './index.css'
 import './styles/production.css'
@@ -50,6 +51,8 @@ createRoot(document.getElementById("root")!).render(
       }
     }}
   >
-    <App />
+    <IngredientsProvider>
+      <App />
+    </IngredientsProvider>
   </PersistQueryClientProvider>
 );

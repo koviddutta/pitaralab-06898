@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
-import { IngredientService } from '@/services/ingredientService';
+import { useIngredients } from '@/contexts/IngredientsContext';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { optimizeRecipe } from '@/lib/optimize';
@@ -44,21 +44,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [availableIngredients, setAvailableIngredients] = useState<IngredientData[]>([]);
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
-
-  // Load ingredients from database
-  useEffect(() => {
-    const loadIngredients = async () => {
-      try {
-        const ingredients = await IngredientService.getIngredients();
-        setAvailableIngredients(ingredients);
-      } catch (error) {
-        console.error('Failed to load ingredients:', error);
-      }
-    };
-    loadIngredients();
-  }, []);
+  
+  // Use global ingredients context
+  const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -481,13 +470,24 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                             )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0" align="start">
-                          <SmartIngredientSearch
-                            ingredients={availableIngredients}
-                            onSelect={(ing) => handleIngredientSelect(index, ing)}
-                            open={searchOpen === index}
-                            onOpenChange={(open) => setSearchOpen(open ? index : null)}
-                          />
+                        <PopoverContent className="w-[400px] p-0 z-50" align="start">
+                          {loadingIngredients ? (
+                            <div className="p-4 text-center">
+                              <p className="text-sm text-muted-foreground">Loading ingredients...</p>
+                            </div>
+                          ) : availableIngredients.length === 0 ? (
+                            <div className="p-4 text-center">
+                              <p className="text-sm text-destructive">No ingredients found</p>
+                              <p className="text-xs text-muted-foreground mt-1">Please add ingredients to the database</p>
+                            </div>
+                          ) : (
+                            <SmartIngredientSearch
+                              ingredients={availableIngredients}
+                              onSelect={(ing) => handleIngredientSelect(index, ing)}
+                              open={searchOpen === index}
+                              onOpenChange={(open) => setSearchOpen(open ? index : null)}
+                            />
+                          )}
                         </PopoverContent>
                       </Popover>
                     </TableCell>
