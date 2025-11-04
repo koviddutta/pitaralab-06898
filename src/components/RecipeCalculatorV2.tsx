@@ -99,10 +99,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (field === 'quantity_g' && newRows[index].ingredientData) {
       const ing = newRows[index].ingredientData!;
       const qty = Number(value);
-      newRows[index].sugars_g = (ing.sugars_pct / 100) * qty;
-      newRows[index].fat_g = (ing.fat_pct / 100) * qty;
-      newRows[index].msnf_g = (ing.msnf_pct / 100) * qty;
-      newRows[index].other_solids_g = (ing.other_solids_pct / 100) * qty;
+      newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
+      newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
+      newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
+      newRows[index].other_solids_g = ((ing.other_solids_pct ?? 0) / 100) * qty;
       newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
     }
     
@@ -116,10 +116,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     
     // Auto-calculate based on current quantity
     const qty = newRows[index].quantity_g || 0;
-    newRows[index].sugars_g = (ingredient.sugars_pct / 100) * qty;
-    newRows[index].fat_g = (ingredient.fat_pct / 100) * qty;
-    newRows[index].msnf_g = (ingredient.msnf_pct / 100) * qty;
-    newRows[index].other_solids_g = (ingredient.other_solids_pct / 100) * qty;
+    newRows[index].sugars_g = ((ingredient.sugars_pct ?? 0) / 100) * qty;
+    newRows[index].fat_g = ((ingredient.fat_pct ?? 0) / 100) * qty;
+    newRows[index].msnf_g = ((ingredient.msnf_pct ?? 0) / 100) * qty;
+    newRows[index].other_solids_g = ((ingredient.other_solids_pct ?? 0) / 100) * qty;
     newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
     
     setRows(newRows);
@@ -154,7 +154,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }
 
     // Use the comprehensive v2.1 science engine
-    const mode = productType === 'gelato' ? 'gelato' : 'kulfi';
+    // Map product types to calculation modes
+    const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
     const calculated = calcMetricsV2(calcRows, { mode });
 
     setMetrics(calculated);
@@ -187,7 +188,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
     try {
       // Define target ranges based on product type using v2.1 science
-      const targets: OptimizeTarget = productType === 'gelato' 
+      // Both gelato and ice_cream use gelato mode parameters
+      const targets: OptimizeTarget = (productType === 'gelato' || productType === 'ice_cream')
         ? {
             fat_pct: 7.5,           // Target 7.5% fat (6-9%)
             msnf_pct: 11,           // Target 11% MSNF (10-12%)
