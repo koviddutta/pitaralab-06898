@@ -13,13 +13,21 @@ import type { IngredientData } from '@/types/ingredients';
 interface AddIngredientDialogProps {
   onIngredientAdded?: (ingredient: IngredientData) => void;
   trigger?: React.ReactNode;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredientDialogProps) {
+export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: externalOnOpenChange }: AddIngredientDialogProps) {
   const { toast } = useToast();
   const { refetch } = useIngredients();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (externalOnOpenChange) {
+      externalOnOpenChange(newOpen);
+    }
+  };
   
   const [formData, setFormData] = useState({
     name: '',
@@ -104,7 +112,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredien
                            formData.msnf_pct + formData.other_solids_pct;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
