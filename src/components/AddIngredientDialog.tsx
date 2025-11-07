@@ -105,7 +105,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredien
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border shadow-lg">
         <DialogHeader>
           <DialogTitle>Add New Ingredient</DialogTitle>
           <DialogDescription>
@@ -132,10 +132,10 @@ export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredien
                 value={formData.category}
                 onValueChange={(value) => setFormData({ ...formData, category: value as IngredientData['category'] })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[200] bg-popover border shadow-md">
                   <SelectItem value="dairy">Dairy</SelectItem>
                   <SelectItem value="sugar">Sugar</SelectItem>
                   <SelectItem value="stabilizer">Stabilizer</SelectItem>
