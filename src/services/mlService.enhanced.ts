@@ -256,7 +256,7 @@ export class EnhancedMLService {
 
     // RUN OPTIMIZATION
     const originalMetrics = calcMetricsV2(rows);
-    const optimized = optimizeRecipe(optimizeRows, targets, 150, 2);
+    const optimized = optimizeRecipe(optimizeRows, targets, 'gelato', 150, 2);
     const newMetrics = calcMetricsV2(optimized);
 
     // CALCULATE IMPROVEMENTS
@@ -471,7 +471,7 @@ export class EnhancedMLService {
     }
 
     // OPTIMIZE to exact targets
-    const optimized = optimizeRecipe(rows, targets, 200, 2);
+    const optimized = optimizeRecipe(rows, targets, 'gelato', 200, 2);
     const metrics = calcMetricsV2(optimized);
 
     // Calculate confidence based on how close we got

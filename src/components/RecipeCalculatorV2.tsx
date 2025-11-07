@@ -270,8 +270,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           max: 1000
         }));
 
-      // Run optimization
-      const optimized = optimizeRecipe(optRows, targets, 500, 0.5);
+      // Run optimization with mode
+      const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
+      const optimized = optimizeRecipe(optRows, targets, mode, 1000, 1.0);
 
       // Update rows with optimized quantities
       const newRows = rows.map((row, i) => {
@@ -282,11 +283,11 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           return {
             ...row,
             quantity_g: qty,
-            sugars_g: (ing.sugars_pct / 100) * qty,
-            fat_g: (ing.fat_pct / 100) * qty,
-            msnf_g: (ing.msnf_pct / 100) * qty,
-            other_solids_g: (ing.other_solids_pct / 100) * qty,
-            total_solids_g: ((ing.sugars_pct + ing.fat_pct + ing.msnf_pct + ing.other_solids_pct) / 100) * qty
+            sugars_g: ((ing.sugars_pct ?? 0) / 100) * qty,
+            fat_g: ((ing.fat_pct ?? 0) / 100) * qty,
+            msnf_g: ((ing.msnf_pct ?? 0) / 100) * qty,
+            other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * qty,
+            total_solids_g: (((ing.sugars_pct ?? 0) + (ing.fat_pct ?? 0) + (ing.msnf_pct ?? 0) + (ing.other_solids_pct ?? 0)) / 100) * qty
           };
         }
         return row;

@@ -229,7 +229,7 @@ function hybridOptimization(
   
   // Phase 2: Hill-climbing for local refinement
   const hcIterations = Math.floor((config.maxIterations ?? 200) * 0.5);
-  const refinedResult = hillClimbOptimize(gaResult, targets, hcIterations, 1);
+  const refinedResult = hillClimbOptimize(gaResult, targets, 'gelato', hcIterations, 1);
   
   return refinedResult;
 }
@@ -249,7 +249,7 @@ export function advancedOptimize(
       return hybridOptimization(rowsIn, targets, config);
     case 'hill-climbing':
     default:
-      return hillClimbOptimize(rowsIn, targets, config.maxIterations ?? 200, 1);
+      return hillClimbOptimize(rowsIn, targets, 'gelato', config.maxIterations ?? 200, 1);
   }
 }
 
