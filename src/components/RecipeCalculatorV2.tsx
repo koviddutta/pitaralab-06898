@@ -597,14 +597,20 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                               <div className="border-t p-2 bg-muted/50">
                                 <AddIngredientDialog 
                                   onIngredientAdded={(ing) => {
+                                    console.log('✅ Ingredient added:', ing.name);
                                     handleIngredientSelect(index, ing);
                                     setSearchOpen(null);
                                   }}
                                   onOpenChange={(open) => {
-                                    if (open) setSearchOpen(null);
+                                    console.log('🔷 Dialog onOpenChange callback:', open);
+                                    if (open) {
+                                      console.log('🔒 Closing popover');
+                                      setSearchOpen(null);
+                                    }
                                   }}
                                   trigger={
                                     <Button 
+                                      type="button"
                                       variant="ghost" 
                                       size="sm" 
                                       className="w-full justify-start text-sm"

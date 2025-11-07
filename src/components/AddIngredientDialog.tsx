@@ -19,11 +19,12 @@ interface AddIngredientDialogProps {
 export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: externalOnOpenChange }: AddIngredientDialogProps) {
   const { toast } = useToast();
   const { refetch } = useIngredients();
-  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
+    console.log('🔷 Dialog openChange:', newOpen);
+    setDialogOpen(newOpen);
     if (externalOnOpenChange) {
       externalOnOpenChange(newOpen);
     }
@@ -95,7 +96,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
         });
       }, 100);
       
-      setOpen(false);
+      setDialogOpen(false);
     } catch (error) {
       console.error('Error adding ingredient:', error);
       toast({
@@ -112,7 +113,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
                            formData.msnf_pct + formData.other_solids_pct;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
@@ -121,7 +122,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border shadow-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border shadow-lg z-[200]">
         <DialogHeader>
           <DialogTitle>Add New Ingredient</DialogTitle>
           <DialogDescription>
@@ -276,7 +277,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading || !formData.name || Math.abs(totalComposition - 100) > 5}>
