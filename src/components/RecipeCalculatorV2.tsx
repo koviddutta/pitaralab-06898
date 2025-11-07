@@ -17,8 +17,8 @@ import { AddIngredientDialog } from '@/components/AddIngredientDialog';
 import { useIngredients } from '@/contexts/IngredientsContext';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
-import { optimizeRecipe } from '@/lib/optimize';
-import type { Row, OptimizeTarget } from '@/lib/optimize';
+import { OptimizeTarget, Row } from '@/lib/optimize';
+import { balancingEngine } from '@/lib/optimize.engine';
 
 interface IngredientRow {
   id?: string;
@@ -243,8 +243,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
     try {
       // Define target ranges based on product type using v2.1 science
-      // Both gelato and ice_cream use gelato mode parameters
-      const targets: OptimizeTarget = (productType === 'gelato' || productType === 'ice_cream')
+      const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
+      
+      const targets: OptimizeTarget = mode === 'gelato'
         ? {
             fat_pct: 7.5,           // Target 7.5% fat (6-9% range)
             msnf_pct: 11,           // Target 11% MSNF (10-12% range)
@@ -270,18 +271,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           max: 1000
         }));
 
-      // Calculate original totals for comparison
-      const originalTotal = optRows.reduce((sum, r) => sum + r.grams, 0);
-      const originalMetrics = calcMetricsV2(optRows, { mode: (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi' });
-      
-      // Run optimization with mode
-      const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
-      const optimized = optimizeRecipe(optRows, targets, mode, 1000, 1.0);
+      // Use the new balancing engine with multiple strategies
+      const result = balancingEngine.balance(optRows, targets, mode);
 
       // Update rows with optimized quantities
       const newRows = rows.map((row, i) => {
-        if (i < optimized.length) {
-          const opt = optimized[i];
+        if (i < result.rows.length) {
+          const opt = result.rows[i];
           const ing = row.ingredientData!;
           const qty = opt.grams;
           return {
@@ -299,28 +295,47 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       setRows(newRows);
       
-      // Recalculate with new quantities and show what changed
+      // Show detailed results
       setTimeout(() => {
         calculateMetrics();
-        const newMetrics = calcMetricsV2(
-          optimized.map(r => ({ ing: r.ing, grams: r.grams })),
-          { mode }
-        );
         
-        // Show what actually changed
-        const fatChange = newMetrics.fat_pct - originalMetrics.fat_pct;
-        const msnfChange = newMetrics.msnf_pct - originalMetrics.msnf_pct;
-        const fpdtChange = newMetrics.fpdt - originalMetrics.fpdt;
-        
-        toast({
-          title: 'Recipe Balanced',
-          description: `Fat: ${originalMetrics.fat_pct.toFixed(1)}% → ${newMetrics.fat_pct.toFixed(1)}% (${fatChange > 0 ? '+' : ''}${fatChange.toFixed(1)}%) | MSNF: ${originalMetrics.msnf_pct.toFixed(1)}% → ${newMetrics.msnf_pct.toFixed(1)}% | FPDT: ${originalMetrics.fpdt.toFixed(2)}°C → ${newMetrics.fpdt.toFixed(2)}°C | Total: ${originalTotal.toFixed(0)}g (maintained)`
-        });
+        if (result.success) {
+          toast({
+            title: `✅ Recipe Balanced (${result.strategy})`,
+            description: (
+              <div className="space-y-1 text-sm">
+                {result.diagnostics.adjustmentsMade.map((adj, i) => (
+                  <div key={i} className="text-xs">{adj}</div>
+                ))}
+                <div className="text-xs opacity-70 mt-1">
+                  Weight: {result.diagnostics.weightMaintained ? '✓ Maintained' : '✗ Changed'}
+                </div>
+              </div>
+            )
+          });
+        } else {
+          toast({
+            title: `⚠️ Partial Balance (${result.strategy})`,
+            description: (
+              <div className="space-y-1 text-sm">
+                <div className="text-xs">Some targets couldn't be reached:</div>
+                <ul className="text-xs list-disc list-inside">
+                  {!result.diagnostics.targetsMet.fat_pct && <li>Fat target not met - adjust cream/butter</li>}
+                  {!result.diagnostics.targetsMet.msnf_pct && <li>MSNF target not met - adjust milk powder</li>}
+                  {!result.diagnostics.targetsMet.totalSugars_pct && <li>Sugar target not met - adjust sweeteners</li>}
+                  {!result.diagnostics.targetsMet.fpdt && <li>FPDT target not met - adjust sugar types</li>}
+                </ul>
+              </div>
+            ),
+            variant: 'default'
+          });
+        }
       }, 100);
     } catch (error: any) {
+      console.error('Balancing error:', error);
       toast({
         title: 'Optimization failed',
-        description: error.message,
+        description: error.message || 'An unknown error occurred',
         variant: 'destructive'
       });
     } finally {
