@@ -13,6 +13,7 @@ import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
+import { AddIngredientDialog } from '@/components/AddIngredientDialog';
 import { useIngredients } from '@/contexts/IngredientsContext';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
@@ -576,17 +577,38 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                               <p className="text-sm text-muted-foreground">Loading ingredients...</p>
                             </div>
                           ) : availableIngredients.length === 0 ? (
-                            <div className="p-4 text-center">
+                            <div className="p-4 text-center space-y-3">
                               <p className="text-sm text-destructive">No ingredients found</p>
-                              <p className="text-xs text-muted-foreground mt-1">Please add ingredients to the database</p>
+                              <AddIngredientDialog 
+                                onIngredientAdded={(ing) => {
+                                  handleIngredientSelect(index, ing);
+                                  setSearchOpen(null);
+                                }}
+                              />
                             </div>
                           ) : (
-                            <SmartIngredientSearch
-                              ingredients={availableIngredients}
-                              onSelect={(ing) => handleIngredientSelect(index, ing)}
-                              open={searchOpen === index}
-                              onOpenChange={(open) => setSearchOpen(open ? index : null)}
-                            />
+                            <div className="flex flex-col">
+                              <SmartIngredientSearch
+                                ingredients={availableIngredients}
+                                onSelect={(ing) => handleIngredientSelect(index, ing)}
+                                open={searchOpen === index}
+                                onOpenChange={(open) => setSearchOpen(open ? index : null)}
+                              />
+                              <div className="border-t p-2 bg-muted/50">
+                                <AddIngredientDialog 
+                                  onIngredientAdded={(ing) => {
+                                    handleIngredientSelect(index, ing);
+                                    setSearchOpen(null);
+                                  }}
+                                  trigger={
+                                    <Button variant="ghost" size="sm" className="w-full justify-start text-sm">
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Can't find it? Add new ingredient
+                                    </Button>
+                                  }
+                                />
+                              </div>
+                            </div>
                           )}
                         </PopoverContent>
                       </Popover>
