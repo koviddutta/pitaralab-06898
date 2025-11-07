@@ -267,10 +267,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return;
     }
 
-    if (rows.length === 0) {
+    if (rows.length === 0 || rows.filter(r => r.quantity_g > 0).length === 0) {
       toast({
         title: 'No ingredients',
-        description: 'Add at least one ingredient before saving',
+        description: 'Add at least one ingredient with quantity before saving',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Validate minimum ingredients
+    const validRows = rows.filter(r => r.ingredientData && r.quantity_g > 0);
+    if (validRows.length < 3) {
+      toast({
+        title: 'Not enough ingredients',
+        description: 'Add at least 3 ingredients to create a balanced recipe',
         variant: 'destructive'
       });
       return;
@@ -406,7 +417,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       <Card>
         <CardHeader>
-          <CardTitle>Recipe Details</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Recipe Details
+            <Badge variant="outline" className="ml-auto">
+              {productType === 'ice_cream' ? '🍦 Ice Cream' : productType === 'gelato' ? '🍨 Gelato' : productType === 'sorbet' ? '🍧 Sorbet' : '🧪 Paste'}
+            </Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -425,11 +441,11 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ice_cream">Ice Cream</SelectItem>
-                  <SelectItem value="gelato">Gelato</SelectItem>
-                  <SelectItem value="sorbet">Sorbet</SelectItem>
-                  <SelectItem value="paste">Paste</SelectItem>
+                <SelectContent className="bg-popover z-[100]">
+                  <SelectItem value="ice_cream">🍦 Ice Cream</SelectItem>
+                  <SelectItem value="gelato">🍨 Gelato</SelectItem>
+                  <SelectItem value="sorbet">🍧 Sorbet</SelectItem>
+                  <SelectItem value="paste">🧪 Paste</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -472,7 +488,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                             )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0 z-50" align="start">
+                        <PopoverContent className="w-[400px] p-0 z-[100] bg-popover" align="start">
                           {loadingIngredients ? (
                             <div className="p-4 text-center">
                               <p className="text-sm text-muted-foreground">Loading ingredients...</p>

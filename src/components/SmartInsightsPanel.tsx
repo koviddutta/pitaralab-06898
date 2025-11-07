@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAIUsageLimit } from '@/hooks/useAIUsageLimit';
@@ -49,6 +50,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>('');
+  const [analysisMode, setAnalysisMode] = useState<string>(productType || 'ice_cream');
   const { remaining, refetch } = useAIUsageLimit();
 
   // Fetch user's recipes from database with proper typing
@@ -94,7 +96,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
     }
   });
 
-  const handleAIAnalysis = async (sourceRecipe?: Recipe | any, sourceMetrics?: Metrics) => {
+  const handleAIAnalysis = async (sourceRecipe?: Recipe | any, sourceMetrics?: Metrics, overrideMode?: string) => {
     if (remaining <= 0) {
       toast.error('AI usage limit reached. Please wait before making more requests.');
       return;
@@ -116,8 +118,8 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
     setIsAnalyzing(true);
 
     try {
-      // Determine correct product type with priority: explicit prop > recipe property > default
-      const finalProductType = productType || 
+      // Use override mode if provided, otherwise use analysisMode, then fallback to recipe property, then default
+      const finalProductType = overrideMode || analysisMode || productType || 
                                (typeof recipeToAnalyze === 'object' && recipeToAnalyze.product_type) || 
                                'ice_cream';
       
@@ -199,12 +201,37 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
         <CardTitle className="flex items-center gap-2">
           <Brain className="h-5 w-5" />
           AI Recipe Insights
+          {productType && (
+            <Badge variant="outline" className="ml-auto text-xs">
+              Stored as: {productType === 'ice_cream' ? '🍦' : productType === 'gelato' || productType === 'gelato_white' ? '🍨' : productType === 'sorbet' ? '🍧' : productType}
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           Get intelligent recommendations and analysis powered by AI
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Analysis Mode Selector */}
+        <div className="space-y-2 border-b pb-4">
+          <Label htmlFor="analysis-mode" className="text-sm font-medium">
+            🔬 Analysis Mode
+          </Label>
+          <Select value={analysisMode} onValueChange={setAnalysisMode}>
+            <SelectTrigger id="analysis-mode" className="bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover z-[100]">
+              <SelectItem value="ice_cream">🍦 Ice Cream Mode</SelectItem>
+              <SelectItem value="gelato">🍨 Gelato Mode</SelectItem>
+              <SelectItem value="gelato_white">🍨 Gelato (White Base)</SelectItem>
+              <SelectItem value="sorbet">🍧 Sorbet Mode</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Choose how to analyze this recipe's balance and parameters
+          </p>
+        </div>
         {/* Recipe selection from database */}
         <div className="space-y-2">
           <label className="text-sm font-medium">📚 Analyze Saved Recipe</label>
@@ -219,7 +246,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
                 <SelectTrigger>
                   <SelectValue placeholder={savedRecipes && savedRecipes.length > 0 ? "Select a saved recipe" : "No recipes found"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover z-[100]">
                   {savedRecipes && savedRecipes.length > 0 ? (
                     savedRecipes.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
@@ -254,7 +281,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
             <AlertDescription className="flex items-center justify-between">
               <span>Current recipe: {Array.isArray(recipe) ? 'From Calculator' : (recipe.recipe_name || 'Untitled')}</span>
               <Button 
-                onClick={() => handleAIAnalysis()} 
+                onClick={() => handleAIAnalysis(undefined, undefined, analysisMode)} 
                 disabled={isAnalyzing}
                 size="sm"
               >
@@ -266,7 +293,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
                 ) : (
                   <>
                     <Brain className="h-4 w-4 mr-2" />
-                    Analyze Current Recipe
+                    Analyze in {analysisMode === 'ice_cream' ? 'Ice Cream' : analysisMode === 'gelato' ? 'Gelato' : analysisMode === 'gelato_white' ? 'Gelato (White)' : 'Sorbet'} Mode
                   </>
                 )}
               </Button>
