@@ -414,6 +414,9 @@ export function applySubstitution(
           ing: toIngredient,
           grams: addGrams
         });
+      } else {
+        // Ingredient not found in library - log warning but continue
+        console.warn(`Substitution target ingredient "${toName}" not found in library`);
       }
     }
   });

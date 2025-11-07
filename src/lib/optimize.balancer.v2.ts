@@ -224,6 +224,35 @@ export function balanceRecipeV2(
   const tolerance = options.tolerance || 0.1; // 0.1% tolerance
   const enableFeasibilityCheck = options.enableFeasibilityCheck !== false;
 
+  // Validation: Check for empty inputs
+  if (!initialRows || initialRows.length === 0) {
+    return {
+      success: false,
+      rows: [],
+      metrics: {} as MetricsV2,
+      originalMetrics: {} as MetricsV2,
+      iterations: 0,
+      progress: [],
+      strategy: 'Validation Failed',
+      message: 'No ingredients in recipe. Add ingredients before balancing.',
+      adjustmentsSummary: ['Add at least one ingredient to the recipe']
+    };
+  }
+
+  if (!allIngredients || allIngredients.length === 0) {
+    return {
+      success: false,
+      rows: initialRows,
+      metrics: calcMetricsV2(initialRows),
+      originalMetrics: calcMetricsV2(initialRows),
+      iterations: 0,
+      progress: [],
+      strategy: 'Validation Failed',
+      message: 'No ingredients available in database for substitutions.',
+      adjustmentsSummary: ['Ensure ingredient database is loaded']
+    };
+  }
+
   const originalMetrics = calcMetricsV2(initialRows);
   const progress: BalanceProgress[] = [];
   const adjustmentsSummary: string[] = [];
@@ -300,8 +329,9 @@ export function balanceRecipeV2(
       currentRows.map(r => r.ing));
 
     if (rules.length === 0) {
-      // No rules available, try next parameter
-      continue;
+      // No rules available - may need different ingredients
+      adjustmentsSummary.push(`No substitution rules found for ${parameter} ${direction}`);
+      break; // Exit if no rules can be applied
     }
 
     // Apply the highest priority rule
