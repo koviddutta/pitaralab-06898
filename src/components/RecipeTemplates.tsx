@@ -775,16 +775,32 @@ export function resolveTemplateIngredients(
 ): Array<{ ingredientId: string; grams: number }> {
   return template.ingredients
     .map(({ tag, grams }) => {
-      // Try to find by tag first
+      // Try to find by tag first (exact match in tags array)
       let ingredient = availableIngredients.find(ing => 
-        ing.tags?.includes(tag) || 
-        tag.startsWith('id:') && ing.id === tag.replace('id:', '')
+        ing.tags?.includes(tag)
       );
       
-      // Fallback to category
+      // If tag starts with 'id:', try to match against ingredient ID or tags
+      if (!ingredient && tag.startsWith('id:')) {
+        const idValue = tag.replace('id:', '');
+        ingredient = availableIngredients.find(ing => 
+          ing.id === idValue || ing.tags?.includes(tag)
+        );
+      }
+      
+      // Fallback to category match
       if (!ingredient && tag.startsWith('category:')) {
         const category = tag.replace('category:', '');
         ingredient = availableIngredients.find(ing => ing.category === category);
+      }
+      
+      // Last resort: try to match by name (case-insensitive)
+      if (!ingredient) {
+        const searchName = tag.replace('id:', '').replace('_', ' ').toLowerCase();
+        ingredient = availableIngredients.find(ing => 
+          ing.name.toLowerCase().includes(searchName) ||
+          searchName.includes(ing.name.toLowerCase())
+        );
       }
       
       return ingredient ? { ingredientId: ingredient.id, grams } : null;

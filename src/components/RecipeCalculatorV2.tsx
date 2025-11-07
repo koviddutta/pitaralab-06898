@@ -9,9 +9,10 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
+import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
 import { useIngredients } from '@/contexts/IngredientsContext';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
@@ -45,6 +46,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -89,6 +91,57 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
   const removeRow = (index: number) => {
     setRows(rows.filter((_, i) => i !== index));
+  };
+
+  const loadTemplate = (template: any) => {
+    // Resolve template ingredients to actual ingredient data
+    const resolvedIngredients = resolveTemplateIngredients(template, availableIngredients);
+    
+    if (resolvedIngredients.length === 0) {
+      toast({
+        title: 'Template Error',
+        description: 'Could not find matching ingredients in database',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Find ingredient data for each resolved ingredient
+    const newRows: IngredientRow[] = resolvedIngredients
+      .map(({ ingredientId, grams }) => {
+        const ingredientData = availableIngredients.find(ing => ing.id === ingredientId);
+        if (!ingredientData) return null;
+
+        const qty = grams;
+        return {
+          ingredientData,
+          ingredient: ingredientData.name,
+          quantity_g: qty,
+          sugars_g: (ingredientData.sugars_pct / 100) * qty,
+          fat_g: (ingredientData.fat_pct / 100) * qty,
+          msnf_g: (ingredientData.msnf_pct / 100) * qty,
+          other_solids_g: (ingredientData.other_solids_pct / 100) * qty,
+          total_solids_g: ((ingredientData.sugars_pct + ingredientData.fat_pct + ingredientData.msnf_pct + ingredientData.other_solids_pct) / 100) * qty
+        };
+      })
+      .filter((row) => row !== null) as IngredientRow[];
+
+    setRows(newRows);
+    setRecipeName(template.name);
+    setProductType(template.mode === 'kulfi' ? 'kulfi' : 'gelato');
+    setShowTemplates(false);
+
+    // Auto-calculate metrics
+    setTimeout(() => calculateMetrics(), 100);
+
+    toast({
+      title: 'Template Loaded',
+      description: `${template.name} loaded with ${newRows.length} ingredients`
+    });
+  };
+
+  const handleStartFromScratch = () => {
+    setShowTemplates(false);
   };
 
   const updateRow = (index: number, field: keyof IngredientRow, value: string | number) => {
@@ -458,8 +511,37 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           <CardTitle>Ingredients</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <Table>
+            <div className="space-y-4">
+            {rows.length === 0 && !showTemplates && (
+              <div className="text-center py-8">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setShowTemplates(true)}
+                  className="gap-2"
+                >
+                  <BookOpen className="h-5 w-5" />
+                  Browse Recipe Templates
+                </Button>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Or add ingredients manually below
+                </p>
+              </div>
+            )}
+
+            {showTemplates && (
+              <div className="mb-6">
+                <RecipeTemplates
+                  onSelectTemplate={loadTemplate}
+                  onStartFromScratch={handleStartFromScratch}
+                  availableIngredients={availableIngredients}
+                />
+              </div>
+            )}
+
+            {!showTemplates && (
+              <>
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Ingredient</TableHead>
@@ -575,7 +657,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               <Button onClick={clearRecipe} variant="ghost" size="sm">
                 Clear
               </Button>
+              {rows.length === 0 && (
+                <Button onClick={() => setShowTemplates(true)} variant="outline" size="sm">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Browse Templates
+                </Button>
+              )}
             </div>
+            </>
+            )}
           </div>
         </CardContent>
       </Card>
