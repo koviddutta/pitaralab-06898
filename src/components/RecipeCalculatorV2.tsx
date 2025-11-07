@@ -19,6 +19,7 @@ import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';
+import { RecipeBalancerV2 } from '@/lib/optimize.balancer.v2';
 
 interface IngredientRow {
   id?: string;
@@ -271,8 +272,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           max: 1000
         }));
 
-      // Use the new balancing engine with multiple strategies
-      const result = balancingEngine.balance(optRows, targets, mode);
+      // Use the new V2 balancing engine with multi-role classification and substitution rules
+      const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
+        maxIterations: 50,
+        tolerance: 0.15,
+        enableFeasibilityCheck: true
+      });
 
       // Update rows with optimized quantities
       const newRows = rows.map((row, i) => {
@@ -304,27 +309,38 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             title: `✅ Recipe Balanced (${result.strategy})`,
             description: (
               <div className="space-y-1 text-sm">
-                {result.diagnostics.adjustmentsMade.map((adj, i) => (
-                  <div key={i} className="text-xs">{adj}</div>
+                <div className="text-xs">{result.message}</div>
+                {result.adjustmentsSummary.slice(0, 3).map((adj, i) => (
+                  <div key={i} className="text-xs opacity-80">{adj}</div>
                 ))}
+                {result.adjustmentsSummary.length > 3 && (
+                  <div className="text-xs opacity-60">+ {result.adjustmentsSummary.length - 3} more adjustments</div>
+                )}
                 <div className="text-xs opacity-70 mt-1">
-                  Weight: {result.diagnostics.weightMaintained ? '✓ Maintained' : '✗ Changed'}
+                  Iterations: {result.iterations}
                 </div>
               </div>
             )
           });
         } else {
+          const feasibility = result.feasibilityReport;
           toast({
-            title: `⚠️ Partial Balance (${result.strategy})`,
+            title: `⚠️ ${result.message}`,
             description: (
               <div className="space-y-1 text-sm">
-                <div className="text-xs">Some targets couldn't be reached:</div>
-                <ul className="text-xs list-disc list-inside">
-                  {!result.diagnostics.targetsMet.fat_pct && <li>Fat target not met - adjust cream/butter</li>}
-                  {!result.diagnostics.targetsMet.msnf_pct && <li>MSNF target not met - adjust milk powder</li>}
-                  {!result.diagnostics.targetsMet.totalSugars_pct && <li>Sugar target not met - adjust sweeteners</li>}
-                  {!result.diagnostics.targetsMet.fpdt && <li>FPDT target not met - adjust sugar types</li>}
-                </ul>
+                {feasibility?.reason && (
+                  <div className="text-xs font-medium">{feasibility.reason}</div>
+                )}
+                {feasibility?.suggestions && feasibility.suggestions.length > 0 && (
+                  <div className="mt-2">
+                    <div className="text-xs font-medium">Suggestions:</div>
+                    <ul className="text-xs list-disc list-inside mt-1">
+                      {feasibility.suggestions.map((sug, i) => (
+                        <li key={i}>{sug}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ),
             variant: 'default'
