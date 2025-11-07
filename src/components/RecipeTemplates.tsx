@@ -15,9 +15,10 @@ interface RecipeTemplate {
 }
 
 const TEMPLATES: RecipeTemplate[] = [
+  // === GELATO (Italian Style - Lower Fat) ===
   {
-    name: 'Classic Vanilla',
-    description: 'Traditional gelato base with Madagascar vanilla',
+    name: 'Classic Vanilla Gelato',
+    description: 'Traditional Italian gelato with Madagascar vanilla',
     mode: 'gelato',
     icon: <IceCream className="h-5 w-5" />,
     ingredients: [
@@ -30,21 +31,7 @@ const TEMPLATES: RecipeTemplate[] = [
     ]
   },
   {
-    name: 'Mango Kulfi',
-    description: 'Rich Indian frozen dessert with Alphonso mango',
-    mode: 'kulfi',
-    icon: <Sparkles className="h-5 w-5" />,
-    ingredients: [
-      { tag: 'id:milk_3', grams: 500 },
-      { tag: 'id:heavy_cream', grams: 300 },
-      { tag: 'id:smp', grams: 100 },
-      { tag: 'id:sucrose', grams: 120 },
-      { tag: 'id:dextrose', grams: 15 },
-      { tag: 'category:fruit', grams: 150 }
-    ]
-  },
-  {
-    name: 'Dark Chocolate',
+    name: 'Dark Chocolate Gelato',
     description: 'Intense cocoa gelato with 70% dark chocolate',
     mode: 'gelato',
     icon: <ChefHat className="h-5 w-5" />,
@@ -54,6 +41,212 @@ const TEMPLATES: RecipeTemplate[] = [
       { tag: 'id:smp', grams: 40 },
       { tag: 'id:sucrose', grams: 130 },
       { tag: 'id:dextrose', grams: 25 },
+      { tag: 'id:cocoa_powder', grams: 30 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Pistachio Gelato',
+    description: 'Creamy pistachio gelato with real nuts',
+    mode: 'gelato',
+    icon: <Sparkles className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 580 },
+      { tag: 'id:heavy_cream', grams: 220 },
+      { tag: 'id:smp', grams: 35 },
+      { tag: 'id:sucrose', grams: 135 },
+      { tag: 'id:dextrose', grams: 20 },
+      { tag: 'id:pistachio_paste', grams: 50 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Stracciatella Gelato',
+    description: 'Vanilla gelato with chocolate chips',
+    mode: 'gelato',
+    icon: <IceCream className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 590 },
+      { tag: 'id:heavy_cream', grams: 210 },
+      { tag: 'id:smp', grams: 40 },
+      { tag: 'id:sucrose', grams: 138 },
+      { tag: 'id:dextrose', grams: 20 },
+      { tag: 'id:stabilizer', grams: 3 },
+      { tag: 'id:dark_chocolate', grams: 40 }
+    ]
+  },
+  {
+    name: 'Hazelnut Gelato',
+    description: 'Rich hazelnut gelato with toasted nuts',
+    mode: 'gelato',
+    icon: <ChefHat className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 570 },
+      { tag: 'id:heavy_cream', grams: 230 },
+      { tag: 'id:smp', grams: 35 },
+      { tag: 'id:sucrose', grams: 132 },
+      { tag: 'id:dextrose', grams: 20 },
+      { tag: 'id:hazelnut_paste', grams: 55 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Coffee Gelato',
+    description: 'Espresso-infused Italian gelato',
+    mode: 'gelato',
+    icon: <Sparkles className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 610 },
+      { tag: 'id:heavy_cream', grams: 200 },
+      { tag: 'id:smp', grams: 40 },
+      { tag: 'id:sucrose', grams: 145 },
+      { tag: 'id:dextrose', grams: 18 },
+      { tag: 'id:coffee_extract', grams: 15 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+
+  // === ICE CREAM (American Style - Rich & Creamy) ===
+  {
+    name: 'Vanilla Ice Cream',
+    description: 'Rich American-style vanilla ice cream',
+    mode: 'gelato',
+    icon: <IceCream className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 500 },
+      { tag: 'id:heavy_cream', grams: 350 },
+      { tag: 'id:smp', grams: 30 },
+      { tag: 'id:sucrose', grams: 135 },
+      { tag: 'id:dextrose', grams: 18 },
+      { tag: 'id:egg_yolk', grams: 50 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Chocolate Ice Cream',
+    description: 'Decadent chocolate ice cream with cocoa',
+    mode: 'gelato',
+    icon: <ChefHat className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 480 },
+      { tag: 'id:heavy_cream', grams: 360 },
+      { tag: 'id:smp', grams: 30 },
+      { tag: 'id:sucrose', grams: 140 },
+      { tag: 'id:dextrose', grams: 20 },
+      { tag: 'id:cocoa_powder', grams: 40 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Strawberry Ice Cream',
+    description: 'Classic strawberry ice cream with real fruit',
+    mode: 'gelato',
+    icon: <Sparkles className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 450 },
+      { tag: 'id:heavy_cream', grams: 320 },
+      { tag: 'id:smp', grams: 30 },
+      { tag: 'id:sucrose', grams: 125 },
+      { tag: 'id:dextrose', grams: 18 },
+      { tag: 'category:fruit', grams: 150 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Cookies & Cream',
+    description: 'Vanilla ice cream with cookie pieces',
+    mode: 'gelato',
+    icon: <IceCream className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 490 },
+      { tag: 'id:heavy_cream', grams: 340 },
+      { tag: 'id:smp', grams: 30 },
+      { tag: 'id:sucrose', grams: 132 },
+      { tag: 'id:dextrose', grams: 18 },
+      { tag: 'id:cookie_crumbs', grams: 60 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Mint Chocolate Chip',
+    description: 'Refreshing mint ice cream with chocolate',
+    mode: 'gelato',
+    icon: <ChefHat className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:milk_3', grams: 480 },
+      { tag: 'id:heavy_cream', grams: 350 },
+      { tag: 'id:smp', grams: 30 },
+      { tag: 'id:sucrose', grams: 135 },
+      { tag: 'id:dextrose', grams: 18 },
+      { tag: 'id:mint_extract', grams: 8 },
+      { tag: 'id:dark_chocolate', grams: 45 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+
+  // === SORBET (Dairy-Free) ===
+  {
+    name: 'Lemon Sorbet',
+    description: 'Refreshing lemon sorbet, dairy-free',
+    mode: 'gelato',
+    icon: <Sparkles className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:water', grams: 650 },
+      { tag: 'id:sucrose', grams: 200 },
+      { tag: 'id:dextrose', grams: 40 },
+      { tag: 'id:lemon_juice', grams: 100 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Strawberry Sorbet',
+    description: 'Pure strawberry sorbet, dairy-free',
+    mode: 'gelato',
+    icon: <IceCream className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:water', grams: 480 },
+      { tag: 'id:sucrose', grams: 180 },
+      { tag: 'id:dextrose', grams: 35 },
+      { tag: 'category:fruit', grams: 280 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Mango Sorbet',
+    description: 'Tropical mango sorbet, dairy-free',
+    mode: 'gelato',
+    icon: <ChefHat className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:water', grams: 450 },
+      { tag: 'id:sucrose', grams: 175 },
+      { tag: 'id:dextrose', grams: 35 },
+      { tag: 'id:mango_puree', grams: 320 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Raspberry Sorbet',
+    description: 'Tart raspberry sorbet, dairy-free',
+    mode: 'gelato',
+    icon: <Sparkles className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:water', grams: 470 },
+      { tag: 'id:sucrose', grams: 185 },
+      { tag: 'id:dextrose', grams: 38 },
+      { tag: 'id:raspberry_puree', grams: 290 },
+      { tag: 'id:stabilizer', grams: 3 }
+    ]
+  },
+  {
+    name: 'Blood Orange Sorbet',
+    description: 'Vibrant blood orange sorbet, dairy-free',
+    mode: 'gelato',
+    icon: <IceCream className="h-5 w-5" />,
+    ingredients: [
+      { tag: 'id:water', grams: 520 },
+      { tag: 'id:sucrose', grams: 190 },
+      { tag: 'id:dextrose', grams: 40 },
+      { tag: 'id:orange_juice', grams: 230 },
       { tag: 'id:stabilizer', grams: 3 }
     ]
   }
