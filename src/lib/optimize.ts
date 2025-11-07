@@ -29,10 +29,13 @@ export function optimizeRecipe(
   const rows = rowsIn.map(r => ({ ...r }));
   const opts: CalcOptionsV2 = { mode };
   
+  // CRITICAL: Store original total weight to maintain batch size
+  const originalTotal = rows.reduce((sum, r) => sum + r.grams, 0);
+  
   let bestM = calcMetricsV2(rows, opts);
   let best = objective(bestM, targets);
 
-  // Multi-phase optimization with decreasing step sizes
+  // Multi-phase optimization with weight-constrained adjustment
   const phases = [
     { iters: Math.floor(maxIters * 0.4), step: step * 5.0 },  // Coarse search
     { iters: Math.floor(maxIters * 0.4), step: step * 2.0 },  // Medium search
@@ -47,25 +50,83 @@ export function optimizeRecipe(
         const r = rows[i];
         if (r.lock) continue;
 
+        // Get ingredient properties for smart adjustments
+        const ing = r.ing;
+        const isFatSource = (ing.fat_pct ?? 0) > 5;
+        const isMSNFSource = (ing.msnf_pct ?? 0) > 5;
+        const isSugarSource = (ing.sugars_pct ?? 0) > 80;
+
         for (const dir of [+1, -1]) {
           const test = rows.map(x => ({ ...x }));
-          const next = Math.max(
+          
+          // Adjust current ingredient
+          const delta = dir * phase.step;
+          test[i].grams = Math.max(
             test[i].min ?? 0,
-            Math.min(test[i].max ?? 1e9, test[i].grams + dir * phase.step)
+            Math.min(test[i].max ?? 1e9, test[i].grams + delta)
           );
-          if (Math.abs(next - test[i].grams) < 0.01) continue;
-          test[i].grams = next;
+
+          // CRITICAL: Compensate by adjusting other ingredients to maintain total weight
+          // Find unlocked ingredients of the same category to balance
+          const compensation = delta;
+          const compensatable = test
+            .map((x, idx) => ({ row: x, idx }))
+            .filter(x => !x.row.lock && x.idx !== i);
+
+          if (compensatable.length > 0) {
+            // Distribute compensation proportionally across unlocked ingredients
+            const totalOther = compensatable.reduce((sum, x) => sum + x.row.grams, 0);
+            if (totalOther > Math.abs(compensation)) {
+              for (const { row, idx } of compensatable) {
+                const proportion = row.grams / totalOther;
+                const adjust = -compensation * proportion;
+                test[idx].grams = Math.max(
+                  test[idx].min ?? 0,
+                  Math.min(test[idx].max ?? 1e9, test[idx].grams + adjust)
+                );
+              }
+            }
+          }
+
+          // Verify total weight is maintained
+          const newTotal = test.reduce((sum, x) => sum + x.grams, 0);
+          if (Math.abs(newTotal - originalTotal) > 1.0) {
+            // Scale to maintain exact original weight
+            const scaleFactor = originalTotal / newTotal;
+            for (const row of test) {
+              if (!row.lock) {
+                row.grams *= scaleFactor;
+              }
+            }
+          }
 
           const m = calcMetricsV2(test, opts);
           const score = objective(m, targets);
-          if (score + 1e-6 < best) {
-            best = score; bestM = m;
+          
+          // Add penalty for weight deviation to ensure it stays constant
+          const weightPenalty = Math.abs(m.total_g - originalTotal) * 10;
+          const totalScore = score + weightPenalty;
+          
+          if (totalScore + 1e-6 < best + Math.abs(bestM.total_g - originalTotal) * 10) {
+            best = score; 
+            bestM = m;
             rows.splice(0, rows.length, ...test);
             improved = true;
           }
         }
       }
-      if (!improved && phase.step <= 1.0) break; // Early exit for fine tuning only
+      if (!improved && phase.step <= 1.0) break;
+    }
+  }
+  
+  // FINAL: Ensure exact original weight is maintained
+  const finalTotal = rows.reduce((sum, r) => sum + r.grams, 0);
+  if (Math.abs(finalTotal - originalTotal) > 0.1) {
+    const scaleFactor = originalTotal / finalTotal;
+    for (const row of rows) {
+      if (!row.lock) {
+        row.grams *= scaleFactor;
+      }
     }
   }
   

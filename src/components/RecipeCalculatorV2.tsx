@@ -246,18 +246,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Both gelato and ice_cream use gelato mode parameters
       const targets: OptimizeTarget = (productType === 'gelato' || productType === 'ice_cream')
         ? {
-            fat_pct: 7.5,           // Target 7.5% fat (6-9%)
-            msnf_pct: 11,           // Target 11% MSNF (10-12%)
-            totalSugars_pct: 19,    // Target 19% total sugars (16-22%)
-            ts_pct: 40,             // Target 40% total solids (36-45%)
-            fpdt: 3.0               // Target 3.0°C FPDT (2.5-3.5°C)
+            fat_pct: 7.5,           // Target 7.5% fat (6-9% range)
+            msnf_pct: 11,           // Target 11% MSNF (10-12% range)
+            totalSugars_pct: 19,    // Target 19% total sugars (16-22% range)
+            ts_pct: 40.5,           // Target 40.5% total solids (36-45% range)
+            fpdt: 3.0               // Target 3.0°C FPDT (2.5-3.5°C range)
           }
         : {
-            fat_pct: 11,            // Target 11% fat (10-12%)
-            msnf_pct: 21.5,         // Target 21.5% MSNF (18-25%)
+            fat_pct: 11,            // Target 11% fat (10-12% range)
+            msnf_pct: 21.5,         // Target 21.5% MSNF (18-25% range)
             totalSugars_pct: 18,    // Target 18% sugars
-            ts_pct: 40,             // Target 40% total solids (38-42%)
-            fpdt: 2.25              // Target 2.25°C FPDT (2.0-2.5°C)
+            ts_pct: 40,             // Target 40% total solids (38-42% range)
+            fpdt: 2.25              // Target 2.25°C FPDT (2.0-2.5°C range)
           };
 
       // Convert rows to optimization format
@@ -270,6 +270,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           max: 1000
         }));
 
+      // Calculate original totals for comparison
+      const originalTotal = optRows.reduce((sum, r) => sum + r.grams, 0);
+      const originalMetrics = calcMetricsV2(optRows, { mode: (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi' });
+      
       // Run optimization with mode
       const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
       const optimized = optimizeRecipe(optRows, targets, mode, 1000, 1.0);
@@ -295,13 +299,24 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       setRows(newRows);
       
-      // Recalculate with new quantities
-      setTimeout(() => calculateMetrics(), 100);
-
-      toast({
-        title: 'Recipe Balanced',
-        description: 'Quantities optimized to meet science parameters'
-      });
+      // Recalculate with new quantities and show what changed
+      setTimeout(() => {
+        calculateMetrics();
+        const newMetrics = calcMetricsV2(
+          optimized.map(r => ({ ing: r.ing, grams: r.grams })),
+          { mode }
+        );
+        
+        // Show what actually changed
+        const fatChange = newMetrics.fat_pct - originalMetrics.fat_pct;
+        const msnfChange = newMetrics.msnf_pct - originalMetrics.msnf_pct;
+        const fpdtChange = newMetrics.fpdt - originalMetrics.fpdt;
+        
+        toast({
+          title: 'Recipe Balanced',
+          description: `Fat: ${originalMetrics.fat_pct.toFixed(1)}% → ${newMetrics.fat_pct.toFixed(1)}% (${fatChange > 0 ? '+' : ''}${fatChange.toFixed(1)}%) | MSNF: ${originalMetrics.msnf_pct.toFixed(1)}% → ${newMetrics.msnf_pct.toFixed(1)}% | FPDT: ${originalMetrics.fpdt.toFixed(2)}°C → ${newMetrics.fpdt.toFixed(2)}°C | Total: ${originalTotal.toFixed(0)}g (maintained)`
+        });
+      }, 100);
     } catch (error: any) {
       toast({
         title: 'Optimization failed',
