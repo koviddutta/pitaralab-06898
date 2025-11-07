@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useIngredients } from '@/contexts/IngredientsContext';
 import { IngredientService } from '@/services/ingredientService';
 import { Plus, Loader2 } from 'lucide-react';
 import type { IngredientData } from '@/types/ingredients';
@@ -16,6 +17,7 @@ interface AddIngredientDialogProps {
 
 export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredientDialogProps) {
   const { toast } = useToast();
+  const { refetch } = useIngredients();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -59,25 +61,31 @@ export function AddIngredientDialog({ onIngredientAdded, trigger }: AddIngredien
         description: `${formData.name} has been added to the database.`
       });
       
+      // Refresh global ingredients list
+      await refetch();
+      
       if (onIngredientAdded) {
         onIngredientAdded(newIngredient);
       }
       
-      // Reset form
-      setFormData({
-        name: '',
-        category: 'other',
-        water_pct: 0,
-        sugars_pct: 0,
-        fat_pct: 0,
-        msnf_pct: 0,
-        other_solids_pct: 0,
-        sp_coeff: undefined,
-        pac_coeff: undefined,
-        cost_per_kg: undefined,
-        notes: [],
-        tags: []
-      });
+      // Force a small delay to ensure the dialog closes smoothly
+      setTimeout(() => {
+        // Reset form
+        setFormData({
+          name: '',
+          category: 'other',
+          water_pct: 0,
+          sugars_pct: 0,
+          fat_pct: 0,
+          msnf_pct: 0,
+          other_solids_pct: 0,
+          sp_coeff: undefined,
+          pac_coeff: undefined,
+          cost_per_kg: undefined,
+          notes: [],
+          tags: []
+        });
+      }, 100);
       
       setOpen(false);
     } catch (error) {

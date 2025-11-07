@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import ErrorBoundary from "./components/ui/error-boundary";
+import { IngredientsProvider } from "@/contexts/IngredientsContext";
 
 const queryClient = new QueryClient();
 
@@ -32,24 +33,26 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Suspense fallback={<div style={{padding:'2rem'}}>Loading…</div>}>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<Index />} />
-                <Route path="/admin" element={<AdminPanel />} />
-                <Route path="/reverse-engineer" element={<ReverseEngineer />} />
-                <Route path="/help/glossary" element={<Glossary />} />
-                <Route path="/database" element={<Database />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TooltipProvider>
+        <IngredientsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Suspense fallback={<div style={{padding:'2rem'}}>Loading…</div>}>
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={<Index />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/reverse-engineer" element={<ReverseEngineer />} />
+                  <Route path="/help/glossary" element={<Glossary />} />
+                  <Route path="/database" element={<Database />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TooltipProvider>
+        </IngredientsProvider>
       </ErrorBoundary>
     </QueryClientProvider>
   );
