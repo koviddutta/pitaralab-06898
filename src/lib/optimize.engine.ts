@@ -122,10 +122,14 @@ function chemistryAwareAdjustment(
   classified: ClassifiedIngredient[],
   targetParameter: keyof OptimizeTarget,
   targetValue: number,
-  currentValue: number
+  currentValue: number,
+  mode: 'gelato' | 'kulfi'
 ): ClassifiedIngredient[] {
   const delta = targetValue - currentValue;
   const result = classified.map(c => ({ ...c }));
+  
+  // Calculate total weight for proper percentage-based adjustments
+  const totalWeight = result.reduce((sum, c) => sum + c.grams, 0);
   
   // Determine which ingredients to adjust based on the target parameter
   let primarySources: ClassifiedIngredient[] = [];
@@ -140,10 +144,18 @@ function chemistryAwareAdjustment(
       break;
       
     case 'msnf_pct':
+      // CRITICAL: For MSNF reduction, we need to be aggressive
       primarySources = result.filter(c => c.roles.includes('msnf_source') && !c.lock);
       compensationSources = result.filter(c => 
         c.roles.includes('water_source') && !c.lock
       );
+      
+      // If no water sources, can use fat sources with caution
+      if (compensationSources.length === 0) {
+        compensationSources = result.filter(c => 
+          (c.roles.includes('fat_source') || c.roles.includes('other')) && !c.lock
+        );
+      }
       break;
       
     case 'sugars_pct':
@@ -164,24 +176,79 @@ function chemistryAwareAdjustment(
     return result; // Can't adjust anything
   }
   
-  // Calculate adjustment amount (rough approximation)
-  const totalPrimary = primarySources.reduce((sum, c) => sum + c.grams, 0);
-  const adjustmentFactor = delta / 100; // Convert percentage to factor
+  // Calculate how many grams need to change to achieve the target percentage
+  // For MSNF: If current is 12% and target is 11%, we need to reduce MSNF by 1% of total weight
+  const gramsToChange = (delta / 100) * totalWeight;
   
-  // Adjust primary sources
+  // Calculate total MSNF/Fat/Sugar content in primary sources
+  let totalPrimaryContent = 0;
   for (const source of primarySources) {
-    const proportion = source.grams / totalPrimary;
-    const adjustment = adjustmentFactor * proportion * 100; // Scale adjustment
-    source.grams = Math.max(source.min ?? 0, Math.min(source.max ?? 1e9, source.grams + adjustment));
+    const ing = source.ing;
+    switch (targetParameter) {
+      case 'msnf_pct':
+        totalPrimaryContent += (source.grams * (ing.msnf_pct ?? 0)) / 100;
+        break;
+      case 'fat_pct':
+        totalPrimaryContent += (source.grams * (ing.fat_pct ?? 0)) / 100;
+        break;
+      case 'totalSugars_pct':
+      case 'sugars_pct':
+        totalPrimaryContent += (source.grams * (ing.sugars_pct ?? 0)) / 100;
+        break;
+      default:
+        totalPrimaryContent += source.grams;
+    }
+  }
+  
+  if (totalPrimaryContent === 0) return result;
+  
+  // Adjust primary sources proportionally to their content
+  for (const source of primarySources) {
+    const ing = source.ing;
+    let contentPct = 0;
+    
+    switch (targetParameter) {
+      case 'msnf_pct':
+        contentPct = (ing.msnf_pct ?? 0) / 100;
+        break;
+      case 'fat_pct':
+        contentPct = (ing.fat_pct ?? 0) / 100;
+        break;
+      case 'totalSugars_pct':
+      case 'sugars_pct':
+        contentPct = (ing.sugars_pct ?? 0) / 100;
+        break;
+      default:
+        contentPct = 1;
+    }
+    
+    if (contentPct === 0) continue;
+    
+    // Calculate how much of this ingredient needs to change
+    const currentContent = (source.grams * contentPct);
+    const proportion = currentContent / totalPrimaryContent;
+    const ingredientChange = (gramsToChange / contentPct) * proportion;
+    
+    source.grams = Math.max(
+      source.min ?? 0,
+      Math.min(source.max ?? 1e9, source.grams + ingredientChange)
+    );
   }
   
   // Compensate with other sources to maintain weight
   if (compensationSources.length > 0) {
+    const actualChange = result.reduce((sum, c) => sum + c.grams, 0) - totalWeight;
     const totalCompensation = compensationSources.reduce((sum, c) => sum + c.grams, 0);
+    
     for (const source of compensationSources) {
+      if (totalCompensation === 0) continue;
       const proportion = source.grams / totalCompensation;
-      const adjustment = -adjustmentFactor * proportion * 100;
-      source.grams = Math.max(source.min ?? 0, Math.min(source.max ?? 1e9, source.grams + adjustment));
+      const compensationAmount = -actualChange * proportion;
+      
+      source.grams = Math.max(
+        source.min ?? 0,
+        Math.min(source.max ?? 1e9, source.grams + compensationAmount)
+      );
     }
   }
   
@@ -252,7 +319,7 @@ const chemistryAwareStrategy: BalanceStrategy = {
         if (Math.abs(currentValue - targetValue) < 0.5) continue; // Close enough
         
         // Make chemistry-aware adjustment
-        current = chemistryAwareAdjustment(current, param, targetValue, currentValue);
+        current = chemistryAwareAdjustment(current, param, targetValue, currentValue, mode);
         
         // Maintain total weight
         const originalTotal = rows.reduce((sum, r) => sum + r.grams, 0);

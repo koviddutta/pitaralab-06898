@@ -595,6 +595,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                   <TableHead>Sugars (g)</TableHead>
                   <TableHead>Fat (g)</TableHead>
                   <TableHead>MSNF (g)</TableHead>
+                  <TableHead>Other (g)</TableHead>
+                  <TableHead>T.Solids (g)</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -687,6 +689,22 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                         type="number"
                         value={row.msnf_g.toFixed(1)}
                         onChange={(e) => updateRow(index, 'msnf_g', parseFloat(e.target.value) || 0)}
+                        className="bg-muted/50"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={row.other_solids_g.toFixed(1)}
+                        onChange={(e) => updateRow(index, 'other_solids_g', parseFloat(e.target.value) || 0)}
+                        className="bg-muted/50"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        value={row.total_solids_g.toFixed(1)}
+                        onChange={(e) => updateRow(index, 'total_solids_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />
                     </TableCell>
