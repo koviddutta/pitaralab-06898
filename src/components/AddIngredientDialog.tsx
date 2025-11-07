@@ -13,18 +13,19 @@ import type { IngredientData } from '@/types/ingredients';
 interface AddIngredientDialogProps {
   onIngredientAdded?: (ingredient: IngredientData) => void;
   trigger?: React.ReactNode;
+  open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
 
-export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: externalOnOpenChange }: AddIngredientDialogProps) {
+export function AddIngredientDialog({ onIngredientAdded, trigger, open: controlledOpen, onOpenChange: externalOnOpenChange }: AddIngredientDialogProps) {
   const { toast } = useToast();
   const { refetch } = useIngredients();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : undefined;
 
   const handleOpenChange = (newOpen: boolean) => {
-    console.log('🔷 Dialog openChange:', newOpen);
-    setDialogOpen(newOpen);
     if (externalOnOpenChange) {
       externalOnOpenChange(newOpen);
     }
@@ -96,7 +97,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
         });
       }, 100);
       
-      setDialogOpen(false);
+      handleOpenChange(false);
     } catch (error) {
       console.error('Error adding ingredient:', error);
       toast({
@@ -113,7 +114,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
                            formData.msnf_pct + formData.other_solids_pct;
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm">
@@ -277,7 +278,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, onOpenChange: 
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading || !formData.name || Math.abs(totalComposition - 100) > 5}>

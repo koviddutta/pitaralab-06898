@@ -48,6 +48,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [addIngredientIndex, setAddIngredientIndex] = useState<number | null>(null);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -461,6 +462,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
   return (
     <div className="space-y-6">
+      <AddIngredientDialog 
+        open={addIngredientIndex !== null}
+        onOpenChange={(open) => {
+          if (!open) setAddIngredientIndex(null);
+        }}
+        onIngredientAdded={(ing) => {
+          if (addIngredientIndex !== null) {
+            handleIngredientSelect(addIngredientIndex, ing);
+          }
+          setAddIngredientIndex(null);
+        }}
+      />
+      
       {!isAuthenticated && (
         <Alert>
           <AlertDescription>
@@ -595,31 +609,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                                 onOpenChange={(open) => setSearchOpen(open ? index : null)}
                               />
                               <div className="border-t p-2 bg-muted/50">
-                                <AddIngredientDialog 
-                                  onIngredientAdded={(ing) => {
-                                    console.log('✅ Ingredient added:', ing.name);
-                                    handleIngredientSelect(index, ing);
+                                <Button 
+                                  type="button"
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="w-full justify-start text-sm"
+                                  onClick={() => {
                                     setSearchOpen(null);
+                                    setAddIngredientIndex(index);
                                   }}
-                                  onOpenChange={(open) => {
-                                    console.log('🔷 Dialog onOpenChange callback:', open);
-                                    if (open) {
-                                      console.log('🔒 Closing popover');
-                                      setSearchOpen(null);
-                                    }
-                                  }}
-                                  trigger={
-                                    <Button 
-                                      type="button"
-                                      variant="ghost" 
-                                      size="sm" 
-                                      className="w-full justify-start text-sm"
-                                    >
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Can't find it? Add new ingredient
-                                    </Button>
-                                  }
-                                />
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Can't find it? Add new ingredient
+                                </Button>
                               </div>
                             </div>
                           )}
