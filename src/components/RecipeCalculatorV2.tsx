@@ -601,7 +601,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                                     setSearchOpen(null);
                                   }}
                                   trigger={
-                                    <Button variant="ghost" size="sm" className="w-full justify-start text-sm">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="w-full justify-start text-sm"
+                                      onClick={() => setSearchOpen(null)}
+                                    >
                                       <Plus className="h-4 w-4 mr-2" />
                                       Can't find it? Add new ingredient
                                     </Button>
