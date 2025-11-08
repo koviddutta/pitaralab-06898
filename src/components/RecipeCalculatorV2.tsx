@@ -566,7 +566,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
+                <SelectContent>
                   <SelectItem value="ice_cream">🍦 Ice Cream</SelectItem>
                   <SelectItem value="gelato">🍨 Gelato</SelectItem>
                   <SelectItem value="sorbet">🍧 Sorbet</SelectItem>
@@ -644,7 +644,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                             )}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0 z-[100] bg-popover" align="start">
+                        <PopoverContent className="w-full max-w-[400px] p-0 bg-popover border shadow-lg" align="start" sideOffset={8}>
                           {loadingIngredients ? (
                             <div className="p-4 text-center">
                               <p className="text-sm text-muted-foreground">Loading ingredients...</p>

@@ -123,7 +123,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, open: controll
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border shadow-lg z-[200]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background border shadow-lg">
         <DialogHeader>
           <DialogTitle>Add New Ingredient</DialogTitle>
           <DialogDescription>
@@ -153,7 +153,7 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, open: controll
                 <SelectTrigger className="bg-background">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="z-[200] bg-popover border shadow-md">
+                <SelectContent>
                   <SelectItem value="dairy">Dairy</SelectItem>
                   <SelectItem value="sugar">Sugar</SelectItem>
                   <SelectItem value="stabilizer">Stabilizer</SelectItem>

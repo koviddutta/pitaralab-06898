@@ -221,7 +221,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
             <SelectTrigger id="analysis-mode" className="bg-background">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover z-[100]">
+            <SelectContent>
               <SelectItem value="ice_cream">🍦 Ice Cream Mode</SelectItem>
               <SelectItem value="gelato">🍨 Gelato Mode</SelectItem>
               <SelectItem value="gelato_white">🍨 Gelato (White Base)</SelectItem>
@@ -246,7 +246,7 @@ export function SmartInsightsPanel({ recipe, metrics, productType }: SmartInsigh
                 <SelectTrigger>
                   <SelectValue placeholder={savedRecipes && savedRecipes.length > 0 ? "Select a saved recipe" : "No recipes found"} />
                 </SelectTrigger>
-                <SelectContent className="bg-popover z-[100]">
+                <SelectContent>
                   {savedRecipes && savedRecipes.length > 0 ? (
                     savedRecipes.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
