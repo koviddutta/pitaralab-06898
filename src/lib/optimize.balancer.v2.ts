@@ -288,6 +288,221 @@ export interface BalanceProgress {
   score: number;
 }
 
+// ============================================================================
+// PHASE 6: ICE CREAM SCIENCE VALIDATION
+// ============================================================================
+
+export type ValidationSeverity = 'optimal' | 'acceptable' | 'warning' | 'critical';
+
+export interface ScienceValidation {
+  parameter: string;
+  value: number;
+  optimalRange: { min: number; max: number };
+  acceptableRange: { min: number; max: number };
+  severity: ValidationSeverity;
+  message: string;
+  recommendation?: string;
+}
+
+export interface ProductConstraints {
+  totalSolids: { optimal: [number, number]; acceptable: [number, number] };
+  fat: { optimal: [number, number]; acceptable: [number, number] };
+  msnf: { optimal: [number, number]; acceptable: [number, number] };
+  fpdt: { optimal: [number, number]; acceptable: [number, number] };
+}
+
+const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
+  gelato_white: {
+    totalSolids: { optimal: [36, 40], acceptable: [34, 42] },
+    fat: { optimal: [6, 10], acceptable: [5, 12] },
+    msnf: { optimal: [9, 12], acceptable: [8, 13] },
+    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+  },
+  gelato_finished: {
+    totalSolids: { optimal: [36, 40], acceptable: [34, 42] },
+    fat: { optimal: [6, 10], acceptable: [5, 12] },
+    msnf: { optimal: [8, 11], acceptable: [7, 12] },
+    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+  },
+  ice_cream: {
+    totalSolids: { optimal: [36, 42], acceptable: [34, 44] },
+    fat: { optimal: [10, 16], acceptable: [8, 18] },
+    msnf: { optimal: [9, 12], acceptable: [8, 14] },
+    fpdt: { optimal: [2.2, 3.2], acceptable: [1.8, 3.5] }
+  },
+  sorbet: {
+    totalSolids: { optimal: [28, 35], acceptable: [25, 38] },
+    fat: { optimal: [0, 0.5], acceptable: [0, 1] },
+    msnf: { optimal: [0, 0.5], acceptable: [0, 1] },
+    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+  }
+};
+
+/**
+ * Validate recipe metrics against ice cream science constraints
+ */
+export function validateRecipeScience(
+  metrics: MetricsV2,
+  productType: string = 'gelato_white'
+): ScienceValidation[] {
+  const validations: ScienceValidation[] = [];
+  const constraints = PRODUCT_CONSTRAINTS[productType] || PRODUCT_CONSTRAINTS.gelato_white;
+
+  // Total Solids Validation
+  const ts = metrics.ts_pct;
+  const tsValidation = validateParameter(
+    'Total Solids',
+    ts,
+    constraints.totalSolids.optimal,
+    constraints.totalSolids.acceptable,
+    '%'
+  );
+  if (tsValidation.severity === 'critical' && ts < constraints.totalSolids.acceptable[0]) {
+    tsValidation.recommendation = 'Increase solids: add milk powder, reduce water, or increase sugar';
+  } else if (tsValidation.severity === 'critical' && ts > constraints.totalSolids.acceptable[1]) {
+    tsValidation.recommendation = 'Reduce solids: add water or reduce concentrated ingredients';
+  }
+  validations.push(tsValidation);
+
+  // Fat Validation
+  const fat = metrics.fat_pct;
+  const fatValidation = validateParameter(
+    'Fat',
+    fat,
+    constraints.fat.optimal,
+    constraints.fat.acceptable,
+    '%'
+  );
+  if (fatValidation.severity === 'critical' && fat < constraints.fat.acceptable[0]) {
+    fatValidation.recommendation = 'Increase fat: add cream, butter, or egg yolk';
+  } else if (fatValidation.severity === 'critical' && fat > constraints.fat.acceptable[1]) {
+    fatValidation.recommendation = 'Reduce fat: replace cream with milk or add water';
+  }
+  validations.push(fatValidation);
+
+  // MSNF Validation
+  const msnf = metrics.msnf_pct;
+  const msnfValidation = validateParameter(
+    'MSNF',
+    msnf,
+    constraints.msnf.optimal,
+    constraints.msnf.acceptable,
+    '%'
+  );
+  if (msnfValidation.severity === 'critical' && msnf < constraints.msnf.acceptable[0]) {
+    msnfValidation.recommendation = 'Increase MSNF: add skim milk powder or increase milk';
+  } else if (msnfValidation.severity === 'critical' && msnf > constraints.msnf.acceptable[1]) {
+    msnfValidation.recommendation = 'Reduce MSNF: replace milk with water and cream';
+  }
+  validations.push(msnfValidation);
+
+  // FPDT Validation
+  const fpdt = metrics.fpdt;
+  const fpdtValidation = validateParameter(
+    'FPDT',
+    fpdt,
+    constraints.fpdt.optimal,
+    constraints.fpdt.acceptable,
+    '°C'
+  );
+  if (fpdtValidation.severity === 'critical' && fpdt < constraints.fpdt.acceptable[0]) {
+    fpdtValidation.recommendation = 'Too hard: increase sugars or use higher-FPDT sugars like dextrose';
+  } else if (fpdtValidation.severity === 'critical' && fpdt > constraints.fpdt.acceptable[1]) {
+    fpdtValidation.recommendation = 'Too soft: reduce sugars or use lower-FPDT sugars';
+  }
+  validations.push(fpdtValidation);
+
+  return validations;
+}
+
+/**
+ * Helper to validate a single parameter against optimal and acceptable ranges
+ */
+function validateParameter(
+  name: string,
+  value: number,
+  optimal: [number, number],
+  acceptable: [number, number],
+  unit: string
+): ScienceValidation {
+  let severity: ValidationSeverity;
+  let message: string;
+
+  if (value >= optimal[0] && value <= optimal[1]) {
+    severity = 'optimal';
+    message = `${name} is in optimal range`;
+  } else if (value >= acceptable[0] && value <= acceptable[1]) {
+    severity = 'acceptable';
+    if (value < optimal[0]) {
+      message = `${name} is slightly low but acceptable`;
+    } else {
+      message = `${name} is slightly high but acceptable`;
+    }
+  } else if (value < acceptable[0] || value > acceptable[1]) {
+    const diff = value < acceptable[0] 
+      ? (acceptable[0] - value).toFixed(1)
+      : (value - acceptable[1]).toFixed(1);
+    severity = 'critical';
+    message = value < acceptable[0]
+      ? `${name} is ${diff}${unit} below acceptable minimum`
+      : `${name} is ${diff}${unit} above acceptable maximum`;
+  } else {
+    severity = 'warning';
+    message = `${name} is approaching limits`;
+  }
+
+  return {
+    parameter: name,
+    value,
+    optimalRange: { min: optimal[0], max: optimal[1] },
+    acceptableRange: { min: acceptable[0], max: acceptable[1] },
+    severity,
+    message
+  };
+}
+
+/**
+ * Get overall recipe quality score based on science validations
+ */
+export function getRecipeQualityScore(validations: ScienceValidation[]): {
+  score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  color: 'success' | 'warning' | 'destructive';
+} {
+  const weights = {
+    optimal: 1.0,
+    acceptable: 0.7,
+    warning: 0.4,
+    critical: 0.0
+  };
+
+  const totalScore = validations.reduce((sum, v) => sum + weights[v.severity], 0);
+  const maxScore = validations.length;
+  const score = (totalScore / maxScore) * 100;
+
+  let grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  let color: 'success' | 'warning' | 'destructive';
+
+  if (score >= 90) {
+    grade = 'A';
+    color = 'success';
+  } else if (score >= 75) {
+    grade = 'B';
+    color = 'success';
+  } else if (score >= 60) {
+    grade = 'C';
+    color = 'warning';
+  } else if (score >= 50) {
+    grade = 'D';
+    color = 'warning';
+  } else {
+    grade = 'F';
+    color = 'destructive';
+  }
+
+  return { score, grade, color };
+}
+
 export interface BalanceResultV2 {
   success: boolean;
   rows: Row[];
@@ -299,6 +514,12 @@ export interface BalanceResultV2 {
   message: string;
   adjustmentsSummary: string[];
   feasibilityReport?: FeasibilityReport;
+  scienceValidation?: ScienceValidation[];
+  qualityScore?: {
+    score: number;
+    grade: 'A' | 'B' | 'C' | 'D' | 'F';
+    color: 'success' | 'warning' | 'destructive';
+  };
 }
 
 /**
@@ -380,13 +601,17 @@ export function balanceRecipeV2(
     maxIterations?: number;
     tolerance?: number;
     enableFeasibilityCheck?: boolean;
-    useLPSolver?: boolean; // New option to control LP usage
+    useLPSolver?: boolean;
+    productType?: string;
+    enableScienceValidation?: boolean;
   } = {}
 ): BalanceResultV2 {
   const maxIterations = options.maxIterations || 50;
   const tolerance = options.tolerance || 0.1; // 0.1% tolerance
   const enableFeasibilityCheck = options.enableFeasibilityCheck !== false;
   const useLPSolver = options.useLPSolver !== false; // Default: try LP first
+  const productType = options.productType || 'gelato_white';
+  const enableScienceValidation = options.enableScienceValidation !== false;
 
   // Validation: Check for empty inputs
   if (!initialRows || initialRows.length === 0) {
@@ -430,6 +655,13 @@ export function balanceRecipeV2(
       const lpScore = scoreMetrics(lpMetrics, targets);
       
       if (lpScore < tolerance) {
+        const scienceValidation = enableScienceValidation 
+          ? validateRecipeScience(lpMetrics, productType)
+          : undefined;
+        const qualityScore = scienceValidation 
+          ? getRecipeQualityScore(scienceValidation)
+          : undefined;
+
         return {
           success: true,
           rows: lpResult.rows,
@@ -444,7 +676,9 @@ export function balanceRecipeV2(
           }],
           strategy: 'Linear Programming (Simplex)',
           message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
-          adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution']
+          adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution'],
+          scienceValidation,
+          qualityScore
         };
       } else {
         adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
@@ -494,6 +728,13 @@ export function balanceRecipeV2(
 
     // Check if we've achieved targets
     if (score < tolerance) {
+      const scienceValidation = enableScienceValidation 
+        ? validateRecipeScience(currentMetrics, productType)
+        : undefined;
+      const qualityScore = scienceValidation 
+        ? getRecipeQualityScore(scienceValidation)
+        : undefined;
+
       return {
         success: true,
         rows: currentRows,
@@ -504,7 +745,9 @@ export function balanceRecipeV2(
         strategy: 'Substitution Rules V2',
         message: `Successfully balanced recipe in ${iteration + 1} iterations`,
         adjustmentsSummary,
-        feasibilityReport
+        feasibilityReport,
+        scienceValidation,
+        qualityScore
       };
     }
 
@@ -569,6 +812,13 @@ export function balanceRecipeV2(
   // Return best result found
   const finalMetrics = calcMetricsV2(bestRows);
   const finalScore = scoreMetrics(finalMetrics, targets);
+  
+  const scienceValidation = enableScienceValidation 
+    ? validateRecipeScience(finalMetrics, productType)
+    : undefined;
+  const qualityScore = scienceValidation 
+    ? getRecipeQualityScore(scienceValidation)
+    : undefined;
 
   return {
     success: finalScore < tolerance * 3, // More lenient success criteria
@@ -582,7 +832,9 @@ export function balanceRecipeV2(
       ? `Recipe balanced within ${(finalScore * 100).toFixed(1)}% of targets`
       : `Could not fully balance recipe. Best score: ${finalScore.toFixed(2)}`,
     adjustmentsSummary,
-    feasibilityReport
+    feasibilityReport,
+    scienceValidation,
+    qualityScore
   };
 }
 
