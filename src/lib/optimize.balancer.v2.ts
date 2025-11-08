@@ -65,8 +65,6 @@ export function balanceRecipeLP(
   initialRows.forEach((row, idx) => {
     const varName = `ing_${idx}`;
     const ing = row.ing;
-    const minConstraint = `${varName}_min`;
-    const maxConstraint = `${varName}_max`;
 
     const variable: any = {
       deviation: 0, // We'll minimize deviation from targets, not individual ingredients
@@ -77,9 +75,9 @@ export function balanceRecipeLP(
       sugars_contribution: (ing.sugars_pct || 0) / 100
     };
     
-    // Add bounds using bracket notation
-    variable[minConstraint] = 1;
-    variable[maxConstraint] = 1;
+    // Add bounds using constraint names
+    variable[`min_${idx}`] = 1;
+    variable[`max_${idx}`] = 1;
     
     model.variables[varName] = variable;
   });
@@ -89,12 +87,11 @@ export function balanceRecipeLP(
 
   // Constraint 2: Each ingredient has min/max bounds
   initialRows.forEach((row, idx) => {
-    const varName = `ing_${idx}`;
     const minGrams = 0; // Can reduce to zero
     const maxGrams = row.grams * 3; // Can increase up to 3x
 
-    model.constraints[`ing_${idx}_min`] = { min: minGrams };
-    model.constraints[`ing_${idx}_max`] = { max: maxGrams };
+    model.constraints[`min_${idx}`] = { min: minGrams };
+    model.constraints[`max_${idx}`] = { max: maxGrams };
   });
 
   // Constraint 3: Fat percentage target

@@ -1,6 +1,6 @@
 # Advanced Balancing Engine V2 - Implementation Complete
 
-## Phase 1, 2, 3 & 4 Implementation Summary
+## Phase 1, 2, 3, 4 & 6 Implementation Summary
 
 ### ✅ Completed Components
 
@@ -26,7 +26,7 @@
   - Ratio calculations
   - Multi-ingredient substitutions
 
-#### 3. **Linear Programming Solver** (`src/lib/optimize.balancer.v2.ts`) **NEW!**
+#### 3. **Linear Programming Solver** (`src/lib/optimize.balancer.v2.ts`)
 - **Constraint Satisfaction**: Uses Simplex method via `javascript-lp-solver`
 - **Mathematically Optimal**: Finds globally optimal solution when feasible
 - **Multi-Parameter Optimization**: Simultaneously balances fat, MSNF, sugars
@@ -54,15 +54,30 @@
 - **Progress tracking**: Detailed iteration history
 - **Best result tracking**: Returns best attempt even if not perfect
 
+#### 6. **Ice Cream Science Validation Layer** (`src/lib/optimize.balancer.v2.ts`) **NEW!**
+- **Product-Specific Constraints**: Gelato, Ice Cream, Sorbet, Kulfi
+- **Four-Tier Severity System**: Optimal, Acceptable, Warning, Critical
+- **Quality Scoring**: A-F grading system (0-100%)
+- **Color-Coded Warnings**: Green/Yellow/Red zones for visual feedback
+- **Validated Parameters**:
+  - **Total Solids**: 36-42% (product-dependent)
+  - **Fat**: 6-16% (gelato 6-10%, ice cream 10-16%)
+  - **MSNF**: 8-14% (based on product type)
+  - **FPDT**: 2.0-3.5°C (optimal freezing characteristics)
+- **Actionable Recommendations**: Specific ingredient adjustments for each issue
+- **UI Integration**: Beautiful validation panel with visual range indicators
+
 ### 🎯 Key Features
 
 1. **Linear Programming First**: Tries mathematically optimal solution before heuristics
-2. **Chemistry-Aware**: Understands ingredient relationships (e.g., milk affects both fat AND MSNF)
-3. **Transparent**: Shows exactly what substitutions were made
-4. **Safe**: Locks flavor ingredients by default, won't ruin taste
-5. **Predictable**: Same inputs always produce same outputs
-6. **Informative**: Clear feedback when targets are impossible with current ingredients
-7. **Automatic Fallback**: Gracefully falls back to heuristic if LP solver fails
+2. **Science Validation**: Real-time quality assessment with A-F grading
+3. **Chemistry-Aware**: Understands ingredient relationships (e.g., milk affects both fat AND MSNF)
+4. **Transparent**: Shows exactly what substitutions were made
+5. **Safe**: Locks flavor ingredients by default, won't ruin taste
+6. **Predictable**: Same inputs always produce same outputs
+7. **Informative**: Clear feedback when targets are impossible with current ingredients
+8. **Automatic Fallback**: Gracefully falls back to heuristic if LP solver fails
+9. **Color-Coded Warnings**: Green/Yellow/Red zones for recipe quality
 
 ### 📊 Integration Status
 
@@ -70,13 +85,15 @@
 - ✅ Replaces old balancing engine
 - ✅ Enhanced toast notifications with detailed feedback
 - ✅ Shows feasibility reports when balancing fails
+- ✅ Science Validation Panel with visual indicators
+- ✅ Quality Score display (A-F grading)
 
 ### 🧪 Example Usage
 
 ```typescript
 import { RecipeBalancerV2 } from '@/lib/optimize.balancer.v2';
 
-// Automatic: Tries LP first, falls back to heuristic
+// Automatic: Tries LP first, falls back to heuristic with science validation
 const result = RecipeBalancerV2.balance(
   rows,                    // Current recipe
   targets,                 // Desired percentages
@@ -85,9 +102,17 @@ const result = RecipeBalancerV2.balance(
     maxIterations: 50,
     tolerance: 0.15,       // 0.15% tolerance
     enableFeasibilityCheck: true,
-    useLPSolver: true      // NEW: Enable LP solver (default: true)
+    useLPSolver: true,     // Enable LP solver (default: true)
+    productType: 'gelato_white',  // NEW: Product type for validation
+    enableScienceValidation: true  // NEW: Enable quality assessment
   }
 );
+
+// Access validation results
+if (result.scienceValidation) {
+  console.log('Quality Score:', result.qualityScore?.grade); // A, B, C, D, or F
+  console.log('Critical Issues:', result.scienceValidation.filter(v => v.severity === 'critical'));
+}
 
 // Or use LP solver directly for guaranteed optimal solution
 const lpResult = RecipeBalancerV2.balanceLP(

@@ -19,7 +19,8 @@ import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';
-import { RecipeBalancerV2 } from '@/lib/optimize.balancer.v2';
+import { RecipeBalancerV2, ScienceValidation } from '@/lib/optimize.balancer.v2';
+import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 
 interface IngredientRow {
   id?: string;
@@ -48,6 +49,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [searchOpen, setSearchOpen] = useState<number | null>(null);
+  const [scienceValidation, setScienceValidation] = useState<ScienceValidation[] | undefined>(undefined);
+  const [qualityScore, setQualityScore] = useState<{ score: number; grade: 'A' | 'B' | 'C' | 'D' | 'F'; color: 'success' | 'warning' | 'destructive' } | undefined>(undefined);
   const [showTemplates, setShowTemplates] = useState(false);
   const [addIngredientIndex, setAddIngredientIndex] = useState<number | null>(null);
   
@@ -276,8 +279,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 50,
         tolerance: 0.15,
-        enableFeasibilityCheck: true
+        enableFeasibilityCheck: true,
+        useLPSolver: true,
+        productType: productType,
+        enableScienceValidation: true
       });
+
+      // Store validation results
+      setScienceValidation(result.scienceValidation);
+      setQualityScore(result.qualityScore);
 
       // Update rows with optimized quantities
       const newRows = rows.map((row, i) => {
@@ -855,12 +865,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             {metrics.warnings.length === 0 && (
               <Alert>
                 <AlertDescription className="text-sm font-medium text-green-700">
-                  ✅ All parameters within target ranges! Recipe is balanced.
+          ✅ All parameters within target ranges! Recipe is balanced.
                 </AlertDescription>
               </Alert>
             )}
           </CardContent>
         </Card>
+      )}
+
+      {scienceValidation && scienceValidation.length > 0 && (
+        <ScienceValidationPanel 
+          validations={scienceValidation} 
+          qualityScore={qualityScore}
+        />
       )}
     </div>
   );
