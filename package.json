@@ -55,6 +55,7 @@
     "embla-carousel-react": "^8.3.0",
     "fuse.js": "^7.1.0",
     "input-otp": "^1.2.4",
+    "javascript-lp-solver": "^0.4.24",
     "jsdom": "^27.0.0",
     "jspdf": "^3.0.3",
     "localforage": "^1.10.0",

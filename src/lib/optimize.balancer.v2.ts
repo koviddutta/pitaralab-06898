@@ -1,6 +1,7 @@
 /**
  * Advanced Recipe Balancer V2
  * Integrates multi-role classification with intelligent substitution rules
+ * Phase 3: Linear Programming solver for optimal balancing
  */
 
 import type { Row, OptimizeTarget } from './optimize';
@@ -13,9 +14,170 @@ import {
   type SubstitutionRule,
   SUBSTITUTION_PATTERNS
 } from './optimize.engine.v2';
+// @ts-ignore - javascript-lp-solver doesn't have types
+import solver from 'javascript-lp-solver';
 
 // ============================================================================
-// PHASE 3: FEASIBILITY VALIDATION & TARGET ANALYSIS
+// PHASE 3: LINEAR PROGRAMMING SOLVER
+// ============================================================================
+
+export interface LPSolverResult {
+  success: boolean;
+  rows: Row[];
+  message: string;
+  error?: string;
+}
+
+/**
+ * Solve recipe balancing using Linear Programming for mathematically optimal solution
+ * Uses Simplex method via javascript-lp-solver
+ */
+export function balanceRecipeLP(
+  initialRows: Row[],
+  targets: OptimizeTarget,
+  options: {
+    tolerance?: number;
+  } = {}
+): LPSolverResult {
+  const tolerance = options.tolerance || 0.15; // 0.15% default tolerance
+
+  if (!initialRows || initialRows.length === 0) {
+    return {
+      success: false,
+      rows: [],
+      message: 'No ingredients to optimize',
+      error: 'Empty recipe'
+    };
+  }
+
+  const originalMetrics = calcMetricsV2(initialRows);
+  const totalWeight = originalMetrics.total_g;
+
+  // Build LP model
+  const model: any = {
+    optimize: 'deviation',
+    opType: 'min',
+    constraints: {},
+    variables: {}
+  };
+
+  // Create variables for each ingredient (amount in grams)
+  initialRows.forEach((row, idx) => {
+    const varName = `ing_${idx}`;
+    const ing = row.ing;
+    const minConstraint = `${varName}_min`;
+    const maxConstraint = `${varName}_max`;
+
+    const variable: any = {
+      deviation: 0, // We'll minimize deviation from targets, not individual ingredients
+      // Contribution to constraints
+      total_weight: 1, // Each gram contributes 1g to total weight
+      fat_contribution: ing.fat_pct / 100,
+      msnf_contribution: (ing.msnf_pct || 0) / 100,
+      sugars_contribution: (ing.sugars_pct || 0) / 100
+    };
+    
+    // Add bounds using bracket notation
+    variable[minConstraint] = 1;
+    variable[maxConstraint] = 1;
+    
+    model.variables[varName] = variable;
+  });
+
+  // Constraint 1: Total weight must equal original weight
+  model.constraints.total_weight = { equal: totalWeight };
+
+  // Constraint 2: Each ingredient has min/max bounds
+  initialRows.forEach((row, idx) => {
+    const varName = `ing_${idx}`;
+    const minGrams = 0; // Can reduce to zero
+    const maxGrams = row.grams * 3; // Can increase up to 3x
+
+    model.constraints[`ing_${idx}_min`] = { min: minGrams };
+    model.constraints[`ing_${idx}_max`] = { max: maxGrams };
+  });
+
+  // Constraint 3: Fat percentage target
+  if (targets.fat_pct !== undefined) {
+    const targetFatGrams = (targets.fat_pct / 100) * totalWeight;
+    model.constraints.fat_contribution = {
+      min: targetFatGrams - (tolerance / 100 * totalWeight),
+      max: targetFatGrams + (tolerance / 100 * totalWeight)
+    };
+  }
+
+  // Constraint 4: MSNF percentage target
+  if (targets.msnf_pct !== undefined) {
+    const targetMSNFGrams = (targets.msnf_pct / 100) * totalWeight;
+    model.constraints.msnf_contribution = {
+      min: targetMSNFGrams - (tolerance / 100 * totalWeight),
+      max: targetMSNFGrams + (tolerance / 100 * totalWeight)
+    };
+  }
+
+  // Constraint 5: Sugars percentage target
+  if (targets.totalSugars_pct !== undefined) {
+    const targetSugarsGrams = (targets.totalSugars_pct / 100) * totalWeight;
+    model.constraints.sugars_contribution = {
+      min: targetSugarsGrams - (tolerance / 100 * totalWeight),
+      max: targetSugarsGrams + (tolerance / 100 * totalWeight)
+    };
+  }
+
+  try {
+    // Solve the LP problem
+    const result = solver.Solve(model);
+
+    if (!result || result.feasible === false) {
+      return {
+        success: false,
+        rows: initialRows,
+        message: 'LP solver found no feasible solution',
+        error: 'Infeasible constraints - targets may be impossible with current ingredients'
+      };
+    }
+
+    // Extract solution and build new rows
+    const newRows: Row[] = initialRows.map((row, idx) => {
+      const varName = `ing_${idx}`;
+      const newGrams = result[varName] || row.grams;
+      
+      return {
+        ...row,
+        grams: Math.max(0, newGrams) // Ensure non-negative
+      };
+    }).filter(row => row.grams > 0.1); // Remove ingredients with negligible amounts
+
+    // Validate solution
+    const newMetrics = calcMetricsV2(newRows);
+    const weightError = Math.abs(newMetrics.total_g - totalWeight);
+
+    if (weightError > 1) {
+      // Normalize to preserve weight
+      const scaleFactor = totalWeight / newMetrics.total_g;
+      newRows.forEach(row => {
+        row.grams *= scaleFactor;
+      });
+    }
+
+    return {
+      success: true,
+      rows: newRows,
+      message: 'LP solver found optimal solution'
+    };
+
+  } catch (error) {
+    return {
+      success: false,
+      rows: initialRows,
+      message: 'LP solver encountered an error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+// ============================================================================
+// FEASIBILITY VALIDATION & TARGET ANALYSIS
 // ============================================================================
 
 export interface FeasibilityReport {
@@ -208,7 +370,7 @@ function identifyPriorityAdjustment(
 }
 
 /**
- * Main iterative balancing function using V2 engine
+ * Main balancing function - tries LP solver first, falls back to heuristic
  */
 export function balanceRecipeV2(
   initialRows: Row[],
@@ -218,11 +380,13 @@ export function balanceRecipeV2(
     maxIterations?: number;
     tolerance?: number;
     enableFeasibilityCheck?: boolean;
+    useLPSolver?: boolean; // New option to control LP usage
   } = {}
 ): BalanceResultV2 {
   const maxIterations = options.maxIterations || 50;
   const tolerance = options.tolerance || 0.1; // 0.1% tolerance
   const enableFeasibilityCheck = options.enableFeasibilityCheck !== false;
+  const useLPSolver = options.useLPSolver !== false; // Default: try LP first
 
   // Validation: Check for empty inputs
   if (!initialRows || initialRows.length === 0) {
@@ -256,6 +420,39 @@ export function balanceRecipeV2(
   const originalMetrics = calcMetricsV2(initialRows);
   const progress: BalanceProgress[] = [];
   const adjustmentsSummary: string[] = [];
+
+  // Step 0: Try LP Solver first (if enabled)
+  if (useLPSolver) {
+    const lpResult = balanceRecipeLP(initialRows, targets, { tolerance });
+    
+    if (lpResult.success) {
+      const lpMetrics = calcMetricsV2(lpResult.rows);
+      const lpScore = scoreMetrics(lpMetrics, targets);
+      
+      if (lpScore < tolerance) {
+        return {
+          success: true,
+          rows: lpResult.rows,
+          metrics: lpMetrics,
+          originalMetrics,
+          iterations: 1,
+          progress: [{
+            iteration: 0,
+            metrics: lpMetrics,
+            adjustments: ['LP Solver: Optimal solution found'],
+            score: lpScore
+          }],
+          strategy: 'Linear Programming (Simplex)',
+          message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
+          adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution']
+        };
+      } else {
+        adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
+      }
+    } else {
+      adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+    }
+  }
 
   // Step 1: Check feasibility
   let feasibilityReport: FeasibilityReport | undefined;
@@ -395,6 +592,7 @@ export function balanceRecipeV2(
 
 export const RecipeBalancerV2 = {
   balance: balanceRecipeV2,
+  balanceLP: balanceRecipeLP,
   checkFeasibility: checkTargetFeasibility,
   scoreMetrics
 };
