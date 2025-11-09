@@ -53,7 +53,7 @@ export type MetricsV2 = {
 
 export type CalcOptionsV2 = {
   evaporation_pct?: number;
-  mode?: 'gelato' | 'kulfi';
+  mode?: 'gelato' | 'ice_cream' | 'kulfi';
 };
 
 /**
@@ -254,11 +254,11 @@ export function calcMetricsV2(
   
   if (mode === 'gelato') {
     // Gelato guardrails
-    if (fat_pct < 6 || fat_pct > 9) {
-      warnings.push(`Fat ${fat_pct.toFixed(1)}% outside gelato range 6-9%`);
+    if (fat_pct < 6 || fat_pct > 10) {
+      warnings.push(`Fat ${fat_pct.toFixed(1)}% outside gelato range 6-10%`);
     }
-    if (msnf_pct < 10 || msnf_pct > 12) {
-      warnings.push(`MSNF ${msnf_pct.toFixed(1)}% outside gelato range 10-12%`);
+    if (msnf_pct < 9 || msnf_pct > 12) {
+      warnings.push(`MSNF ${msnf_pct.toFixed(1)}% outside gelato range 9-12%`);
     }
     if (totalSugars_pct < 16 || totalSugars_pct > 22) {
       warnings.push(`Total sugars ${totalSugars_pct.toFixed(1)}% outside gelato range 16-22%`);
@@ -268,6 +268,23 @@ export function calcMetricsV2(
     }
     if (fpdt < 2.5 || fpdt > 3.5) {
       warnings.push(`FPDT ${fpdt.toFixed(2)}°C outside gelato target 2.5-3.5°C`);
+    }
+  } else if (mode === 'ice_cream') {
+    // Ice Cream guardrails
+    if (fat_pct < 10 || fat_pct > 16) {
+      warnings.push(`Fat ${fat_pct.toFixed(1)}% outside ice cream range 10-16%`);
+    }
+    if (msnf_pct < 9 || msnf_pct > 14) {
+      warnings.push(`MSNF ${msnf_pct.toFixed(1)}% outside ice cream range 9-14%`);
+    }
+    if (totalSugars_pct < 14 || totalSugars_pct > 20) {
+      warnings.push(`Total sugars ${totalSugars_pct.toFixed(1)}% outside ice cream range 14-20%`);
+    }
+    if (ts_pct < 36 || ts_pct > 42) {
+      warnings.push(`Total solids ${ts_pct.toFixed(1)}% outside ice cream range 36-42%`);
+    }
+    if (fpdt < 2.2 || fpdt > 3.2) {
+      warnings.push(`FPDT ${fpdt.toFixed(2)}°C outside ice cream target 2.2-3.2°C`);
     }
   } else {
     // Kulfi guardrails

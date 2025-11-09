@@ -456,13 +456,21 @@ export function diagnoseBalancingFailure(
   const missingIngredients: string[] = [];
   const suggestions: string[] = [];
 
-  // Check for essential balancing ingredients
-  const hasWater = rows.some(r => r.ing.water_pct > 95) || 
-                   availableIngredients.some(ing => ing.water_pct > 95);
-  const hasFatSource = rows.some(r => r.ing.fat_pct > 15) || 
-                       availableIngredients.some(ing => ing.fat_pct > 15);
-  const hasMSNFSource = rows.some(r => (r.ing.msnf_pct || 0) > 70) || 
-                        availableIngredients.some(ing => (ing.msnf_pct || 0) > 70);
+  // Check for essential balancing ingredients - RELAXED THRESHOLDS
+  // Allow milk (80%+ water) to count as water source
+  const hasWaterInRecipe = rows.some(r => r.ing.water_pct > 80);
+  const hasWaterInDB = availableIngredients.some(ing => ing.water_pct > 95);
+  const hasWater = hasWaterInRecipe || hasWaterInDB;
+  
+  // Allow any dairy (2%+ fat) to count, but check DB for high-fat sources
+  const hasFatInRecipe = rows.some(r => r.ing.fat_pct > 2);
+  const hasFatSourceInDB = availableIngredients.some(ing => ing.fat_pct > 15);
+  const hasFatSource = hasFatInRecipe || hasFatSourceInDB;
+  
+  // Allow milk (5%+ MSNF) to count, but check DB for SMP
+  const hasMSNFInRecipe = rows.some(r => (r.ing.msnf_pct || 0) > 5);
+  const hasMSNFSourceInDB = availableIngredients.some(ing => (ing.msnf_pct || 0) > 70);
+  const hasMSNFSource = hasMSNFInRecipe || hasMSNFSourceInDB;
 
   if (!hasWater) {
     missingIngredients.push('Water');

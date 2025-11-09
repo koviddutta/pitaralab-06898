@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
@@ -19,7 +21,8 @@ import type { IngredientData } from '@/lib/ingredientLibrary';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';
-import { RecipeBalancerV2, ScienceValidation } from '@/lib/optimize.balancer.v2';
+import { RecipeBalancerV2, ScienceValidation, PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
+import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 
 interface IngredientRow {
@@ -53,9 +56,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [qualityScore, setQualityScore] = useState<{ score: number; grade: 'A' | 'B' | 'C' | 'D' | 'F'; color: 'success' | 'warning' | 'destructive' } | undefined>(undefined);
   const [showTemplates, setShowTemplates] = useState(false);
   const [addIngredientIndex, setAddIngredientIndex] = useState<number | null>(null);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [balancingDiagnostics, setBalancingDiagnostics] = useState<any>(null);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
+
+  // Helper to get constraints for current product type
+  const getConstraints = () => {
+    const productKey = productType === 'gelato' ? 'gelato_white' 
+                     : productType === 'ice_cream' ? 'ice_cream'
+                     : productType;
+    return PRODUCT_CONSTRAINTS[productKey] || PRODUCT_CONSTRAINTS.gelato_white;
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -158,6 +171,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (field === 'quantity_g' && newRows[index].ingredientData) {
       const ing = newRows[index].ingredientData!;
       const qty = Number(value);
+      
+      // Pass mode to calcMetricsV2 for correct validation
+      const mode = productType === 'ice_cream' ? 'ice_cream' : (productType === 'kulfi' ? 'kulfi' : 'gelato');
       newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
       newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
       newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
@@ -213,8 +229,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }
 
     // Use the comprehensive v2.1 science engine
-    // Map product types to calculation modes
-    const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
+    // Map product types to calculation modes - FIXED
+    const mode = productType === 'gelato' ? 'gelato' 
+               : productType === 'ice_cream' ? 'ice_cream' 
+               : 'kulfi';
     const calculated = calcMetricsV2(calcRows, { mode });
 
     setMetrics(calculated);
@@ -252,16 +270,26 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setIsOptimizing(true);
 
     try {
-      // Define target ranges based on product type using v2.1 science
-      const mode = (productType === 'gelato' || productType === 'ice_cream') ? 'gelato' : 'kulfi';
+      // Define target ranges based on product type - FIXED MAPPING
+      const mode = productType === 'gelato' ? 'gelato' 
+                 : productType === 'ice_cream' ? 'ice_cream' 
+                 : 'kulfi';
       
       const targets: OptimizeTarget = mode === 'gelato'
         ? {
-            fat_pct: 7.5,           // Target 7.5% fat (6-9% range)
-            msnf_pct: 11,           // Target 11% MSNF (10-12% range)
+            fat_pct: 7.5,           // Target 7.5% fat (6-10% range)
+            msnf_pct: 10.5,         // Target 10.5% MSNF (9-12% range)
             totalSugars_pct: 19,    // Target 19% total sugars (16-22% range)
             ts_pct: 40.5,           // Target 40.5% total solids (36-45% range)
             fpdt: 3.0               // Target 3.0°C FPDT (2.5-3.5°C range)
+          }
+        : mode === 'ice_cream'
+        ? {
+            fat_pct: 13,            // Target 13% fat (10-16% range)
+            msnf_pct: 11,           // Target 11% MSNF (9-14% range)
+            totalSugars_pct: 17,    // Target 17% total sugars (14-20% range)
+            ts_pct: 39,             // Target 39% total solids (36-42% range)
+            fpdt: 2.7               // Target 2.7°C FPDT (2.2-3.2°C range)
           }
         : {
             fat_pct: 11,            // Target 11% fat (10-12% range)
@@ -273,7 +301,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       console.log('🎯 Balancing targets:', targets);
 
-      // Convert rows to optimization format
+      // Diagnose BEFORE attempting balance
       const optRows: Row[] = rows
         .filter(r => r.ingredientData && r.quantity_g > 0)
         .map(r => ({
@@ -282,6 +310,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           min: 0,
           max: 1000
         }));
+
+      // Store diagnostics for debugging
+      const diagnosis = diagnoseBalancingFailure(optRows, availableIngredients, targets);
+      setBalancingDiagnostics({
+        targets,
+        diagnosis,
+        productType,
+        mode,
+        ingredientCount: optRows.length,
+        hasWater: diagnosis.hasWater,
+        hasFatSource: diagnosis.hasFatSource,
+        hasMSNFSource: diagnosis.hasMSNFSource,
+        missingIngredients: diagnosis.missingIngredients,
+        suggestions: diagnosis.suggestions
+      });
 
       console.log('📊 Recipe ingredients:', optRows.map(r => ({
         name: r.ing.name,
@@ -827,12 +870,95 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                   Browse Templates
                 </Button>
               )}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowDebugPanel(!showDebugPanel)}
+              >
+                <Bug className="mr-2 h-4 w-4" />
+                {showDebugPanel ? 'Hide' : 'Show'} Debug
+              </Button>
             </div>
             </>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Debug Panel */}
+      {showDebugPanel && balancingDiagnostics && (
+        <Card className="border-blue-500">
+          <CardHeader>
+            <CardTitle className="text-sm">🐛 Balancing Diagnostics</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-xs">
+            <div>
+              <span className="font-semibold">Product Type:</span> {balancingDiagnostics.productType}
+            </div>
+            <div>
+              <span className="font-semibold">Mode:</span> {balancingDiagnostics.mode}
+            </div>
+            <div>
+              <span className="font-semibold">Ingredient Count:</span> {balancingDiagnostics.ingredientCount}
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-1">
+              <div className="font-semibold">Ingredient Availability:</div>
+              <div className={balancingDiagnostics.hasWater ? 'text-green-600' : 'text-red-600'}>
+                {balancingDiagnostics.hasWater ? '✓' : '✗'} Water/Diluent (Recipe or DB has 80%+ water)
+              </div>
+              <div className={balancingDiagnostics.hasFatSource ? 'text-green-600' : 'text-red-600'}>
+                {balancingDiagnostics.hasFatSource ? '✓' : '✗'} Fat Source (Recipe has 2%+ fat or DB has cream/butter)
+              </div>
+              <div className={balancingDiagnostics.hasMSNFSource ? 'text-green-600' : 'text-red-600'}>
+                {balancingDiagnostics.hasMSNFSource ? '✓' : '✗'} MSNF Source (Recipe has 5%+ MSNF or DB has SMP)
+              </div>
+            </div>
+            
+            {balancingDiagnostics.missingIngredients.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-1">
+                  <div className="font-semibold text-destructive">
+                    Missing from Database:
+                  </div>
+                  <ul className="list-disc list-inside">
+                    {balancingDiagnostics.missingIngredients.map((ing: string, i: number) => (
+                      <li key={i}>{ing}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+            
+            {balancingDiagnostics.suggestions.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-1">
+                  <div className="font-semibold">Suggestions:</div>
+                  <ul className="list-disc list-inside">
+                    {balancingDiagnostics.suggestions.map((sug: string, i: number) => (
+                      <li key={i}>{sug}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+            
+            <Separator />
+            
+            <div className="space-y-1">
+              <div className="font-semibold">Targets:</div>
+              <div>Fat: {balancingDiagnostics.targets.fat_pct?.toFixed(1)}%</div>
+              <div>MSNF: {balancingDiagnostics.targets.msnf_pct?.toFixed(1)}%</div>
+              <div>Total Sugars: {balancingDiagnostics.targets.totalSugars_pct?.toFixed(1)}%</div>
+              <div>FPDT: {balancingDiagnostics.targets.fpdt?.toFixed(2)}°C</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {metrics && (
         <Card>
@@ -847,19 +973,33 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Sugars</p>
-                <Badge variant={metrics.totalSugars_pct >= 16 && metrics.totalSugars_pct <= 22 ? 'default' : 'destructive'}>
-                  {metrics.totalSugars_pct.toFixed(1)}%
-                </Badge>
+                <Badge variant="outline">{metrics.totalSugars_pct.toFixed(1)}%</Badge>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Fat</p>
-                <Badge variant={metrics.fat_pct >= 6 && metrics.fat_pct <= 12 ? 'default' : 'destructive'}>
+                <Badge variant={
+                  metrics.fat_pct >= getConstraints().fat.optimal[0] && 
+                  metrics.fat_pct <= getConstraints().fat.optimal[1] 
+                    ? 'default' 
+                    : metrics.fat_pct >= getConstraints().fat.acceptable[0] && 
+                      metrics.fat_pct <= getConstraints().fat.acceptable[1]
+                    ? 'secondary'
+                    : 'destructive'
+                }>
                   {metrics.fat_pct.toFixed(1)}%
                 </Badge>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">MSNF</p>
-                <Badge variant={metrics.msnf_pct >= 10 && metrics.msnf_pct <= 25 ? 'default' : 'destructive'}>
+                <Badge variant={
+                  metrics.msnf_pct >= getConstraints().msnf.optimal[0] && 
+                  metrics.msnf_pct <= getConstraints().msnf.optimal[1]
+                    ? 'default'
+                    : metrics.msnf_pct >= getConstraints().msnf.acceptable[0] && 
+                      metrics.msnf_pct <= getConstraints().msnf.acceptable[1]
+                    ? 'secondary'
+                    : 'destructive'
+                }>
                   {metrics.msnf_pct.toFixed(1)}%
                 </Badge>
               </div>
@@ -876,7 +1016,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Solids</p>
-                <Badge variant={metrics.ts_pct >= 36 && metrics.ts_pct <= 45 ? 'default' : 'destructive'}>
+                <Badge variant={
+                  metrics.ts_pct >= getConstraints().totalSolids.optimal[0] && 
+                  metrics.ts_pct <= getConstraints().totalSolids.optimal[1]
+                    ? 'default'
+                    : metrics.ts_pct >= getConstraints().totalSolids.acceptable[0] && 
+                      metrics.ts_pct <= getConstraints().totalSolids.acceptable[1]
+                    ? 'secondary'
+                    : 'destructive'
+                }>
                   {metrics.ts_pct.toFixed(1)}%
                 </Badge>
               </div>
@@ -889,7 +1037,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <p className="text-sm text-muted-foreground">FPDT (Freezing Point)</p>
-                <Badge variant={metrics.fpdt >= 2.5 && metrics.fpdt <= 3.5 ? 'default' : 'destructive'}>
+                <Badge variant={
+                  metrics.fpdt >= getConstraints().fpdt.optimal[0] && 
+                  metrics.fpdt <= getConstraints().fpdt.optimal[1]
+                    ? 'default'
+                    : metrics.fpdt >= getConstraints().fpdt.acceptable[0] && 
+                      metrics.fpdt <= getConstraints().fpdt.acceptable[1]
+                    ? 'secondary'
+                    : 'destructive'
+                }>
                   {metrics.fpdt.toFixed(2)}°C
                 </Badge>
               </div>

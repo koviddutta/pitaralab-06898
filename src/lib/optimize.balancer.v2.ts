@@ -307,7 +307,7 @@ export interface ProductConstraints {
   fpdt: { optimal: [number, number]; acceptable: [number, number] };
 }
 
-const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
+export const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
   gelato_white: {
     totalSolids: { optimal: [36, 40], acceptable: [34, 42] },
     fat: { optimal: [6, 10], acceptable: [5, 12] },
@@ -645,7 +645,7 @@ export function balanceRecipeV2(
   // Step 0: Diagnose ingredient availability FIRST
   const diagnosis = diagnoseBalancingFailure(initialRows, allIngredients, targets);
   
-  // If critical ingredients are missing, fail fast with helpful message
+  // If critical ingredients are missing from DATABASE, fail fast with helpful message
   if (diagnosis.missingIngredients.length > 0) {
     return {
       success: false,
@@ -654,11 +654,13 @@ export function balanceRecipeV2(
       originalMetrics,
       iterations: 0,
       progress: [],
-      strategy: 'Ingredient Check',
-      message: `Missing essential ingredients for balancing: ${diagnosis.missingIngredients.join(', ')}`,
+      strategy: 'Database Check Failed',
+      message: `⚠️ Cannot balance: Missing essential ingredients in database`,
       adjustmentsSummary: [
-        `⚠️ Missing: ${diagnosis.missingIngredients.join(', ')}`,
-        ...diagnosis.suggestions
+        `❌ Your ingredient database is missing: ${diagnosis.missingIngredients.join(', ')}`,
+        '',
+        '💡 To enable balancing, add these to your database:',
+        ...diagnosis.suggestions.map(s => `   • ${s}`)
       ]
     };
   }
@@ -670,7 +672,14 @@ export function balanceRecipeV2(
                         (diagnosis.hasFatSource || diagnosis.hasMSNFSource);
     
     if (!hasDiversity) {
-      adjustmentsSummary.push(`⚠️ Insufficient ingredient diversity for LP solver. Add Water, high-fat cream, or skim milk powder.`);
+      adjustmentsSummary.push(
+        `⚠️ Recipe lacks ingredient diversity for optimal balancing:`,
+        diagnosis.hasWater ? '' : `   • Add dairy/water ingredient`,
+        diagnosis.hasFatSource ? '' : `   • Add cream or butter for fat adjustment`,
+        diagnosis.hasMSNFSource ? '' : `   • Add skim milk powder for MSNF adjustment`,
+        ``,
+        `ℹ️ Attempting heuristic balancing with available ingredients...`
+      );
     } else {
       const lpResult = balanceRecipeLP(initialRows, targets, { tolerance });
       
