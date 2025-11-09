@@ -643,45 +643,75 @@ export function balanceRecipeV2(
   const progress: BalanceProgress[] = [];
   const adjustmentsSummary: string[] = [];
 
-  // Step 0: Try LP Solver first (if enabled)
-  if (useLPSolver) {
-    const lpResult = balanceRecipeLP(initialRows, targets, { tolerance });
-    
-    if (lpResult.success) {
-      const lpMetrics = calcMetricsV2(lpResult.rows);
-      const lpScore = scoreMetrics(lpMetrics, targets);
-      
-      if (lpScore < tolerance) {
-        const scienceValidation = enableScienceValidation 
-          ? validateRecipeScience(lpMetrics, productType)
-          : undefined;
-        const qualityScore = scienceValidation 
-          ? getRecipeQualityScore(scienceValidation)
-          : undefined;
+  // Step 0: Diagnose ingredient availability FIRST
+  const { diagnoseBalancingFailure } = require('./ingredientMapper');
+  const diagnosis = diagnoseBalancingFailure(initialRows, allIngredients, targets);
+  
+  // If critical ingredients are missing, fail fast with helpful message
+  if (diagnosis.missingIngredients.length > 0) {
+    return {
+      success: false,
+      rows: initialRows,
+      metrics: originalMetrics,
+      originalMetrics,
+      iterations: 0,
+      progress: [],
+      strategy: 'Ingredient Check',
+      message: `Missing essential ingredients for balancing: ${diagnosis.missingIngredients.join(', ')}`,
+      adjustmentsSummary: [
+        `⚠️ Missing: ${diagnosis.missingIngredients.join(', ')}`,
+        ...diagnosis.suggestions
+      ]
+    };
+  }
 
-        return {
-          success: true,
-          rows: lpResult.rows,
-          metrics: lpMetrics,
-          originalMetrics,
-          iterations: 1,
-          progress: [{
-            iteration: 0,
-            metrics: lpMetrics,
-            adjustments: ['LP Solver: Optimal solution found'],
-            score: lpScore
-          }],
-          strategy: 'Linear Programming (Simplex)',
-          message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
-          adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution'],
-          scienceValidation,
-          qualityScore
-        };
-      } else {
-        adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
-      }
+  // Step 0.5: Try LP Solver first (if enabled and sufficient ingredients)
+  if (useLPSolver) {
+    // Check for ingredient diversity before attempting LP
+    const hasDiversity = diagnosis.hasWater && 
+                        (diagnosis.hasFatSource || diagnosis.hasMSNFSource);
+    
+    if (!hasDiversity) {
+      adjustmentsSummary.push(`⚠️ Insufficient ingredient diversity for LP solver. Add Water, high-fat cream, or skim milk powder.`);
     } else {
-      adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+      const lpResult = balanceRecipeLP(initialRows, targets, { tolerance });
+      
+      if (lpResult.success) {
+        const lpMetrics = calcMetricsV2(lpResult.rows);
+        const lpScore = scoreMetrics(lpMetrics, targets);
+        
+        if (lpScore < tolerance) {
+          const scienceValidation = enableScienceValidation 
+            ? validateRecipeScience(lpMetrics, productType)
+            : undefined;
+          const qualityScore = scienceValidation 
+            ? getRecipeQualityScore(scienceValidation)
+            : undefined;
+
+          return {
+            success: true,
+            rows: lpResult.rows,
+            metrics: lpMetrics,
+            originalMetrics,
+            iterations: 1,
+            progress: [{
+              iteration: 0,
+              metrics: lpMetrics,
+              adjustments: ['LP Solver: Optimal solution found'],
+              score: lpScore
+            }],
+            strategy: 'Linear Programming (Simplex)',
+            message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
+            adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution'],
+            scienceValidation,
+            qualityScore
+          };
+        } else {
+          adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
+        }
+      } else {
+        adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+      }
     }
   }
 

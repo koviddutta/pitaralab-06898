@@ -353,6 +353,7 @@ export function findApplicableRules(
 
 /**
  * Apply a substitution rule to a recipe
+ * NOW USES INTELLIGENT INGREDIENT MAPPING
  */
 export function applySubstitution(
   rows: Row[],
@@ -360,6 +361,9 @@ export function applySubstitution(
   allIngredients: IngredientData[],
   amountToAdjustGrams: number
 ): Row[] {
+  // Import the mapper at runtime to avoid circular dependencies
+  const { findIngredientByGenericId } = require('./ingredientMapper');
+  
   const fromRegex = new RegExp(rule.from, 'i');
   
   // Find the 'from' ingredient
@@ -391,33 +395,37 @@ export function applySubstitution(
     const ratio = ratios[i] || ratios[0];
     const addGrams = reductionGrams * ratio;
 
-    // Find or create 'to' ingredient
-    const toRegex = new RegExp(toName, 'i');
-    const toIndex = newRows.findIndex(row => 
-      toRegex.test(row.ing.id) || toRegex.test(row.ing.name)
-    );
-
-    if (toIndex !== -1) {
-      // Ingredient exists, increase amount
-      newRows[toIndex] = {
-        ...newRows[toIndex],
-        grams: newRows[toIndex].grams + addGrams
-      };
-    } else {
-      // Find ingredient in library and add it
-      const toIngredient = allIngredients.find(ing => 
+    // Try intelligent mapping first (for generic IDs like 'water', 'cream_35', etc.)
+    let toIngredient = findIngredientByGenericId(toName, allIngredients);
+    
+    if (!toIngredient) {
+      // Fall back to regex matching
+      const toRegex = new RegExp(toName, 'i');
+      toIngredient = allIngredients.find(ing => 
         toRegex.test(ing.id) || toRegex.test(ing.name)
       );
+    }
 
-      if (toIngredient) {
+    if (toIngredient) {
+      // Check if ingredient already exists in recipe
+      const toIndex = newRows.findIndex(row => row.ing.id === toIngredient!.id);
+      
+      if (toIndex !== -1) {
+        // Ingredient exists, increase amount
+        newRows[toIndex] = {
+          ...newRows[toIndex],
+          grams: newRows[toIndex].grams + addGrams
+        };
+      } else {
+        // Add new ingredient to recipe
         newRows.push({
           ing: toIngredient,
           grams: addGrams
         });
-      } else {
-        // Ingredient not found in library - log warning but continue
-        console.warn(`Substitution target ingredient "${toName}" not found in library`);
       }
+    } else {
+      // Ingredient not found - provide helpful message
+      console.warn(`⚠️ Substitution target "${toName}" not found. Add this ingredient to the database.`);
     }
   });
 

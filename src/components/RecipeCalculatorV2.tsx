@@ -332,20 +332,37 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </div>
             )
           });
-        } else {
+      } else {
           const feasibility = result.feasibilityReport;
+          const suggestions = result.adjustmentsSummary || [];
+          
           toast({
             title: `⚠️ ${result.message}`,
             description: (
-              <div className="space-y-1 text-sm">
+              <div className="space-y-2 text-sm">
                 {feasibility?.reason && (
-                  <div className="text-xs font-medium">{feasibility.reason}</div>
+                  <div className="text-xs font-medium text-destructive">{feasibility.reason}</div>
                 )}
-                {feasibility?.suggestions && feasibility.suggestions.length > 0 && (
+                
+                {suggestions.length > 0 && (
                   <div className="mt-2">
-                    <div className="text-xs font-medium">Suggestions:</div>
-                    <ul className="text-xs list-disc list-inside mt-1">
-                      {feasibility.suggestions.map((sug, i) => (
+                    <div className="text-xs font-semibold mb-1">💡 To fix this:</div>
+                    <ul className="text-xs space-y-1">
+                      {suggestions.slice(0, 4).map((sug, i) => (
+                        <li key={i} className="flex items-start gap-1">
+                          <span className="text-primary">•</span>
+                          <span>{sug}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {feasibility?.suggestions && feasibility.suggestions.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="text-xs font-medium opacity-80">Alternative suggestions:</div>
+                    <ul className="text-xs list-disc list-inside mt-1 opacity-70">
+                      {feasibility.suggestions.slice(0, 2).map((sug, i) => (
                         <li key={i}>{sug}</li>
                       ))}
                     </ul>
@@ -353,7 +370,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 )}
               </div>
             ),
-            variant: 'default'
+            variant: 'destructive',
+            duration: 8000
           });
         }
       }, 100);
