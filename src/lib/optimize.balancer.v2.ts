@@ -14,6 +14,7 @@ import {
   type SubstitutionRule,
   SUBSTITUTION_PATTERNS
 } from './optimize.engine.v2';
+import { diagnoseBalancingFailure } from './ingredientMapper';
 // @ts-ignore - javascript-lp-solver doesn't have types
 import solver from 'javascript-lp-solver';
 
@@ -644,7 +645,6 @@ export function balanceRecipeV2(
   const adjustmentsSummary: string[] = [];
 
   // Step 0: Diagnose ingredient availability FIRST
-  const { diagnoseBalancingFailure } = require('./ingredientMapper');
   const diagnosis = diagnoseBalancingFailure(initialRows, allIngredients, targets);
   
   // If critical ingredients are missing, fail fast with helpful message

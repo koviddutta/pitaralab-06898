@@ -243,6 +243,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return;
     }
 
+    console.log('🔧 Starting balancing process...', {
+      rowCount: rows.length,
+      productType,
+      availableIngredientsCount: availableIngredients.length
+    });
+
     setIsOptimizing(true);
 
     try {
@@ -265,6 +271,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             fpdt: 2.25              // Target 2.25°C FPDT (2.0-2.5°C range)
           };
 
+      console.log('🎯 Balancing targets:', targets);
+
       // Convert rows to optimization format
       const optRows: Row[] = rows
         .filter(r => r.ingredientData && r.quantity_g > 0)
@@ -275,7 +283,25 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           max: 1000
         }));
 
+      console.log('📊 Recipe ingredients:', optRows.map(r => ({
+        name: r.ing.name,
+        grams: r.grams,
+        fat_pct: r.ing.fat_pct,
+        msnf_pct: r.ing.msnf_pct
+      })));
+
+      if (optRows.length === 0) {
+        toast({
+          title: 'Invalid ingredients',
+          description: 'Please select valid ingredients from the database',
+          variant: 'destructive'
+        });
+        setIsOptimizing(false);
+        return;
+      }
+
       // Use the new V2 balancing engine with multi-role classification and substitution rules
+      console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 50,
         tolerance: 0.15,
@@ -283,6 +309,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         useLPSolver: true,
         productType: productType,
         enableScienceValidation: true
+      });
+
+      console.log('✅ Balancing result:', {
+        success: result.success,
+        strategy: result.strategy,
+        iterations: result.iterations,
+        message: result.message
       });
 
       // Store validation results
@@ -376,10 +409,11 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         }
       }, 100);
     } catch (error: any) {
-      console.error('Balancing error:', error);
+      console.error('❌ Balancing error:', error);
+      console.error('Error stack:', error?.stack);
       toast({
         title: 'Optimization failed',
-        description: error.message || 'An unknown error occurred',
+        description: error.message || 'An unknown error occurred. Check console for details.',
         variant: 'destructive'
       });
     } finally {

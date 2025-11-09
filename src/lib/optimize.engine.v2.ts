@@ -7,6 +7,7 @@ import type { Row, OptimizeTarget } from './optimize';
 import type { IngredientData } from '@/types/ingredients';
 import type { MetricsV2 } from './calc.v2';
 import { calcMetricsV2 } from './calc.v2';
+import { findIngredientByGenericId } from './ingredientMapper';
 
 // ============================================================================
 // PHASE 1: ENHANCED INGREDIENT CLASSIFICATION
@@ -361,9 +362,6 @@ export function applySubstitution(
   allIngredients: IngredientData[],
   amountToAdjustGrams: number
 ): Row[] {
-  // Import the mapper at runtime to avoid circular dependencies
-  const { findIngredientByGenericId } = require('./ingredientMapper');
-  
   const fromRegex = new RegExp(rule.from, 'i');
   
   // Find the 'from' ingredient
