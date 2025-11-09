@@ -190,7 +190,8 @@ export interface FeasibilityReport {
 }
 
 /**
- * Check if targets are theoretically achievable with current ingredients
+ * Check if targets are theoretically achievable with available ingredients
+ * IMPROVED: Now considers ingredients available in database, not just current recipe
  */
 export function checkTargetFeasibility(
   rows: Row[],
@@ -201,41 +202,24 @@ export function checkTargetFeasibility(
   
   // Calculate current metrics
   const currentMetrics = calcMetricsV2(rows);
-  const totalWeight = currentMetrics.total_g;
-
-  // Calculate theoretical max/min for each parameter
-  const classifications = OptimizeEngineV2.classifyRecipe(rows);
   
-  // Estimate achievable ranges based on ingredient flexibility
-  const fatSources = rows.filter(r => r.ing.fat_pct > 2);
-  const msnfSources = rows.filter(r => r.ing.msnf_pct && r.ing.msnf_pct > 5);
+  // Find key ingredients in database for theoretical max calculations
+  const hasSMP = allIngredients.some(ing => (ing.msnf_pct || 0) > 90); // Skim Milk Powder
+  const hasButter = allIngredients.some(ing => ing.fat_pct > 80); // Butter/Anhydrous fat
+  const hasHeavyCream = allIngredients.some(ing => ing.fat_pct > 30); // Heavy cream
+  const hasWater = allIngredients.some(ing => ing.water_pct > 95);
   
-  // Calculate theoretical maximums (if we maximize these ingredients)
-  const maxFat = fatSources.reduce((sum, r) => {
-    const maxGrams = r.grams * 2; // Could theoretically double
-    return sum + (maxGrams * r.ing.fat_pct / 100);
-  }, 0) / totalWeight * 100;
-
-  const maxMSNF = msnfSources.reduce((sum, r) => {
-    const maxGrams = r.grams * 2;
-    return sum + (maxGrams * (r.ing.msnf_pct || 0) / 100);
-  }, 0) / totalWeight * 100;
-
-  // Calculate theoretical minimums (if we minimize these ingredients)
-  const minFat = fatSources.reduce((sum, r) => {
-    const minGrams = r.grams * 0.1; // Could theoretically reduce to 10%
-    return sum + (minGrams * r.ing.fat_pct / 100);
-  }, 0) / totalWeight * 100;
-
-  const minMSNF = msnfSources.reduce((sum, r) => {
-    const minGrams = r.grams * 0.1;
-    return sum + (minGrams * (r.ing.msnf_pct || 0) / 100);
-  }, 0) / totalWeight * 100;
-
+  // Calculate SMARTER achievable ranges considering available substitutions
   const achievableRanges = {
-    fat: { min: Math.max(0, minFat * 0.8), max: maxFat * 1.2 },
-    msnf: { min: Math.max(0, minMSNF * 0.8), max: maxMSNF * 1.2 },
-    nonLactoseSugars: { min: 0, max: 30 } // Typical gelato range
+    fat: { 
+      min: hasWater ? 0 : Math.max(0, currentMetrics.fat_pct * 0.3),
+      max: hasButter ? 35 : (hasHeavyCream ? 20 : currentMetrics.fat_pct * 2)
+    },
+    msnf: { 
+      min: hasWater ? 0 : Math.max(0, currentMetrics.msnf_pct * 0.3),
+      max: hasSMP ? 25 : currentMetrics.msnf_pct * 2  // SMP can achieve much higher MSNF!
+    },
+    nonLactoseSugars: { min: 0, max: 35 }
   };
 
   // Check if targets are within achievable ranges
@@ -246,12 +230,19 @@ export function checkTargetFeasibility(
     if (targets.fat_pct > achievableRanges.fat.max) {
       feasible = false;
       reason = `Fat target ${targets.fat_pct.toFixed(1)}% exceeds maximum achievable ${achievableRanges.fat.max.toFixed(1)}%`;
-      suggestions.push(`Add high-fat ingredients like heavy cream (35%+) or butter`);
-      suggestions.push(`Current fat: ${currentMetrics.fat_pct.toFixed(1)}%`);
+      if (!hasButter && !hasHeavyCream) {
+        suggestions.push(`❌ CRITICAL: Add heavy cream (35%+ fat) or butter to your ingredient database`);
+      } else {
+        suggestions.push(`Increase high-fat ingredients`);
+      }
     } else if (targets.fat_pct < achievableRanges.fat.min) {
       feasible = false;
       reason = `Fat target ${targets.fat_pct.toFixed(1)}% below minimum achievable ${achievableRanges.fat.min.toFixed(1)}%`;
-      suggestions.push(`Replace cream with milk or add water`);
+      if (!hasWater) {
+        suggestions.push(`❌ CRITICAL: Add water to your ingredient database to dilute fat`);
+      } else {
+        suggestions.push(`Replace cream with milk or add water`);
+      }
     }
   }
 
@@ -259,12 +250,19 @@ export function checkTargetFeasibility(
     if (targets.msnf_pct > achievableRanges.msnf.max) {
       feasible = false;
       reason = reason || `MSNF target ${targets.msnf_pct.toFixed(1)}% exceeds maximum achievable ${achievableRanges.msnf.max.toFixed(1)}%`;
-      suggestions.push(`Add skim milk powder (SMP) or increase milk content`);
-      suggestions.push(`Current MSNF: ${currentMetrics.msnf_pct.toFixed(1)}%`);
+      if (!hasSMP) {
+        suggestions.push(`❌ CRITICAL: Add skim milk powder (SMP) to your ingredient database`);
+      } else {
+        suggestions.push(`The balancer will add/increase skim milk powder to reach ${targets.msnf_pct.toFixed(1)}% MSNF`);
+      }
     } else if (targets.msnf_pct < achievableRanges.msnf.min) {
       feasible = false;
       reason = reason || `MSNF target ${targets.msnf_pct.toFixed(1)}% below minimum achievable ${achievableRanges.msnf.min.toFixed(1)}%`;
-      suggestions.push(`Replace milk with water and cream to maintain fat while reducing MSNF`);
+      if (!hasWater) {
+        suggestions.push(`❌ CRITICAL: Add water to your ingredient database to dilute MSNF`);
+      } else {
+        suggestions.push(`Replace milk with water and cream to maintain fat while reducing MSNF`);
+      }
     }
   }
 
@@ -715,11 +713,15 @@ export function balanceRecipeV2(
     }
   }
 
-  // Step 1: Check feasibility
+  // Step 1: Check feasibility (now smarter - considers available ingredients)
   let feasibilityReport: FeasibilityReport | undefined;
   if (enableFeasibilityCheck) {
     feasibilityReport = checkTargetFeasibility(initialRows, targets, allIngredients);
-    if (!feasibilityReport.feasible) {
+    
+    // Only fail if it's a CRITICAL missing ingredient (not just difficult targets)
+    const hasCriticalMissing = feasibilityReport.suggestions.some(s => s.includes('❌ CRITICAL'));
+    
+    if (!feasibilityReport.feasible && hasCriticalMissing) {
       return {
         success: false,
         rows: initialRows,
@@ -727,11 +729,15 @@ export function balanceRecipeV2(
         originalMetrics,
         iterations: 0,
         progress: [],
-        strategy: 'Feasibility Check V2',
+        strategy: 'Feasibility Check V2 - Missing Ingredients',
         message: `Cannot achieve targets: ${feasibilityReport.reason}`,
         adjustmentsSummary: feasibilityReport.suggestions,
         feasibilityReport
       };
+    } else if (!feasibilityReport.feasible) {
+      // Not critical - just log it and try balancing anyway
+      adjustmentsSummary.push(`⚠️ Challenging targets: ${feasibilityReport.reason}`);
+      adjustmentsSummary.push(`Attempting balancing with substitutions...`);
     }
   }
 
