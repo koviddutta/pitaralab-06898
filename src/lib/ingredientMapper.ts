@@ -27,49 +27,87 @@ export const CORE_INGREDIENT_MAPPINGS: Record<string, {
     propertyFilters: { minFat: 0, maxFat: 0, minMSNF: 0, maxMSNF: 0 }
   },
   
-  // Whole Milk (3-4% fat) - includes regional variations
-  'milk_whole': {
+  // Cow Whole Milk (3-3.5% fat) - Standard whole milk
+  'milk_whole_cow': {
     aliases: [
-      'whole milk', 'full milk', 'milk 3%', '3% milk', 'full fat milk',
-      'toned milk', 'standardized milk', 'buffalo milk', 'cow milk',
-      'full cream milk', 'regular milk'
+      'whole milk', 'full milk', 'cow whole milk', 'cow milk',
+      'full fat milk', 'regular milk', 'full cream milk'
     ],
     searchPatterns: [
-      /whole.*milk/i, /milk.*whole/i, /full.*milk/i, 
-      /milk.*3/i, /3.*milk/i,
-      /toned.*milk/i, /standardized.*milk/i,
-      /buffalo.*milk/i, /cow.*milk/i,
-      /full.*cream.*milk/i, /regular.*milk/i
+      /^whole.*milk$/i, /^milk.*whole$/i, /^full.*milk$/i,
+      /cow.*whole.*milk/i, /cow.*milk/i, /regular.*milk/i
     ],
-    propertyFilters: { minFat: 2.5, maxFat: 4.5, category: 'dairy' }
+    propertyFilters: { minFat: 2.8, maxFat: 3.7, category: 'dairy' }
   },
   
-  // Skim Milk (0-0.5% fat)
+  // Toned Milk (3% fat exactly) - Indian standardized milk
+  'milk_toned': {
+    aliases: [
+      'toned milk', 'standardized milk', 'milk 3%', '3% milk'
+    ],
+    searchPatterns: [
+      /toned.*milk/i, /standardized.*milk/i, 
+      /^milk.*3%$/i, /^3%.*milk$/i
+    ],
+    propertyFilters: { minFat: 2.7, maxFat: 3.3, category: 'dairy' }
+  },
+  
+  // Buffalo Milk (6.5-7% fat) - Higher fat content
+  'milk_buffalo': {
+    aliases: [
+      'buffalo milk', 'buffalo whole milk', 'bhains milk'
+    ],
+    searchPatterns: [
+      /buffalo.*milk/i, /bhains.*milk/i
+    ],
+    propertyFilters: { minFat: 6.0, maxFat: 7.5, category: 'dairy' }
+  },
+  
+  // Double Toned Milk (1.5% fat) - Indian very low-fat milk
+  'milk_double_toned': {
+    aliases: [
+      'double toned milk', 'double toned', 'extra light milk'
+    ],
+    searchPatterns: [
+      /double.*toned/i, /extra.*light.*milk/i
+    ],
+    propertyFilters: { minFat: 1.2, maxFat: 1.8, category: 'dairy' }
+  },
+  
+  // Skim Milk (0-0.5% fat) - Fat-free milk
   'milk_skim': {
     aliases: [
       'skim milk', 'skimmed milk', 'fat-free milk', 'nonfat milk',
-      'double toned milk', 'non-fat milk', '0% milk', 'zero fat milk'
+      'non-fat milk', '0% milk', 'zero fat milk'
     ],
     searchPatterns: [
       /skim.*milk/i, /milk.*skim/i, 
       /fat.?free.*milk/i, /non.?fat.*milk/i, /zero.*fat/i,
-      /double.*toned/i, /0%.*milk/i, /0.*milk/i
+      /^0%.*milk$/i, /^milk.*0%$/i
     ],
     propertyFilters: { minFat: 0, maxFat: 0.5, category: 'dairy' }
   },
   
-  // Semi-Skimmed / Low-Fat Milk (1.5-2% fat)
-  'milk_lowfat': {
+  // Single Toned Milk (1.5% fat) - Indian low-fat milk
+  'milk_single_toned': {
     aliases: [
-      'low-fat milk', 'semi-skimmed milk', '1.5% milk', '2% milk',
-      'single toned milk', 'reduced fat milk'
+      'single toned milk', 'low-fat milk', '1.5% milk'
     ],
     searchPatterns: [
-      /low.?fat.*milk/i, /semi.*skim/i, 
-      /1\.5.*milk/i, /2%.*milk/i, /2.*milk/i,
-      /single.*toned/i, /reduced.*fat.*milk/i
+      /single.*toned/i, /low.?fat.*milk/i, /1\.5.*milk/i
     ],
-    propertyFilters: { minFat: 1, maxFat: 2.5, category: 'dairy' }
+    propertyFilters: { minFat: 1.2, maxFat: 1.8, category: 'dairy' }
+  },
+  
+  // Semi-Skimmed Milk (2% fat) - Western low-fat milk
+  'milk_semi_skimmed': {
+    aliases: [
+      'semi-skimmed milk', '2% milk', 'reduced fat milk'
+    ],
+    searchPatterns: [
+      /semi.*skim/i, /^2%.*milk$/i, /^milk.*2%$/i, /reduced.*fat.*milk/i
+    ],
+    propertyFilters: { minFat: 1.8, maxFat: 2.3, category: 'dairy' }
   },
   
   // Light Cream (18-22% fat)
