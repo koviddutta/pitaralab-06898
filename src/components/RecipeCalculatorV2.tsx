@@ -97,6 +97,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [balancingDiagnostics, setBalancingDiagnostics] = useState<any>(null);
   const [selectedIngredientForPairing, setSelectedIngredientForPairing] = useState<IngredientData | null>(null);
+  const [showAdvancedToolsTutorial, setShowAdvancedToolsTutorial] = useState(false);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -121,6 +122,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Show Advanced Tools tutorial for first-time users
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('advanced-tools-tutorial-seen');
+    if (!hasSeenTutorial && rows.length > 0) {
+      // Delay showing tutorial slightly so user sees the section render first
+      const timer = setTimeout(() => {
+        setShowAdvancedToolsTutorial(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [rows.length]);
 
   // Notify parent component when recipe changes
   useEffect(() => {
@@ -1461,11 +1474,44 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       {/* Advanced Tools Section */}
       {rows.length > 0 && (
         <Card className="mt-6">
-          <CardHeader className="gradient-card border-b border-border/50">
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <Wrench className="h-5 w-5 text-primary" />
-              Advanced Tools
-            </CardTitle>
+          <CardHeader className="gradient-card border-b border-border/50 relative">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Wrench className="h-5 w-5 text-primary" />
+                Advanced Tools
+                {showAdvancedToolsTutorial && (
+                  <Badge 
+                    variant="default" 
+                    className="ml-2 animate-pulse bg-primary/90 hover:bg-primary"
+                  >
+                    NEW
+                  </Badge>
+                )}
+              </CardTitle>
+              {showAdvancedToolsTutorial && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowAdvancedToolsTutorial(false);
+                    localStorage.setItem('advanced-tools-tutorial-seen', 'true');
+                  }}
+                  className="text-xs"
+                >
+                  Got it ✓
+                </Button>
+              )}
+            </div>
+            {showAdvancedToolsTutorial && (
+              <Alert className="mt-3 bg-primary/5 border-primary/20">
+                <AlertDescription className="text-sm">
+                  <strong>🎉 AI Engine features are now here!</strong>
+                  <br />
+                  All the powerful tools from the AI Engine tab (Flavor Pairings, Temperature Tuning, Reverse Engineer, and more) 
+                  have been consolidated into these Advanced Tools for easier access.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardHeader>
           <CardContent className="p-6">
             <Tabs defaultValue="pairings" className="w-full">
