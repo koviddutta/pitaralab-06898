@@ -105,6 +105,19 @@ const Index = () => {
     // Start ML training scheduler
     mlScheduler.start();
     
+    // Show one-time notification about AI Engine consolidation
+    const hasSeenNotice = localStorage.getItem('ai-engine-consolidation-notice');
+    if (!hasSeenNotice) {
+      setTimeout(() => {
+        toast({
+          title: "✨ Features Consolidated",
+          description: "AI Engine features are now in Calculator → Advanced Tools tab for easier access!",
+          duration: 8000,
+        });
+        localStorage.setItem('ai-engine-consolidation-notice', 'true');
+      }, 2000);
+    }
+    
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -116,7 +129,7 @@ const Index = () => {
       window.removeEventListener('resize', checkMobile);
       mlScheduler.stop();
     };
-  }, []);
+  }, [toast]);
 
   const handleMobileRecipeCreated = (recipe: { name: string; ingredients: any[] }) => {
     console.log('Mobile recipe created:', recipe);
@@ -278,17 +291,9 @@ const Index = () => {
             >
               📊 Calculator
             </TabsTrigger>
+            {/* AI Engine tab removed - features now in Calculator > Advanced Tools */}
             <TabsTrigger 
-              value="flavour-engine" 
-              className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium' 
-                : 'flex-1 min-w-[140px] font-medium'}
-              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
-            >
-              🤖 AI Engine
-            </TabsTrigger>
-            <TabsTrigger 
-              value="paste-studio" 
+              value="paste-studio"
               className={isMobile 
                 ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
@@ -417,9 +422,7 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="flavour-engine" className="mt-4 md:mt-6">
-            <FlavourEngine />
-          </TabsContent>
+          {/* AI Engine tab removed - features consolidated into Calculator > Advanced Tools */}
 
           {/* All tab content available on all devices */}
           <TabsContent value="base-recipes" className="mt-4 md:mt-6">
