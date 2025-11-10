@@ -1790,6 +1790,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                         ts_pct: (constraints.totalSolids.optimal[0] + constraints.totalSolids.optimal[1]) / 2
                       };
                     })()}
+                    onApplyResult={(optimizedRows: Row[]) => {
+                      // Convert optimized Row[] back to IngredientRow format
+                      const newRows = optimizedRows.map(opt => {
+                        const ing = opt.ing;
+                        return {
+                          ingredientData: ing,
+                          ingredient: ing.name,
+                          quantity_g: opt.grams,
+                          sugars_g: ((ing.sugars_pct ?? 0) / 100) * opt.grams,
+                          fat_g: ((ing.fat_pct ?? 0) / 100) * opt.grams,
+                          msnf_g: ((ing.msnf_pct ?? 0) / 100) * opt.grams,
+                          other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * opt.grams,
+                          total_solids_g: 0
+                        } as IngredientRow;
+                      });
+
+                      newRows.forEach(r => {
+                        r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                      });
+
+                      setRows(newRows);
+                    }}
                     onAutoOptimize={async (algorithm: OptimizerConfig['algorithm']) => {
                       setIsOptimizing(true);
                       try {

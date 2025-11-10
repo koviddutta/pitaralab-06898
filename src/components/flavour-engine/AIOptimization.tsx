@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Zap, CheckCircle, AlertCircle, TrendingUp, BarChart3 } from 'lucide-react';
+import { Sparkles, Zap, CheckCircle, AlertCircle, TrendingUp, BarChart3, Wand2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -9,12 +9,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OptimizerConfig, compareOptimizers } from '@/lib/optimize.advanced';
 import { Row, OptimizeTarget } from '@/lib/optimize';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 
 interface AIOptimizationProps {
   allTargetsMet: boolean;
   suggestions: string[];
   isOptimizing: boolean;
   onAutoOptimize: (algorithm: OptimizerConfig['algorithm']) => void;
+  onApplyResult?: (result: Row[]) => void;
   currentRows?: Row[];
   targets?: OptimizeTarget;
 }
@@ -24,11 +26,14 @@ export default function AIOptimization({
   suggestions,
   isOptimizing,
   onAutoOptimize,
+  onApplyResult,
   currentRows,
   targets
 }: AIOptimizationProps) {
+  const { toast } = useToast();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<OptimizerConfig['algorithm']>('hybrid');
   const [isComparing, setIsComparing] = useState(false);
+  const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<Array<{
     algorithm: string;
     score: number;
@@ -92,10 +97,56 @@ export default function AIOptimization({
     try {
       const results = compareOptimizers(currentRows, targets);
       setComparisonResults(results);
+      
+      toast({
+        title: "Comparison Complete",
+        description: `Winner: ${algorithmInfo[results[0].algorithm as OptimizerConfig['algorithm']]?.name} with score ${results[0].score.toFixed(3)}`
+      });
     } catch (error) {
       console.error('Comparison error:', error);
+      toast({
+        title: "Comparison Failed",
+        description: error instanceof Error ? error.message : "Failed to compare algorithms",
+        variant: "destructive"
+      });
     } finally {
       setIsComparing(false);
+    }
+  };
+
+  const autoSelectBest = async () => {
+    if (!currentRows || !targets || !onApplyResult) return;
+    
+    setIsAutoSelecting(true);
+    try {
+      toast({
+        title: "🚀 Auto-Select Best Running",
+        description: "Testing all 4 algorithms to find the optimal solution..."
+      });
+
+      const results = compareOptimizers(currentRows, targets);
+      setComparisonResults(results);
+      
+      // Get the best result (first in sorted array)
+      const winner = results[0];
+      const winnerName = algorithmInfo[winner.algorithm as OptimizerConfig['algorithm']]?.name;
+      
+      // Apply the best result
+      onApplyResult(winner.result);
+      
+      toast({
+        title: "✅ Best Algorithm Applied",
+        description: `${winnerName} achieved the best score (${winner.score.toFixed(3)}) in ${winner.time.toFixed(0)}ms and has been applied to your recipe.`
+      });
+    } catch (error) {
+      console.error('Auto-select error:', error);
+      toast({
+        title: "Auto-Select Failed",
+        description: error instanceof Error ? error.message : "Failed to auto-select best algorithm",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAutoSelecting(false);
     }
   };
 
@@ -178,46 +229,66 @@ export default function AIOptimization({
             </div>
           </div>
 
-          {/* Optimize Button */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Action Buttons */}
+          <div className="space-y-3">
             <Button 
-              onClick={() => onAutoOptimize(selectedAlgorithm)}
-              disabled={isOptimizing || isComparing}
-              className="w-full"
+              onClick={autoSelectBest}
+              disabled={isOptimizing || isComparing || isAutoSelecting || !currentRows || !targets || !onApplyResult}
+              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:opacity-90"
               size="lg"
             >
-              {isOptimizing ? (
+              {isAutoSelecting ? (
                 <>
                   <span className="animate-spin mr-2">⚙️</span>
-                  Optimizing...
+                  Auto-Selecting Best...
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Auto-Optimize
+                  <Wand2 className="h-5 w-5 mr-2" />
+                  Auto-Select Best Algorithm
                 </>
               )}
             </Button>
-            
-            <Button 
-              onClick={runComparison}
-              disabled={isOptimizing || isComparing || !currentRows || !targets}
-              variant="outline"
-              className="w-full"
-              size="lg"
-            >
-              {isComparing ? (
-                <>
-                  <span className="animate-spin mr-2">⚙️</span>
-                  Comparing...
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="h-5 w-5 mr-2" />
-                  Compare All
-                </>
-              )}
-            </Button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                onClick={() => onAutoOptimize(selectedAlgorithm)}
+                disabled={isOptimizing || isComparing || isAutoSelecting}
+                variant="outline"
+                className="w-full"
+              >
+                {isOptimizing ? (
+                  <>
+                    <span className="animate-spin mr-2">⚙️</span>
+                    Optimizing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Optimize
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                onClick={runComparison}
+                disabled={isOptimizing || isComparing || isAutoSelecting || !currentRows || !targets}
+                variant="outline"
+                className="w-full"
+              >
+                {isComparing ? (
+                  <>
+                    <span className="animate-spin mr-2">⚙️</span>
+                    Comparing...
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Compare
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Info Footer */}
@@ -290,7 +361,26 @@ export default function AIOptimization({
                 <strong>Winner: {algorithmInfo[comparisonResults[0].algorithm as OptimizerConfig['algorithm']]?.name}</strong>
                 <br />
                 This algorithm achieved the best score ({comparisonResults[0].score.toFixed(3)}) 
-                in {comparisonResults[0].time.toFixed(0)}ms. Click "Auto-Optimize" after selecting it to apply.
+                in {comparisonResults[0].time.toFixed(0)}ms.
+                {onApplyResult && (
+                  <>
+                    {' '}
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-primary underline"
+                      onClick={() => {
+                        onApplyResult(comparisonResults[0].result);
+                        toast({
+                          title: "Result Applied",
+                          description: `Applied ${algorithmInfo[comparisonResults[0].algorithm as OptimizerConfig['algorithm']]?.name} optimization to your recipe`
+                        });
+                      }}
+                    >
+                      Click here to apply this result
+                    </Button>
+                  </>
+                )}
               </AlertDescription>
             </Alert>
           </CardContent>
