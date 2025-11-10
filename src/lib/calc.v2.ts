@@ -287,13 +287,41 @@ export function calcMetricsV2(
   // 11. Validation warnings
   const mode = opts.mode || 'gelato';
   
+  // PHASE 2: Context-aware MSNF/Stabilizer guardrails
+  const hasChocolate = rows.some(r => 
+    r.ing.name.toLowerCase().includes('chocolate') ||
+    r.ing.name.toLowerCase().includes('cocoa') ||
+    r.ing.name.toLowerCase().includes('cacao')
+  );
+  
+  const hasNutsOrEggs = rows.some(r => 
+    (r.ing.category === 'other' && (
+      r.ing.name.toLowerCase().includes('nut') ||
+      r.ing.name.toLowerCase().includes('almond') ||
+      r.ing.name.toLowerCase().includes('pistachio') ||
+      r.ing.name.toLowerCase().includes('hazelnut')
+    )) ||
+    r.ing.name.toLowerCase().includes('egg')
+  );
+  
+  let contextualMSNF: [number, number] = [9, 12]; // Default
+  let contextLabel = 'standard';
+  
+  if (hasChocolate) {
+    contextualMSNF = [7, 9];
+    contextLabel = 'chocolate';
+  } else if (hasNutsOrEggs) {
+    contextualMSNF = [8, 10];
+    contextLabel = 'nuts/eggs';
+  }
+  
   if (mode === 'gelato') {
     // Gelato guardrails
     if (fat_pct < 6 || fat_pct > 10) {
       warnings.push(`Fat ${fat_pct.toFixed(1)}% outside gelato range 6-10%`);
     }
-    if (msnf_pct < 9 || msnf_pct > 12) {
-      warnings.push(`MSNF ${msnf_pct.toFixed(1)}% outside gelato range 9-12%`);
+    if (msnf_pct < contextualMSNF[0] || msnf_pct > contextualMSNF[1]) {
+      warnings.push(`⚠️ MSNF ${msnf_pct.toFixed(1)}% outside ${contextLabel} range ${contextualMSNF[0]}-${contextualMSNF[1]}%`);
     }
     if (totalSugars_pct < 16 || totalSugars_pct > 22) {
       warnings.push(`Total sugars ${totalSugars_pct.toFixed(1)}% outside gelato range 16-22%`);
@@ -309,8 +337,8 @@ export function calcMetricsV2(
     if (fat_pct < 10 || fat_pct > 16) {
       warnings.push(`Fat ${fat_pct.toFixed(1)}% outside ice cream range 10-16%`);
     }
-    if (msnf_pct < 9 || msnf_pct > 14) {
-      warnings.push(`MSNF ${msnf_pct.toFixed(1)}% outside ice cream range 9-14%`);
+    if (msnf_pct < contextualMSNF[0] || msnf_pct > contextualMSNF[1]) {
+      warnings.push(`⚠️ MSNF ${msnf_pct.toFixed(1)}% outside ${contextLabel} range ${contextualMSNF[0]}-${contextualMSNF[1]}%`);
     }
     if (totalSugars_pct < 14 || totalSugars_pct > 20) {
       warnings.push(`Total sugars ${totalSugars_pct.toFixed(1)}% outside ice cream range 14-20%`);
@@ -320,6 +348,17 @@ export function calcMetricsV2(
     }
     if (fpdt < 2.2 || fpdt > 3.2) {
       warnings.push(`FPDT ${fpdt.toFixed(2)}°C outside ice cream target 2.2-3.2°C`);
+    }
+  } else if (mode === 'sorbet') {
+    // Sorbet guardrails
+    if (fat_pct > 1) {
+      warnings.push(`Fat ${fat_pct.toFixed(1)}% above sorbet max 1%`);
+    }
+    if (totalSugars_pct < 26 || totalSugars_pct > 31) {
+      warnings.push(`Total sugars ${totalSugars_pct.toFixed(1)}% outside sorbet range 26-31%`);
+    }
+    if (fpdt > -2.0 || fpdt < -4.0) {
+      warnings.push(`FPDT ${fpdt.toFixed(2)}°C outside sorbet target -4.0 to -2.0°C`);
     }
   } else {
     // Kulfi guardrails
@@ -337,6 +376,81 @@ export function calcMetricsV2(
     }
     if (fpdt < 2.0 || fpdt > 2.5) {
       warnings.push(`FPDT ${fpdt.toFixed(2)}°C outside kulfi target 2.0-2.5°C`);
+    }
+  }
+  
+  // PHASE 4: Sugar Spectrum Policy
+  let disaccharides_g = lactose_g; // Start with lactose
+  let monosaccharides_g = 0;
+  let polysaccharides_g = 0;
+  
+  for (const { ing, grams } of rows) {
+    const sug_g = grams * (ing.sugars_pct || 0) / 100;
+    if (sug_g <= 0) continue;
+    
+    const id = (ing.id || '').toLowerCase();
+    const name = (ing.name || '').toLowerCase();
+    
+    if (name.includes('sucrose') || id.includes('sucrose')) {
+      disaccharides_g += sug_g;
+    } else if (name.includes('dextrose') || id.includes('dextrose')) {
+      monosaccharides_g += sug_g;
+    } else if ((name.includes('glucose') || id.includes('glucose')) && !name.includes('syrup')) {
+      monosaccharides_g += sug_g;
+    } else if (name.includes('fructose') || id.includes('fructose')) {
+      monosaccharides_g += sug_g;
+    } else if (name.includes('glucose syrup') || name.includes('maltodextrin')) {
+      polysaccharides_g += sug_g;
+    } else if (ing.category === 'fruit' && ing.sugar_split) {
+      const s = ing.sugar_split;
+      const norm = (s.glucose ?? 0) + (s.fructose ?? 0) + (s.sucrose ?? 0) || 100;
+      monosaccharides_g += sug_g * ((s.glucose ?? 0) + (s.fructose ?? 0)) / norm;
+      disaccharides_g += sug_g * ((s.sucrose ?? 0) / norm);
+    } else {
+      disaccharides_g += sug_g; // Default to disaccharides
+    }
+  }
+  
+  if (totalSugars_g > 0) {
+    const disaccharides_pct = (disaccharides_g / totalSugars_g) * 100;
+    const monosaccharides_pct = (monosaccharides_g / totalSugars_g) * 100;
+    const polysaccharides_pct = (polysaccharides_g / totalSugars_g) * 100;
+    
+    if (disaccharides_pct < 50) {
+      warnings.push(`⚠️ Sugar spectrum: Disaccharides ${disaccharides_pct.toFixed(1)}% below target 50-100%`);
+    }
+    if (monosaccharides_pct > 25) {
+      warnings.push(`⚠️ Sugar spectrum: Monosaccharides ${monosaccharides_pct.toFixed(1)}% exceeds target 0-25%`);
+    }
+    if (polysaccharides_pct > 35) {
+      warnings.push(`⚠️ Sugar spectrum: Polysaccharides ${polysaccharides_pct.toFixed(1)}% exceeds target 0-35%`);
+    }
+  }
+  
+  // PHASE 5: SP/AFP Target Validation
+  const sp = pod_index;
+  const afp_sugars = sucrosePer100gWater;
+  
+  if (mode === 'gelato') {
+    if (sp < 12 || sp > 22) {
+      warnings.push(`⚠️ SP ${sp.toFixed(1)} outside gelato target 12-22`);
+    }
+    if (afp_sugars < 22 || afp_sugars > 28) {
+      warnings.push(`⚠️ AFP(sugars) ${afp_sugars.toFixed(1)} outside gelato target 22-28`);
+    }
+  } else if (mode === 'ice_cream') {
+    if (sp < 10 || sp > 20) {
+      warnings.push(`⚠️ SP ${sp.toFixed(1)} outside ice cream target 10-20`);
+    }
+    if (afp_sugars < 20 || afp_sugars > 26) {
+      warnings.push(`⚠️ AFP(sugars) ${afp_sugars.toFixed(1)} outside ice cream target 20-26`);
+    }
+  } else if (mode === 'sorbet') {
+    if (sp < 20 || sp > 28) {
+      warnings.push(`⚠️ SP ${sp.toFixed(1)} outside sorbet target 20-28`);
+    }
+    if (afp_sugars < 28 || afp_sugars > 33) {
+      warnings.push(`⚠️ AFP(sugars) ${afp_sugars.toFixed(1)} outside sorbet target 28-33`);
     }
   }
 

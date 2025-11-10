@@ -30,6 +30,9 @@ export type IngredientData = {
   brix_estimate?: number;
   sugar_split?: SugarSplit;     // {glucose,fructose,sucrose} sum≈100
   acidity_citric_pct?: number;
+  
+  // PHASE 3: Analytical Compensation
+  characterization_pct?: number; // Percentage of inclusion used for flavor characterization
 
   // Commerce/UX
   cost_per_kg?: number;

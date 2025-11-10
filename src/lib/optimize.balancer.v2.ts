@@ -92,7 +92,7 @@ export function balanceRecipeLP(
     };
   }
 
-  const originalMetrics = calcMetricsV2(initialRows);
+  const originalMetrics = calcMetricsV2(initialRows, { mode: options.mode });
   const totalWeight = originalMetrics.total_g;
 
   // ============ LP BOUNDS & MOVEMENT PENALTY ============
@@ -223,7 +223,7 @@ export function balanceRecipeLP(
     }).filter(row => row.grams > 0.1); // Remove ingredients with negligible amounts
 
     // Validate solution
-    const newMetrics = calcMetricsV2(newRows);
+    const newMetrics = calcMetricsV2(newRows, { mode: options.mode });
     const weightError = Math.abs(newMetrics.total_g - totalWeight);
 
     if (weightError > 1) {
@@ -400,6 +400,12 @@ export const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
     totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
     fat: { optimal: [6, 10], acceptable: [5, 12] },
     msnf: { optimal: [9, 12], acceptable: [7, 13] },
+    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
+  },
+  gelato_fruit: {
+    totalSolids: { optimal: [32, 42], acceptable: [30, 44] },
+    fat: { optimal: [3, 10], acceptable: [2, 12] },
+    msnf: { optimal: [3, 7], acceptable: [2, 8] },
     fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
   },
   ice_cream: {

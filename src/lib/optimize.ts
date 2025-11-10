@@ -4,7 +4,14 @@ import { calcMetricsV2, MetricsV2, CalcOptionsV2 } from './calc.v2';
 export type Row = { ing: IngredientData; grams: number; lock?: boolean; min?: number; max?: number; };
 
 export type OptimizeTarget = Partial<{
-  totalSugars_pct: number; sugars_pct: number; fat_pct: number; msnf_pct: number; ts_pct: number; fpdt: number;
+  totalSugars_pct: number; 
+  sugars_pct: number; 
+  fat_pct: number; 
+  msnf_pct: number; 
+  ts_pct: number; 
+  fpdt: number;
+  sp?: number;        // PHASE 5: Sweetening Power target
+  afp_sugars?: number; // PHASE 5: AFP from sugars target
 }>;
 
 function objective(m: MetricsV2, t: OptimizeTarget) {

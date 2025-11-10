@@ -57,12 +57,20 @@ export function resolveMode(productType: string): Mode {
 
 /**
  * Map mode to product constraints key
+ * PHASE 1: Fixed to detect fruit gelato vs white gelato
  */
-function productKey(mode: Mode): string {
+function productKey(mode: Mode, rows: IngredientRow[]): string {
   if (mode === 'sorbet') return 'sorbet';
   if (mode === 'ice_cream') return 'ice_cream';
   if (mode === 'kulfi') return 'kulfi';
-  return mode === 'gelato' ? 'gelato_white' : 'gelato_white';
+  
+  // Detect fruit gelato vs white gelato
+  if (mode === 'gelato') {
+    const hasFruit = rows.some(r => r.ingredientData?.category === 'fruit');
+    return hasFruit ? 'gelato_fruit' : 'gelato_white';
+  }
+  
+  return 'gelato_white';
 }
 
 interface IngredientRow {
@@ -108,7 +116,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   // Helper to get constraints for current product type
   const getConstraints = () => {
     const mode = resolveMode(productType);
-    const key = productKey(mode);
+    const key = productKey(mode, rows);
     return PRODUCT_CONSTRAINTS[key] || PRODUCT_CONSTRAINTS.gelato_white;
   };
 
@@ -1783,7 +1791,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       }))}
                     targets={(() => {
                       const mode = resolveMode(productType);
-                      const constraints = PRODUCT_CONSTRAINTS[productKey(mode)];
+                      const constraints = PRODUCT_CONSTRAINTS[productKey(mode, rows)];
                       return {
                         fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
                         msnf_pct: (constraints.msnf.optimal[0] + constraints.msnf.optimal[1]) / 2,
@@ -1826,7 +1834,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                           }));
 
                         const mode = resolveMode(productType);
-                        const constraints = PRODUCT_CONSTRAINTS[productKey(mode)];
+                        const constraints = PRODUCT_CONSTRAINTS[productKey(mode, rows)];
                         
                         const targets = {
                           fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
