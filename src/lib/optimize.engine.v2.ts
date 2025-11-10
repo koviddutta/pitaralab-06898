@@ -8,6 +8,7 @@ import type { IngredientData } from '@/types/ingredients';
 import type { MetricsV2 } from './calc.v2';
 import { calcMetricsV2 } from './calc.v2';
 import { findIngredientByGenericId } from './ingredientMapper';
+import { findCanonical } from './ingredientMap';
 
 // ============================================================================
 // PHASE 1: ENHANCED INGREDIENT CLASSIFICATION
@@ -354,7 +355,7 @@ export function findApplicableRules(
 
 /**
  * Apply a substitution rule to a recipe
- * NOW USES INTELLIGENT INGREDIENT MAPPING
+ * NOW USES INTELLIGENT INGREDIENT MAPPING + CANONICAL ALIASES
  */
 export function applySubstitution(
   rows: Row[],
@@ -393,11 +394,28 @@ export function applySubstitution(
     const ratio = ratios[i] || ratios[0];
     const addGrams = reductionGrams * ratio;
 
-    // Try intelligent mapping first (for generic IDs like 'water', 'cream_35', etc.)
-    let toIngredient = findIngredientByGenericId(toName, allIngredients);
+    // ============ INGREDIENT ALIAS MAP INTEGRATION ============
+    // Try canonical alias matching first (e.g., "water" → "Water", "cream_35" → "Heavy Cream 35%")
+    let toIngredient: IngredientData | undefined;
     
+    // 1. Try to find by canonical type
+    const targetCanonical = findCanonical(toName);
+    if (targetCanonical) {
+      // Look for ingredient matching this canonical type
+      toIngredient = allIngredients.find(ing => findCanonical(ing) === targetCanonical);
+      
+      if (toIngredient) {
+        console.log(`✅ Canonical match: "${toName}" → "${toIngredient.name}" (${targetCanonical})`);
+      }
+    }
+    
+    // 2. Try intelligent mapping (generic IDs)
     if (!toIngredient) {
-      // Fall back to regex matching
+      toIngredient = findIngredientByGenericId(toName, allIngredients);
+    }
+    
+    // 3. Fall back to regex matching
+    if (!toIngredient) {
       const toRegex = new RegExp(toName, 'i');
       toIngredient = allIngredients.find(ing => 
         toRegex.test(ing.id) || toRegex.test(ing.name)
@@ -422,8 +440,11 @@ export function applySubstitution(
         });
       }
     } else {
-      // Ingredient not found - provide helpful message
-      console.warn(`⚠️ Substitution target "${toName}" not found. Add this ingredient to the database.`);
+      // Ingredient not found - provide helpful message with canonical hint
+      const canonicalHint = targetCanonical 
+        ? ` (looking for canonical: ${targetCanonical})` 
+        : '';
+      console.warn(`⚠️ Substitution target "${toName}"${canonicalHint} not found. Add this ingredient to the database.`);
     }
   });
 

@@ -15,6 +15,7 @@ import {
   SUBSTITUTION_PATTERNS
 } from './optimize.engine.v2';
 import { diagnoseBalancingFailure } from './ingredientMapper';
+import { findCanonical } from './ingredientMap';
 // @ts-ignore - javascript-lp-solver doesn't have types
 import solver from 'javascript-lp-solver';
 
@@ -54,7 +55,8 @@ export function balanceRecipeLP(
   const originalMetrics = calcMetricsV2(initialRows);
   const totalWeight = originalMetrics.total_g;
 
-  // Build LP model
+  // ============ LP BOUNDS & MOVEMENT PENALTY ============
+  // Build LP model with category-specific bounds and movement penalties
   const model: any = {
     optimize: 'deviation',
     opType: 'min',
@@ -62,38 +64,53 @@ export function balanceRecipeLP(
     variables: {}
   };
 
+  const lambda = 0.01; // Movement penalty weight - discourages large changes
+
   // Create variables for each ingredient (amount in grams)
   initialRows.forEach((row, idx) => {
     const varName = `ing_${idx}`;
     const ing = row.ing;
+    const initialAmount = row.grams;
+
+    // Calculate category-specific bounds
+    let minGrams = 0; // Can reduce to zero by default
+    let maxGrams = row.grams * 3; // Can increase up to 3x by default
+
+    // Apply category-specific bounds
+    if (ing.category === 'other') {
+      maxGrams = Math.min(maxGrams, 50); // Max 50g stabilizer/emulsifier
+    }
+    
+    if (ing.category === 'sugar' || (ing.sugars_pct || 0) >= 90) {
+      maxGrams = Math.min(maxGrams, totalWeight * 0.22); // Max 22% of mix weight
+    }
+    
+    if (ing.name.toLowerCase().includes('butter') && ing.fat_pct >= 75) {
+      maxGrams = Math.min(maxGrams, totalWeight * 0.08); // Max 8% butter (unless kulfi)
+    }
 
     const variable: any = {
-      deviation: 0, // We'll minimize deviation from targets, not individual ingredients
+      deviation: 0, // We'll minimize deviation from targets
+      movement: lambda, // Penalty for changing amounts (prefer minimal adjustments)
       // Contribution to constraints
       total_weight: 1, // Each gram contributes 1g to total weight
       fat_contribution: ing.fat_pct / 100,
       msnf_contribution: (ing.msnf_pct || 0) / 100,
-      sugars_contribution: (ing.sugars_pct || 0) / 100
+      sugars_contribution: (ing.sugars_pct || 0) / 100,
+      // Bounds
+      [`min_${idx}`]: 1,
+      [`max_${idx}`]: 1
     };
     
-    // Add bounds using constraint names
-    variable[`min_${idx}`] = 1;
-    variable[`max_${idx}`] = 1;
-    
     model.variables[varName] = variable;
+
+    // Store bounds in constraints
+    model.constraints[`min_${idx}`] = { min: minGrams };
+    model.constraints[`max_${idx}`] = { max: maxGrams };
   });
 
   // Constraint 1: Total weight must equal original weight
   model.constraints.total_weight = { equal: totalWeight };
-
-  // Constraint 2: Each ingredient has min/max bounds
-  initialRows.forEach((row, idx) => {
-    const minGrams = 0; // Can reduce to zero
-    const maxGrams = row.grams * 3; // Can increase up to 3x
-
-    model.constraints[`min_${idx}`] = { min: minGrams };
-    model.constraints[`max_${idx}`] = { max: maxGrams };
-  });
 
   // Constraint 3: Fat percentage target
   if (targets.fat_pct !== undefined) {
