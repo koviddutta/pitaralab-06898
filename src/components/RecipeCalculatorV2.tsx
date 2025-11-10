@@ -33,8 +33,8 @@ import TemperaturePanel from '@/components/TemperaturePanel';
 import ReverseEngineer from '@/components/ReverseEngineer';
 import IngredientAnalyzer from '@/components/flavour-engine/IngredientAnalyzer';
 import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
-import OptimizationEngine from '@/components/flavour-engine/OptimizationEngine';
 import AIOptimization from '@/components/flavour-engine/AIOptimization';
+import { advancedOptimize, OptimizerConfig } from '@/lib/optimize.advanced';
 import { RecipeHistoryDrawer } from '@/components/RecipeHistoryDrawer';
 import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionService';
 import { Wrench } from 'lucide-react';
@@ -1726,7 +1726,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TabsContent>
 
               <TabsContent value="analyzer" className="mt-4">
-                <IngredientAnalyzer />
+                <IngredientAnalyzer currentRecipe={rows} />
               </TabsContent>
 
               <TabsContent value="sugar-blend" className="mt-4">
@@ -1773,11 +1773,68 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     allTargetsMet={metrics.warnings.length === 0}
                     suggestions={[]}
                     isOptimizing={isOptimizing}
-                    onAutoOptimize={() => {
-                      toast({
-                        title: "AI Optimization",
-                        description: "This feature will use the main Balance Recipe button above",
-                      });
+                    onAutoOptimize={async (algorithm: OptimizerConfig['algorithm']) => {
+                      setIsOptimizing(true);
+                      try {
+                        // Convert to Row format for optimization
+                        const rowsForOptimize: Row[] = rows
+                          .filter(r => r.ingredientData)
+                          .map(r => ({
+                            ing: r.ingredientData!,
+                            grams: r.quantity_g,
+                            min: r.quantity_g * 0.5,
+                            max: r.quantity_g * 1.5
+                          }));
+
+                        const mode = resolveMode(productType);
+                        const constraints = PRODUCT_CONSTRAINTS[productKey(mode)];
+                        
+                        const targets = {
+                          fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
+                          msnf_pct: (constraints.msnf.optimal[0] + constraints.msnf.optimal[1]) / 2,
+                          ts_pct: (constraints.totalSolids.optimal[0] + constraints.totalSolids.optimal[1]) / 2
+                        };
+
+                        const optimized = advancedOptimize(rowsForOptimize, targets, {
+                          algorithm,
+                          maxIterations: algorithm === 'hybrid' ? 150 : 200,
+                          populationSize: 40
+                        });
+
+                        // Convert back to IngredientRow format
+                        const newRows = optimized.map(opt => {
+                          const ing = opt.ing;
+                          return {
+                            ingredientData: ing,
+                            ingredient: ing.name,
+                            quantity_g: opt.grams,
+                            sugars_g: ((ing.sugars_pct ?? 0) / 100) * opt.grams,
+                            fat_g: ((ing.fat_pct ?? 0) / 100) * opt.grams,
+                            msnf_g: ((ing.msnf_pct ?? 0) / 100) * opt.grams,
+                            other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * opt.grams,
+                            total_solids_g: 0
+                          } as IngredientRow;
+                        });
+
+                        newRows.forEach(r => {
+                          r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                        });
+
+                        setRows(newRows);
+                        toast({
+                          title: "AI Optimization Complete",
+                          description: `Recipe optimized using ${algorithm} algorithm`
+                        });
+                      } catch (error) {
+                        console.error('AI optimization error:', error);
+                        toast({
+                          title: "Optimization Failed",
+                          description: error instanceof Error ? error.message : "Failed to optimize recipe",
+                          variant: "destructive"
+                        });
+                      } finally {
+                        setIsOptimizing(false);
+                      }
                     }}
                   />
                 )}
