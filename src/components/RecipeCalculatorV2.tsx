@@ -27,6 +27,15 @@ import { diagnoseFeasibility, Feasibility, applyAutoFix } from '@/lib/diagnostic
 import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 import type { Mode } from '@/types/mode';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PairingsDrawer from '@/components/PairingsDrawer';
+import TemperaturePanel from '@/components/TemperaturePanel';
+import ReverseEngineer from '@/components/ReverseEngineer';
+import IngredientAnalyzer from '@/components/flavour-engine/IngredientAnalyzer';
+import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
+import OptimizationEngine from '@/components/flavour-engine/OptimizationEngine';
+import AIOptimization from '@/components/flavour-engine/AIOptimization';
+import { Wrench } from 'lucide-react';
 
 // ============================================================================
 // CENTRAL MODE RESOLVER - Single source of truth
@@ -87,6 +96,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [addIngredientIndex, setAddIngredientIndex] = useState<number | null>(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [balancingDiagnostics, setBalancingDiagnostics] = useState<any>(null);
+  const [selectedIngredientForPairing, setSelectedIngredientForPairing] = useState<IngredientData | null>(null);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -1446,6 +1456,207 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           validations={scienceValidation} 
           qualityScore={qualityScore}
         />
+      )}
+
+      {/* Advanced Tools Section */}
+      {rows.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader className="gradient-card border-b border-border/50">
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Wrench className="h-5 w-5 text-primary" />
+              Advanced Tools
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <Tabs defaultValue="pairings" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-2">
+                <TabsTrigger value="pairings" className="text-xs lg:text-sm">
+                  🍫 Pairings
+                </TabsTrigger>
+                <TabsTrigger value="temperature" className="text-xs lg:text-sm">
+                  🌡️ Temperature
+                </TabsTrigger>
+                <TabsTrigger value="reverse" className="text-xs lg:text-sm">
+                  🔄 Reverse
+                </TabsTrigger>
+                <TabsTrigger value="analyzer" className="text-xs lg:text-sm">
+                  🔬 Analyzer
+                </TabsTrigger>
+                <TabsTrigger value="sugar-blend" className="text-xs lg:text-sm">
+                  🍬 Sugar Blend
+                </TabsTrigger>
+                <TabsTrigger value="ai-optimize" className="text-xs lg:text-sm">
+                  🤖 AI Optimize
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="pairings" className="mt-4">
+                <PairingsDrawer
+                  selectedIngredient={selectedIngredientForPairing}
+                  availableIngredients={availableIngredients}
+                  currentMetrics={metrics}
+                  onAddIngredient={(ing, percentage) => {
+                    const totalMass = rows.reduce((sum, r) => sum + r.quantity_g, 0) || 1000;
+                    const gramsToAdd = (percentage / 100) * totalMass;
+                    
+                    const existingRow = rows.find(r => r.ingredient === ing.name);
+                    if (existingRow) {
+                      setRows(rows.map(r => 
+                        r.ingredient === ing.name 
+                          ? { ...r, quantity_g: r.quantity_g + gramsToAdd }
+                          : r
+                      ));
+                    } else {
+                      const newRow: IngredientRow = {
+                        ingredientData: ing,
+                        ingredient: ing.name,
+                        quantity_g: gramsToAdd,
+                        sugars_g: ((ing.sugars_pct ?? 0) / 100) * gramsToAdd,
+                        fat_g: ((ing.fat_pct ?? 0) / 100) * gramsToAdd,
+                        msnf_g: ((ing.msnf_pct ?? 0) / 100) * gramsToAdd,
+                        other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * gramsToAdd,
+                        total_solids_g: 0
+                      };
+                      newRow.total_solids_g = newRow.sugars_g + newRow.fat_g + newRow.msnf_g + newRow.other_solids_g;
+                      setRows([...rows, newRow]);
+                    }
+                    
+                    toast({
+                      title: "Pairing Added",
+                      description: `${ing.name} added at ${percentage}% (${gramsToAdd.toFixed(0)}g)`
+                    });
+                  }}
+                />
+                <div className="mt-4">
+                  <Label className="text-sm font-semibold mb-2 block">Select ingredient to analyze pairings:</Label>
+                  <Select 
+                    value={selectedIngredientForPairing?.id || ''} 
+                    onValueChange={(id) => {
+                      const ing = availableIngredients.find(i => i.id === id);
+                      setSelectedIngredientForPairing(ing || null);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an ingredient..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rows.map((row) => row.ingredientData && (
+                        <SelectItem key={row.ingredientData.id} value={row.ingredientData.id}>
+                          {row.ingredientData.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="temperature" className="mt-4">
+                {metrics && (
+                  <TemperaturePanel
+                    metrics={metrics}
+                    recipe={rows.map(r => ({
+                      ing: r.ingredientData || {
+                        id: r.ingredient.toLowerCase().replace(/\s+/g, '_'),
+                        name: r.ingredient,
+                        category: 'other' as const,
+                        water_pct: 0,
+                        fat_pct: 0
+                      },
+                      grams: r.quantity_g
+                    }))}
+                    onApplyTuning={(tunedRecipe) => {
+                      const newRows = tunedRecipe
+                        .filter(item => item.grams > 0)
+                        .map(item => {
+                          const ing = item.ing;
+                          return {
+                            ingredientData: ing,
+                            ingredient: ing.name,
+                            quantity_g: item.grams,
+                            sugars_g: ((ing.sugars_pct ?? 0) / 100) * item.grams,
+                            fat_g: ((ing.fat_pct ?? 0) / 100) * item.grams,
+                            msnf_g: ((ing.msnf_pct ?? 0) / 100) * item.grams,
+                            other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * item.grams,
+                            total_solids_g: 0
+                          } as IngredientRow;
+                        });
+                      newRows.forEach(r => {
+                        r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                      });
+                      setRows(newRows);
+                      toast({
+                        title: "Temperature Tuning Applied",
+                        description: "Recipe optimized for target temperature"
+                      });
+                    }}
+                  />
+                )}
+              </TabsContent>
+
+              <TabsContent value="reverse" className="mt-4">
+                <ReverseEngineer />
+              </TabsContent>
+
+              <TabsContent value="analyzer" className="mt-4">
+                <IngredientAnalyzer />
+              </TabsContent>
+
+              <TabsContent value="sugar-blend" className="mt-4">
+                <SugarBlendOptimizer
+                  productType={productType as 'gelato' | 'ice-cream' | 'sorbet'}
+                  totalSugarAmount={rows
+                    .filter(r => r.ingredientData?.category === 'sugar')
+                    .reduce((sum, r) => sum + r.quantity_g, 0)}
+                  onOptimizedBlend={(blend) => {
+                    // Remove existing sugar ingredients
+                    const nonSugarRows = rows.filter(r => r.ingredientData?.category !== 'sugar');
+                    
+                    // Add new sugar blend
+                    const blendRows = Object.entries(blend).map(([name, grams]) => {
+                      const ing = availableIngredients.find(i => i.name === name);
+                      if (!ing) return null;
+                      
+                      const newRow: IngredientRow = {
+                        ingredientData: ing,
+                        ingredient: ing.name,
+                        quantity_g: grams,
+                        sugars_g: ((ing.sugars_pct ?? 0) / 100) * grams,
+                        fat_g: ((ing.fat_pct ?? 0) / 100) * grams,
+                        msnf_g: ((ing.msnf_pct ?? 0) / 100) * grams,
+                        other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * grams,
+                        total_solids_g: 0
+                      };
+                      newRow.total_solids_g = newRow.sugars_g + newRow.fat_g + newRow.msnf_g + newRow.other_solids_g;
+                      return newRow;
+                    }).filter(Boolean) as IngredientRow[];
+                    
+                    setRows([...nonSugarRows, ...blendRows]);
+                    toast({
+                      title: "Sugar Blend Applied",
+                      description: "Recipe updated with optimized sugar blend"
+                    });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="ai-optimize" className="mt-4">
+                {metrics && (
+                  <AIOptimization
+                    allTargetsMet={metrics.warnings.length === 0}
+                    suggestions={[]}
+                    isOptimizing={isOptimizing}
+                    onAutoOptimize={() => {
+                      toast({
+                        title: "AI Optimization",
+                        description: "This feature will use the main Balance Recipe button above",
+                      });
+                    }}
+                  />
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
