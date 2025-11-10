@@ -1773,6 +1773,23 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     allTargetsMet={metrics.warnings.length === 0}
                     suggestions={[]}
                     isOptimizing={isOptimizing}
+                    currentRows={rows
+                      .filter(r => r.ingredientData)
+                      .map(r => ({
+                        ing: r.ingredientData!,
+                        grams: r.quantity_g,
+                        min: r.quantity_g * 0.5,
+                        max: r.quantity_g * 1.5
+                      }))}
+                    targets={(() => {
+                      const mode = resolveMode(productType);
+                      const constraints = PRODUCT_CONSTRAINTS[productKey(mode)];
+                      return {
+                        fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
+                        msnf_pct: (constraints.msnf.optimal[0] + constraints.msnf.optimal[1]) / 2,
+                        ts_pct: (constraints.totalSolids.optimal[0] + constraints.totalSolids.optimal[1]) / 2
+                      };
+                    })()}
                     onAutoOptimize={async (algorithm: OptimizerConfig['algorithm']) => {
                       setIsOptimizing(true);
                       try {

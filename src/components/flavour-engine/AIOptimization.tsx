@@ -1,27 +1,40 @@
 import { useState } from 'react';
-import { Sparkles, Zap, CheckCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { Sparkles, Zap, CheckCircle, AlertCircle, TrendingUp, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { OptimizerConfig } from '@/lib/optimize.advanced';
+import { OptimizerConfig, compareOptimizers } from '@/lib/optimize.advanced';
+import { Row, OptimizeTarget } from '@/lib/optimize';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface AIOptimizationProps {
   allTargetsMet: boolean;
   suggestions: string[];
   isOptimizing: boolean;
   onAutoOptimize: (algorithm: OptimizerConfig['algorithm']) => void;
+  currentRows?: Row[];
+  targets?: OptimizeTarget;
 }
 
 export default function AIOptimization({
   allTargetsMet,
   suggestions,
   isOptimizing,
-  onAutoOptimize
+  onAutoOptimize,
+  currentRows,
+  targets
 }: AIOptimizationProps) {
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<OptimizerConfig['algorithm']>('hybrid');
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonResults, setComparisonResults] = useState<Array<{
+    algorithm: string;
+    score: number;
+    time: number;
+    result: Row[];
+  }> | null>(null);
 
   const algorithmInfo = {
     'hill-climbing': {
@@ -71,6 +84,20 @@ export default function AIOptimization({
   };
 
   const currentSuggestions = suggestions.length > 0 ? suggestions : generateSuggestions();
+
+  const runComparison = async () => {
+    if (!currentRows || !targets) return;
+    
+    setIsComparing(true);
+    try {
+      const results = compareOptimizers(currentRows, targets);
+      setComparisonResults(results);
+    } catch (error) {
+      console.error('Comparison error:', error);
+    } finally {
+      setIsComparing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -152,24 +179,46 @@ export default function AIOptimization({
           </div>
 
           {/* Optimize Button */}
-          <Button 
-            onClick={() => onAutoOptimize(selectedAlgorithm)}
-            disabled={isOptimizing}
-            className="w-full"
-            size="lg"
-          >
-            {isOptimizing ? (
-              <>
-                <span className="animate-spin mr-2">⚙️</span>
-                Optimizing with {algorithmInfo[selectedAlgorithm].name}...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-5 w-5 mr-2" />
-                Auto-Optimize Recipe
-              </>
-            )}
-          </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              onClick={() => onAutoOptimize(selectedAlgorithm)}
+              disabled={isOptimizing || isComparing}
+              className="w-full"
+              size="lg"
+            >
+              {isOptimizing ? (
+                <>
+                  <span className="animate-spin mr-2">⚙️</span>
+                  Optimizing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Auto-Optimize
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              onClick={runComparison}
+              disabled={isOptimizing || isComparing || !currentRows || !targets}
+              variant="outline"
+              className="w-full"
+              size="lg"
+            >
+              {isComparing ? (
+                <>
+                  <span className="animate-spin mr-2">⚙️</span>
+                  Comparing...
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="h-5 w-5 mr-2" />
+                  Compare All
+                </>
+              )}
+            </Button>
+          </div>
 
           {/* Info Footer */}
           <div className="text-xs text-muted-foreground space-y-1 pt-4 border-t border-border/50">
@@ -183,6 +232,70 @@ export default function AIOptimization({
           </div>
         </CardContent>
       </Card>
+
+      {/* Comparison Results */}
+      {comparisonResults && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              Algorithm Comparison Results
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Performance metrics for all optimization algorithms (lower score is better)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Algorithm</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Rank</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {comparisonResults.map((result, idx) => (
+                  <TableRow key={result.algorithm}>
+                    <TableCell className="font-medium">
+                      {algorithmInfo[result.algorithm as OptimizerConfig['algorithm']]?.icon}{' '}
+                      {algorithmInfo[result.algorithm as OptimizerConfig['algorithm']]?.name || result.algorithm}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={idx === 0 ? 'default' : 'outline'}>
+                        {result.score.toFixed(3)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {result.time.toFixed(0)}ms
+                    </TableCell>
+                    <TableCell>
+                      {idx === 0 ? (
+                        <Badge variant="default" className="bg-green-600">
+                          🏆 Best
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">#{idx + 1}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            
+            <Alert className="mt-4">
+              <TrendingUp className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Winner: {algorithmInfo[comparisonResults[0].algorithm as OptimizerConfig['algorithm']]?.name}</strong>
+                <br />
+                This algorithm achieved the best score ({comparisonResults[0].score.toFixed(3)}) 
+                in {comparisonResults[0].time.toFixed(0)}ms. Click "Auto-Optimize" after selecting it to apply.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
