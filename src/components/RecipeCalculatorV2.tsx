@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
@@ -35,6 +35,8 @@ import IngredientAnalyzer from '@/components/flavour-engine/IngredientAnalyzer';
 import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
 import OptimizationEngine from '@/components/flavour-engine/OptimizationEngine';
 import AIOptimization from '@/components/flavour-engine/AIOptimization';
+import { RecipeHistoryDrawer } from '@/components/RecipeHistoryDrawer';
+import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionService';
 import { Wrench } from 'lucide-react';
 
 // ============================================================================
@@ -98,6 +100,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [balancingDiagnostics, setBalancingDiagnostics] = useState<any>(null);
   const [selectedIngredientForPairing, setSelectedIngredientForPairing] = useState<IngredientData | null>(null);
   const [showAdvancedToolsTutorial, setShowAdvancedToolsTutorial] = useState(false);
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -757,6 +760,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         title: 'Recipe saved',
         description: `"${recipeName}" has been saved successfully`
       });
+
+      // Save version history after successful save
+      if (recipeId) {
+        const ingredientsJson = rows.map(r => ({
+          ingredient: r.ingredient,
+          quantity_g: r.quantity_g,
+          sugars_g: r.sugars_g,
+          fat_g: r.fat_g,
+          msnf_g: r.msnf_g,
+          other_solids_g: r.other_solids_g,
+          total_solids_g: r.total_solids_g
+        }));
+
+        await saveRecipeVersion(
+          recipeId,
+          recipeName,
+          productType,
+          ingredientsJson,
+          metrics,
+          'Manual save'
+        );
+      }
     } catch (error: any) {
       toast({
         title: 'Save failed',
@@ -776,6 +801,47 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setCurrentRecipeId(null);
   };
 
+  const handleRestoreVersion = (version: RecipeVersion) => {
+    try {
+      // Restore recipe data from version
+      setRecipeName(version.recipe_name);
+      setProductType(version.product_type);
+      
+      // Restore ingredients
+      const restoredRows = Array.isArray(version.ingredients_json) 
+        ? version.ingredients_json.map((ing: any) => {
+            const ingredientData = availableIngredients.find(i => i.name === ing.ingredient);
+            return {
+              ingredientData,
+              ingredient: ing.ingredient,
+              quantity_g: ing.quantity_g || 0,
+              sugars_g: ing.sugars_g || 0,
+              fat_g: ing.fat_g || 0,
+              msnf_g: ing.msnf_g || 0,
+              other_solids_g: ing.other_solids_g || 0,
+              total_solids_g: ing.total_solids_g || 0
+            };
+          })
+        : [];
+      
+      setRows(restoredRows);
+      
+      // Recalculate metrics
+      setTimeout(() => calculateMetrics(), 100);
+      
+      toast({
+        title: "Version Restored",
+        description: `Recipe restored to version ${version.version_number}`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Restore Failed",
+        description: e.message || "Failed to restore version",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AddIngredientDialog 
@@ -789,6 +855,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           }
           setAddIngredientIndex(null);
         }}
+      />
+      
+      <RecipeHistoryDrawer
+        open={showHistoryDrawer}
+        onOpenChange={setShowHistoryDrawer}
+        recipeId={currentRecipeId}
+        onRestoreVersion={handleRestoreVersion}
       />
       
       {!isAuthenticated && (
@@ -1024,6 +1097,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save
+              </Button>
+              <Button 
+                onClick={() => setShowHistoryDrawer(true)} 
+                disabled={!currentRecipeId || !isAuthenticated}
+                variant="outline" 
+                size="sm"
+              >
+                <History className="mr-2 h-4 w-4" />
+                History
               </Button>
               <Button onClick={clearRecipe} variant="ghost" size="sm">
                 Clear

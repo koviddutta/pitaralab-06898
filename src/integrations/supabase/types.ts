@@ -580,6 +580,53 @@ export type Database = {
           },
         ]
       }
+      recipe_versions: {
+        Row: {
+          change_description: string | null
+          created_at: string
+          created_by: string
+          id: string
+          ingredients_json: Json
+          metrics_json: Json | null
+          product_type: string
+          recipe_id: string
+          recipe_name: string
+          version_number: number
+        }
+        Insert: {
+          change_description?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          ingredients_json?: Json
+          metrics_json?: Json | null
+          product_type: string
+          recipe_id: string
+          recipe_name: string
+          version_number?: number
+        }
+        Update: {
+          change_description?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          ingredients_json?: Json
+          metrics_json?: Json | null
+          product_type?: string
+          recipe_id?: string
+          recipe_name?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recipe_versions_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recipes: {
         Row: {
           created_at: string | null
