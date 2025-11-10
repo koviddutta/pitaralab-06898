@@ -15,9 +15,48 @@ import {
   SUBSTITUTION_PATTERNS
 } from './optimize.engine.v2';
 import { diagnoseBalancingFailure } from './ingredientMapper';
-import { findCanonical } from './ingredientMap';
+import { findCanonical, classifyIngredient } from './ingredientMap';
+import type { Mode } from '@/types/mode';
 // @ts-ignore - javascript-lp-solver doesn't have types
 import solver from 'javascript-lp-solver';
+
+// ============================================================================
+// SUGAR STRATEGY BOUNDS (Mode-Aware)
+// ============================================================================
+
+const SUGAR_BOUNDS = {
+  gelato: {
+    sucrose_max_pct: 22,
+    dextrose_max_pct: 8,
+    glucose_max_pct: 8,
+    invert_max_pct: 8
+  },
+  gelato_fruit: {
+    sucrose_max_pct: 18, // Lower for fruit
+    dextrose_max_pct: 8,
+    glucose_max_pct: 8,
+    invert_max_pct: 8
+  },
+  ice_cream: {
+    sucrose_max_pct: 22,
+    dextrose_max_pct: 8,
+    glucose_max_pct: 8,
+    invert_max_pct: 8
+  },
+  sorbet: {
+    total_sugars_min_pct: 24,
+    total_sugars_max_pct: 33,
+    sucrose_max_pct: 25,
+    dextrose_max_pct: 15, // Higher for texture
+    glucose_max_pct: 12
+  },
+  kulfi: {
+    sucrose_max_pct: 20,
+    dextrose_max_pct: 6,
+    glucose_max_pct: 6,
+    invert_max_pct: 6
+  }
+} as const;
 
 // ============================================================================
 // PHASE 3: LINEAR PROGRAMMING SOLVER
@@ -39,6 +78,7 @@ export function balanceRecipeLP(
   targets: OptimizeTarget,
   options: {
     tolerance?: number;
+    mode?: Mode;
   } = {}
 ): LPSolverResult {
   const tolerance = options.tolerance || 0.15; // 0.15% default tolerance
@@ -71,18 +111,37 @@ export function balanceRecipeLP(
     const varName = `ing_${idx}`;
     const ing = row.ing;
     const initialAmount = row.grams;
+    const mode = options.mode || 'gelato';
 
     // Calculate category-specific bounds
     let minGrams = 0; // Can reduce to zero by default
     let maxGrams = row.grams * 3; // Can increase up to 3x by default
+
+    // CORE INGREDIENT PROTECTION: Lock core ingredients within ±2%
+    const role = classifyIngredient(ing);
+    if (role === 'core') {
+      minGrams = initialAmount * 0.98; // -2% max
+      maxGrams = initialAmount * 1.02; // +2% max
+    }
 
     // Apply category-specific bounds
     if (ing.category === 'other') {
       maxGrams = Math.min(maxGrams, 50); // Max 50g stabilizer/emulsifier
     }
     
+    // Apply sugar bounds based on mode
     if (ing.category === 'sugar' || (ing.sugars_pct || 0) >= 90) {
-      maxGrams = Math.min(maxGrams, totalWeight * 0.22); // Max 22% of mix weight
+      const sugarBounds = SUGAR_BOUNDS[mode] || SUGAR_BOUNDS.gelato;
+      
+      if (ing.name.toLowerCase().includes('sucrose')) {
+        maxGrams = Math.min(maxGrams, totalWeight * ((sugarBounds as any).sucrose_max_pct / 100));
+      } else if (ing.name.toLowerCase().includes('dextrose')) {
+        maxGrams = Math.min(maxGrams, totalWeight * ((sugarBounds as any).dextrose_max_pct / 100));
+      } else if (ing.name.toLowerCase().includes('glucose')) {
+        maxGrams = Math.min(maxGrams, totalWeight * ((sugarBounds as any).glucose_max_pct / 100));
+      } else if (ing.name.toLowerCase().includes('invert')) {
+        maxGrams = Math.min(maxGrams, totalWeight * ((sugarBounds as any).invert_max_pct || 8) / 100);
+      }
     }
     
     if (ing.name.toLowerCase().includes('butter') && ing.fat_pct >= 75) {
@@ -326,28 +385,40 @@ export interface ProductConstraints {
 
 export const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
   gelato_white: {
-    totalSolids: { optimal: [36, 40], acceptable: [34, 42] },
+    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
     fat: { optimal: [6, 10], acceptable: [5, 12] },
-    msnf: { optimal: [9, 12], acceptable: [8, 13] },
-    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+    msnf: { optimal: [9, 12], acceptable: [7, 13] },
+    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
   },
   gelato_finished: {
-    totalSolids: { optimal: [36, 40], acceptable: [34, 42] },
+    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
     fat: { optimal: [6, 10], acceptable: [5, 12] },
     msnf: { optimal: [8, 11], acceptable: [7, 12] },
-    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
+  },
+  gelato: {
+    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
+    fat: { optimal: [6, 10], acceptable: [5, 12] },
+    msnf: { optimal: [9, 12], acceptable: [7, 13] },
+    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
   },
   ice_cream: {
     totalSolids: { optimal: [36, 42], acceptable: [34, 44] },
     fat: { optimal: [10, 16], acceptable: [8, 18] },
-    msnf: { optimal: [9, 12], acceptable: [8, 14] },
-    fpdt: { optimal: [2.2, 3.2], acceptable: [1.8, 3.5] }
+    msnf: { optimal: [9, 14], acceptable: [8, 15] },
+    fpdt: { optimal: [2.2, 3.2], acceptable: [2.0, 3.5] }
   },
   sorbet: {
-    totalSolids: { optimal: [28, 35], acceptable: [25, 38] },
-    fat: { optimal: [0, 0.5], acceptable: [0, 1] },
-    msnf: { optimal: [0, 0.5], acceptable: [0, 1] },
-    fpdt: { optimal: [2.0, 3.0], acceptable: [1.5, 3.5] }
+    totalSolids: { optimal: [32, 42], acceptable: [30, 44] },
+    fat: { optimal: [0, 1], acceptable: [0, 2] },
+    msnf: { optimal: [0, 1], acceptable: [0, 2] },
+    fpdt: { optimal: [-4.0, -2.0], acceptable: [-5.0, -1.0] } // NEGATIVE for sorbet
+  },
+  kulfi: {
+    totalSolids: { optimal: [38, 42], acceptable: [36, 44] },
+    fat: { optimal: [10, 12], acceptable: [9, 14] },
+    msnf: { optimal: [18, 25], acceptable: [16, 27] },
+    fpdt: { optimal: [2.0, 2.5], acceptable: [1.8, 2.8] }
   }
 };
 

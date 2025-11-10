@@ -60,7 +60,7 @@ export type MetricsV2 = {
 
 export type CalcOptionsV2 = {
   evaporation_pct?: number;
-  mode?: 'gelato' | 'ice_cream' | 'kulfi';
+  mode?: 'gelato' | 'ice_cream' | 'sorbet' | 'kulfi';
 };
 
 /**

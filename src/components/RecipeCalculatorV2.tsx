@@ -26,6 +26,7 @@ import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
 import { diagnoseFeasibility, Feasibility } from '@/lib/diagnostics';
 import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
+import type { Mode } from '@/types/mode';
 
 // ============================================================================
 // CENTRAL MODE RESOLVER - Single source of truth
@@ -35,17 +36,22 @@ import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
  * Resolve product type to calculation mode
  * Single source of truth for mode mapping
  */
-export function resolveMode(productType: string): 'gelato' | 'ice_cream' | 'kulfi' {
+export function resolveMode(productType: string): Mode {
   if (productType === 'ice_cream') return 'ice_cream';
   if (productType === 'gelato') return 'gelato';
-  return 'kulfi';
+  if (productType === 'sorbet') return 'sorbet';
+  if (productType === 'kulfi') return 'kulfi';
+  return 'gelato'; // safe fallback
 }
 
 /**
  * Map mode to product constraints key
  */
-function productKey(mode: 'gelato' | 'ice_cream' | 'kulfi'): string {
-  return mode === 'gelato' ? 'gelato_white' : mode;
+function productKey(mode: Mode): string {
+  if (mode === 'sorbet') return 'sorbet';
+  if (mode === 'ice_cream') return 'ice_cream';
+  if (mode === 'kulfi') return 'kulfi';
+  return mode === 'gelato' ? 'gelato_white' : 'gelato_white';
 }
 
 interface IngredientRow {
@@ -294,8 +300,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         ? {
             fat_pct: 7.5,           // Target 7.5% fat (6-10% range)
             msnf_pct: 10.5,         // Target 10.5% MSNF (9-12% range)
-            totalSugars_pct: 19,    // Target 19% total sugars (16-22% range)
-            ts_pct: 40.5,           // Target 40.5% total solids (36-45% range)
+            totalSugars_pct: 19,    // Target 19% total sugars (18-22% range)
+            ts_pct: 40.5,           // Target 40.5% total solids (37-46% range)
             fpdt: 3.0               // Target 3.0°C FPDT (2.5-3.5°C range)
           }
         : mode === 'ice_cream'
@@ -306,10 +312,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             ts_pct: 39,             // Target 39% total solids (36-42% range)
             fpdt: 2.7               // Target 2.7°C FPDT (2.2-3.2°C range)
           }
+        : mode === 'sorbet'
+        ? {
+            fat_pct: 0.5,           // Target 0.5% fat (0-1% range)
+            msnf_pct: 0.5,          // Target 0.5% MSNF (0-1% range)
+            totalSugars_pct: 28.5,  // Target 28.5% sugars (26-31% range)
+            ts_pct: 37,             // Target 37% total solids (32-42% range)
+            fpdt: -3.0              // Target -3.0°C FPDT (negative for sorbet)
+          }
         : {
             fat_pct: 11,            // Target 11% fat (10-12% range)
             msnf_pct: 21.5,         // Target 21.5% MSNF (18-25% range)
-            totalSugars_pct: 18,    // Target 18% sugars
+            totalSugars_pct: 18,    // Target 18% sugars (17-20% range)
             ts_pct: 40,             // Target 40% total solids (38-42% range)
             fpdt: 2.25              // Target 2.25°C FPDT (2.0-2.5°C range)
           };
@@ -343,7 +357,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       // ============ HARD FEASIBILITY GATE ============
       // Pre-flight check - must pass before attempting LP/heuristics
-      const feasibility: Feasibility = diagnoseFeasibility(optRows, availableIngredients, targets);
+      const feasibility: Feasibility = diagnoseFeasibility(optRows, availableIngredients, targets, mode);
 
       if (!feasibility.feasible) {
         console.log('❌ Feasibility check FAILED:', feasibility.reason);
@@ -468,8 +482,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         }
         
         if (result.success) {
+          const successMsg = mode === 'sorbet' 
+            ? '✅ Sorbet Balanced (no dairy)'
+            : `✅ ${mode === 'ice_cream' ? 'Ice Cream' : mode === 'gelato' ? 'Gelato' : 'Kulfi'} Balanced`;
+          
           toast({
-            title: `✅ Recipe Balanced (${result.strategy})`,
+            title: `${successMsg} (${result.strategy})`,
             description: (
               <div className="space-y-1 text-sm">
                 <div className="text-xs">{result.message}</div>

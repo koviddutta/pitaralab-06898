@@ -37,6 +37,27 @@ export function findCanonical(
 }
 
 /**
+ * Classify ingredient role for balancing protection
+ * Core ingredients (flavor) are locked at Δ ≤ 2%
+ * Balancing ingredients can be freely adjusted
+ */
+export type IngredientRole = 'core' | 'balancing';
+
+export function classifyIngredient(ing: IngredientData): IngredientRole {
+  const name = ing.name.toLowerCase();
+  
+  // Core (flavor) = locked at Δ ≤ 2%
+  const coreKeywords = ['fruit', 'cocoa', 'chocolate', 'paste', 'puree', 
+                        'vanilla', 'pistachio', 'almond', 'hazelnut', 'berry',
+                        'mango', 'strawberry', 'lemon', 'orange', 'banana'];
+  if (coreKeywords.some(kw => name.includes(kw))) return 'core';
+  if (ing.category === 'fruit' || ing.category === 'flavor') return 'core';
+  
+  // Balancing = adjustable
+  return 'balancing';
+}
+
+/**
  * Check database health for balancing essentials
  * @param allIngredients - Full ingredient database
  * @returns Health report with missing ingredients
