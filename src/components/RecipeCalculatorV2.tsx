@@ -23,7 +23,30 @@ import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';
 import { RecipeBalancerV2, ScienceValidation, PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
 import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
+import { diagnoseFeasibility, Feasibility } from '@/lib/diagnostics';
+import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
+
+// ============================================================================
+// CENTRAL MODE RESOLVER - Single source of truth
+// ============================================================================
+
+/**
+ * Resolve product type to calculation mode
+ * Single source of truth for mode mapping
+ */
+export function resolveMode(productType: string): 'gelato' | 'ice_cream' | 'kulfi' {
+  if (productType === 'ice_cream') return 'ice_cream';
+  if (productType === 'gelato') return 'gelato';
+  return 'kulfi';
+}
+
+/**
+ * Map mode to product constraints key
+ */
+function productKey(mode: 'gelato' | 'ice_cream' | 'kulfi'): string {
+  return mode === 'gelato' ? 'gelato_white' : mode;
+}
 
 interface IngredientRow {
   id?: string;
@@ -64,10 +87,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
   // Helper to get constraints for current product type
   const getConstraints = () => {
-    const productKey = productType === 'gelato' ? 'gelato_white' 
-                     : productType === 'ice_cream' ? 'ice_cream'
-                     : productType;
-    return PRODUCT_CONSTRAINTS[productKey] || PRODUCT_CONSTRAINTS.gelato_white;
+    const mode = resolveMode(productType);
+    const key = productKey(mode);
+    return PRODUCT_CONSTRAINTS[key] || PRODUCT_CONSTRAINTS.gelato_white;
   };
 
   useEffect(() => {
@@ -172,8 +194,6 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       const ing = newRows[index].ingredientData!;
       const qty = Number(value);
       
-      // Pass mode to calcMetricsV2 for correct validation
-      const mode = productType === 'ice_cream' ? 'ice_cream' : (productType === 'kulfi' ? 'kulfi' : 'gelato');
       newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
       newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
       newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
@@ -228,11 +248,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return;
     }
 
-    // Use the comprehensive v2.1 science engine
-    // Map product types to calculation modes - FIXED
-    const mode = productType === 'gelato' ? 'gelato' 
-               : productType === 'ice_cream' ? 'ice_cream' 
-               : 'kulfi';
+    // Use the comprehensive v2.1 science engine with central mode resolver
+    const mode = resolveMode(productType);
     const calculated = calcMetricsV2(calcRows, { mode });
 
     setMetrics(calculated);
@@ -270,10 +287,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setIsOptimizing(true);
 
     try {
-      // Define target ranges based on product type - FIXED MAPPING
-      const mode = productType === 'gelato' ? 'gelato' 
-                 : productType === 'ice_cream' ? 'ice_cream' 
-                 : 'kulfi';
+      // Define target ranges based on product type using central resolver
+      const mode = resolveMode(productType);
       
       const targets: OptimizeTarget = mode === 'gelato'
         ? {
@@ -325,6 +340,44 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         missingIngredients: diagnosis.missingIngredients,
         suggestions: diagnosis.suggestions
       });
+
+      // ============ HARD FEASIBILITY GATE ============
+      // Pre-flight check - must pass before attempting LP/heuristics
+      const feasibility: Feasibility = diagnoseFeasibility(optRows, availableIngredients, targets);
+
+      if (!feasibility.feasible) {
+        console.log('❌ Feasibility check FAILED:', feasibility.reason);
+        
+        setIsOptimizing(false);
+        
+        toast({
+          title: "⚠️ Cannot balance this recipe",
+          description: (
+            <div className="text-sm space-y-2">
+              {feasibility.reason && (
+                <div className="text-xs font-medium text-destructive">
+                  {feasibility.reason}
+                </div>
+              )}
+              <div className="text-xs font-semibold mb-1">💡 To fix this:</div>
+              <ul className="text-xs space-y-1">
+                {feasibility.suggestions.slice(0, 4).map((s, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-primary">•</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ),
+          variant: "destructive",
+          duration: 8000
+        });
+        
+        return; // HARD STOP - do not proceed
+      }
+
+      console.log('✅ Feasibility check passed');
 
       console.log('📊 Recipe ingredients:', optRows.map(r => ({
         name: r.ing.name,
@@ -386,9 +439,33 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       setRows(newRows);
       
+      // ============ POST-BALANCE AUTO-RECALC ============
+      // Immediately recalculate metrics with new balanced amounts
+      if (result.success) {
+        const recalcRows = result.rows
+          .filter(r => r.ing && r.grams > 0)
+          .map(r => ({ ing: r.ing, grams: r.grams }));
+
+        const recalcMode = resolveMode(productType);
+        const recalculatedMetrics = calcMetricsV2(recalcRows, { mode: recalcMode });
+
+        setMetrics(recalculatedMetrics);
+        console.log('🔄 Metrics auto-recalculated post-balance:', recalculatedMetrics);
+
+        // Scroll metrics into view
+        setTimeout(() => {
+          document.querySelector('[data-metrics-card]')?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'nearest' 
+          });
+        }, 100);
+      }
+      
       // Show detailed results
       setTimeout(() => {
-        calculateMetrics();
+        if (!result.success) {
+          calculateMetrics(); // Only recalc if balance failed
+        }
         
         if (result.success) {
           toast({
@@ -956,12 +1033,67 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               <div>Total Sugars: {balancingDiagnostics.targets.totalSugars_pct?.toFixed(1)}%</div>
               <div>FPDT: {balancingDiagnostics.targets.fpdt?.toFixed(2)}°C</div>
             </div>
+            
+            <Separator />
+            
+            <div className="space-y-2">
+              <div className="font-semibold">Database Health:</div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  const health = checkDbHealth(availableIngredients);
+                  setBalancingDiagnostics({
+                    ...balancingDiagnostics,
+                    dbHealth: health
+                  });
+                  
+                  if (health.healthy) {
+                    toast({
+                      title: "✅ Database Healthy",
+                      description: "All essential ingredients available for balancing",
+                      duration: 3000
+                    });
+                  } else {
+                    toast({
+                      title: "⚠️ Database Missing Ingredients",
+                      description: (
+                        <div className="text-xs space-y-1">
+                          <div className="font-medium">Missing:</div>
+                          <ul className="list-disc list-inside">
+                            {health.missing.map((m, i) => <li key={i}>{m}</li>)}
+                          </ul>
+                        </div>
+                      ),
+                      variant: "destructive",
+                      duration: 6000
+                    });
+                  }
+                }}
+              >
+                Run DB Health Check
+              </Button>
+              
+              {balancingDiagnostics.dbHealth && (
+                <div className="text-xs space-y-1 mt-2">
+                  <div className={balancingDiagnostics.dbHealth.hasWater ? 'text-green-600' : 'text-red-600'}>
+                    {balancingDiagnostics.dbHealth.hasWater ? '✓' : '✗'} Water (95%+ water)
+                  </div>
+                  <div className={balancingDiagnostics.dbHealth.hasCream35OrButter ? 'text-green-600' : 'text-red-600'}>
+                    {balancingDiagnostics.dbHealth.hasCream35OrButter ? '✓' : '✗'} Heavy Cream 35%+ or Butter
+                  </div>
+                  <div className={balancingDiagnostics.dbHealth.hasSMP ? 'text-green-600' : 'text-red-600'}>
+                    {balancingDiagnostics.dbHealth.hasSMP ? '✓' : '✗'} Skim Milk Powder (85%+ MSNF)
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
 
       {metrics && (
-        <Card>
+        <Card data-metrics-card>
           <CardHeader>
             <CardTitle>Calculated Metrics (Science v2.1)</CardTitle>
           </CardHeader>

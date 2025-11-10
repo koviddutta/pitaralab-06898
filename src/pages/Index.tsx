@@ -28,6 +28,7 @@ import { migratePinProfiles } from "@/lib/migratePinProfiles";
 import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import FooterBuildTag from "@/components/FooterBuildTag";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -483,6 +484,9 @@ const Index = () => {
           </Card>
         )}
       </div>
+      
+      {/* Build SHA & Cache Bust Footer */}
+      <FooterBuildTag />
     </div>
     </ErrorBoundary>
   );
