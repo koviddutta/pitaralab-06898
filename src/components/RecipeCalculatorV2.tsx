@@ -1264,17 +1264,37 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Solids</p>
-                <Badge variant={
-                  metrics.ts_pct >= getConstraints().totalSolids.optimal[0] && 
-                  metrics.ts_pct <= getConstraints().totalSolids.optimal[1]
-                    ? 'default'
-                    : metrics.ts_pct >= getConstraints().totalSolids.acceptable[0] && 
-                      metrics.ts_pct <= getConstraints().totalSolids.acceptable[1]
-                    ? 'secondary'
-                    : 'destructive'
-                }>
-                  {metrics.ts_pct.toFixed(1)}%
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={
+                    metrics.ts_pct >= getConstraints().totalSolids.optimal[0] && 
+                    metrics.ts_pct <= getConstraints().totalSolids.optimal[1]
+                      ? 'default'
+                      : metrics.ts_pct >= getConstraints().totalSolids.acceptable[0] && 
+                        metrics.ts_pct <= getConstraints().totalSolids.acceptable[1]
+                      ? 'secondary'
+                      : 'destructive'
+                  }>
+                    {metrics.ts_pct.toFixed(1)}%
+                  </Badge>
+                  {metrics.overrunPrediction && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs">
+                            ~{metrics.overrunPrediction.estimatedPct.toFixed(0)}% overrun
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <div className="space-y-1 text-xs">
+                            <div className="font-semibold">{metrics.overrunPrediction.category}</div>
+                            <div>Expected: {metrics.overrunPrediction.range[0]}-{metrics.overrunPrediction.range[1]}%</div>
+                            <div className="text-muted-foreground">{metrics.overrunPrediction.notes[0]}</div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Water</p>
@@ -1285,17 +1305,45 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <p className="text-sm text-muted-foreground">FPDT (Freezing Point)</p>
-                <Badge variant={
-                  metrics.fpdt >= getConstraints().fpdt.optimal[0] && 
-                  metrics.fpdt <= getConstraints().fpdt.optimal[1]
-                    ? 'default'
-                    : metrics.fpdt >= getConstraints().fpdt.acceptable[0] && 
-                      metrics.fpdt <= getConstraints().fpdt.acceptable[1]
-                    ? 'secondary'
-                    : 'destructive'
-                }>
-                  {metrics.fpdt.toFixed(2)}°C
-                </Badge>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={
+                        metrics.fpdt >= getConstraints().fpdt.optimal[0] && 
+                        metrics.fpdt <= getConstraints().fpdt.optimal[1]
+                          ? 'default'
+                          : metrics.fpdt >= getConstraints().fpdt.acceptable[0] && 
+                            metrics.fpdt <= getConstraints().fpdt.acceptable[1]
+                          ? 'secondary'
+                          : 'destructive'
+                      }>
+                        {metrics.fpdt.toFixed(2)}°C
+                      </Badge>
+                    </TooltipTrigger>
+                    {metrics.servingTemp && (
+                      <TooltipContent className="max-w-sm">
+                        <div className="space-y-2 text-xs">
+                          <div className="font-semibold">🌡️ Serving Temperature Guide</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <div className="text-muted-foreground">Draw Temp:</div>
+                              <div className="font-medium">{metrics.servingTemp.drawTempC}°C</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Serve Temp:</div>
+                              <div className="font-medium">{metrics.servingTemp.serveTempC}°C</div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Hardening:</div>
+                            <div>{metrics.servingTemp.hardeningTimeHours}h in blast freezer</div>
+                          </div>
+                          <div className="text-muted-foreground">{metrics.servingTemp.notes[0]}</div>
+                        </div>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">POD Index (Sweetness)</p>

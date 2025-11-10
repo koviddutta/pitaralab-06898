@@ -5,6 +5,8 @@
 
 import { IngredientData } from '@/types/ingredients';
 import leightonTable from './leightonTable.json';
+import { adjustPACforAcids, AcidityAdjustment, FruitAcidityInput } from './fruit.v1';
+import { predictOverrun, suggestServingTemp, OverrunPrediction, ServingTempRecommendation } from './serving.v1';
 
 export type MetricsV2 = {
   // Basic composition (g)
@@ -49,6 +51,11 @@ export type MetricsV2 = {
   // Warnings
   warnings: string[];
   clampedLeighton?: boolean;
+
+  // P2 Science Features
+  fruitAdjustments?: AcidityAdjustment;
+  overrunPrediction?: OverrunPrediction;
+  servingTemp?: ServingTempRecommendation;
 };
 
 export type CalcOptionsV2 = {
@@ -249,7 +256,35 @@ export function calcMetricsV2(
   
   const pod_index = totalSugars_g > 0 ? pod_numerator / totalSugars_g : 100;
 
-  // 10. Validation warnings
+  // 10. P2 Science: Fruit Acidity Analysis
+  let fruitAdjustments: AcidityAdjustment | undefined;
+  
+  for (const { ing, grams } of rows) {
+    if (ing.category === 'fruit' && ing.acidity_citric_pct && ing.brix_estimate) {
+      const fruitInput: FruitAcidityInput = {
+        acidityPct: ing.acidity_citric_pct,
+        brixPct: ing.brix_estimate,
+        fruitGrams: grams,
+        totalMixGrams: total_after_evap_g
+      };
+      
+      const adjustment = adjustPACforAcids(fruitInput);
+      
+      // Add fruit acidity notes to warnings
+      adjustment.notes.forEach(note => {
+        warnings.push(`🍋 ${ing.name}: ${note}`);
+      });
+      
+      // Store adjustment for UI display (take first/most significant fruit)
+      if (!fruitAdjustments) {
+        fruitAdjustments = adjustment;
+      }
+      
+      break; // Process only first fruit for now (can extend to multi-fruit later)
+    }
+  }
+
+  // 11. Validation warnings
   const mode = opts.mode || 'gelato';
   
   if (mode === 'gelato') {
@@ -321,6 +356,25 @@ export function calcMetricsV2(
     warnings.push(`🔧 Too hard (FPDT > 3.5°C): Add dextrose 2-4% or increase water within guardrails.`);
   }
 
+  // 12. P2 Science: Overrun Prediction
+  const overrunPrediction = predictOverrun({
+    fatPct: fat_pct,
+    tsPct: ts_pct,
+    stabilizerPct: 0.5, // Assume default stabilizer (can be refined)
+    proteinPct: protein_pct,
+    processType: 'batch',
+    agingTimeHours: 4
+  });
+
+  // 13. P2 Science: Serving Temperature Guidance
+  const servingTemp = suggestServingTemp({
+    fpdtC: fpdt,
+    fatPct: fat_pct,
+    sugarsPct: totalSugars_pct,
+    overrunPct: overrunPrediction.estimatedPct,
+    productType: mode === 'gelato' ? 'gelato' : mode === 'ice_cream' ? 'ice_cream' : 'kulfi'
+  });
+
   return {
     total_g: total_after_evap_g,
     water_g: water_after_evap_g,
@@ -355,6 +409,11 @@ export function calcMetricsV2(
     pod_index,
 
     warnings,
-    clampedLeighton: leightonResult.clamped
+    clampedLeighton: leightonResult.clamped,
+
+    // P2 Science Features
+    fruitAdjustments,
+    overrunPrediction,
+    servingTemp
   };
 }
