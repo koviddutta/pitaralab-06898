@@ -23,7 +23,7 @@ import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';
 import { RecipeBalancerV2, ScienceValidation, PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
 import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
-import { diagnoseFeasibility, Feasibility } from '@/lib/diagnostics';
+import { diagnoseFeasibility, Feasibility, applyAutoFix } from '@/lib/diagnostics';
 import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 import type { Mode } from '@/types/mode';
@@ -362,33 +362,79 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       if (!feasibility.feasible) {
         console.log('❌ Feasibility check FAILED:', feasibility.reason);
         
-        setIsOptimizing(false);
+        // Try auto-fix before giving up
+        const autoFix = applyAutoFix(optRows, availableIngredients, mode, feasibility);
         
-        toast({
-          title: "⚠️ Cannot balance this recipe",
-          description: (
-            <div className="text-sm space-y-2">
-              {feasibility.reason && (
-                <div className="text-xs font-medium text-destructive">
-                  {feasibility.reason}
-                </div>
-              )}
-              <div className="text-xs font-semibold mb-1">💡 To fix this:</div>
+        if (autoFix.applied) {
+          console.log('🛠️ Auto-fix applied:', autoFix.addedIngredients);
+          
+          // Add auto-fixed ingredients to optRows
+          autoFix.addedIngredients.forEach(added => {
+            const ing = availableIngredients.find(i => i.name === added.name);
+            if (ing) {
+              optRows.push({ ing, grams: added.grams, min: 0, max: 1000 });
+              
+              // Also add to UI rows for display
+              const newRow: IngredientRow = {
+                ingredientData: ing,
+                ingredient: ing.name,
+                quantity_g: added.grams,
+                sugars_g: ((ing.sugars_pct ?? 0) / 100) * added.grams,
+                fat_g: ((ing.fat_pct ?? 0) / 100) * added.grams,
+                msnf_g: ((ing.msnf_pct ?? 0) / 100) * added.grams,
+                other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * added.grams,
+                total_solids_g: 0
+              };
+              newRow.total_solids_g = newRow.sugars_g + newRow.fat_g + newRow.msnf_g + newRow.other_solids_g;
+              rows.push(newRow);
+            }
+          });
+          
+          toast({
+            title: autoFix.message,
+            description: (
               <ul className="text-xs space-y-1">
-                {feasibility.suggestions.slice(0, 4).map((s, i) => (
-                  <li key={i} className="flex items-start gap-1">
-                    <span className="text-primary">•</span>
-                    <span>{s}</span>
-                  </li>
+                {autoFix.addedIngredients.map((a, i) => (
+                  <li key={i}>+ {a.grams.toFixed(1)}g {a.name} ({a.reason})</li>
                 ))}
               </ul>
-            </div>
-          ),
-          variant: "destructive",
-          duration: 8000
-        });
-        
-        return; // HARD STOP - do not proceed
+            ),
+            duration: 5000
+          });
+          
+          // Continue to balancing with fixed recipe...
+          console.log('✅ Proceeding with auto-fixed recipe');
+        } else {
+          // Only stop if auto-fix couldn't help
+          console.log('❌ Auto-fix could not help');
+          setIsOptimizing(false);
+          
+          toast({
+            title: "⚠️ Cannot balance this recipe",
+            description: (
+              <div className="text-sm space-y-2">
+                {feasibility.reason && (
+                  <div className="text-xs font-medium text-destructive">
+                    {feasibility.reason}
+                  </div>
+                )}
+                <div className="text-xs font-semibold mb-1">💡 To fix this:</div>
+                <ul className="text-xs space-y-1">
+                  {feasibility.suggestions.slice(0, 4).map((s, i) => (
+                    <li key={i} className="flex items-start gap-1">
+                      <span className="text-primary">•</span>
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+            variant: "destructive",
+            duration: 8000
+          });
+          
+          return; // HARD STOP - do not proceed
+        }
       }
 
       console.log('✅ Feasibility check passed');
