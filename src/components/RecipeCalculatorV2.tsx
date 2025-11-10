@@ -1088,6 +1088,122 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 </div>
               )}
             </div>
+
+            <Separator />
+            
+            {/* SE/AFP Audit Panel */}
+            {metrics && rows.length > 0 && (
+              <div className="space-y-2">
+                <div className="font-semibold">🔬 SE/AFP Audit (Sugar Analysis):</div>
+                <div className="text-xs space-y-1 bg-muted/30 p-2 rounded">
+                  {(() => {
+                    // Calculate per-sugar SE and AFP breakdown
+                    const sugarBreakdown: Array<{
+                      name: string;
+                      grams: number;
+                      spCoeff: number;
+                      pacCoeff: number;
+                      seContribution: number;
+                      afpContribution: number;
+                    }> = [];
+                    
+                    let totalSE = 0;
+                    let totalAFP = 0;
+                    
+                    rows.forEach(row => {
+                      if (!row.ingredientData) return;
+                      
+                      const ing = row.ingredientData;
+                      const sugars_g = (ing.sugars_pct / 100) * row.quantity_g;
+                      
+                      if (sugars_g > 0.1) {
+                        const spCoeff = ing.sp_coeff || 1.0;
+                        const pacCoeff = ing.pac_coeff || 1.9;
+                        
+                        // SE = sugars_g * sp_coeff (sucrose equivalents for sweetness)
+                        const seContribution = sugars_g * spCoeff;
+                        
+                        // AFP = sugars_g * pac_coeff (anti-freezing power)
+                        const afpContribution = sugars_g * pacCoeff;
+                        
+                        totalSE += seContribution;
+                        totalAFP += afpContribution;
+                        
+                        sugarBreakdown.push({
+                          name: ing.name,
+                          grams: sugars_g,
+                          spCoeff,
+                          pacCoeff,
+                          seContribution,
+                          afpContribution
+                        });
+                      }
+                    });
+                    
+                    return (
+                      <>
+                        <div className="font-semibold mb-1">Sugar Ingredients:</div>
+                        {sugarBreakdown.length === 0 && (
+                          <div className="text-muted-foreground">No sugar ingredients detected</div>
+                        )}
+                        {sugarBreakdown.map((sugar, i) => (
+                          <div key={i} className="ml-2 space-y-0.5 mb-2 pb-2 border-b border-border/50 last:border-0">
+                            <div className="font-medium text-primary">{sugar.name}</div>
+                            <div className="ml-2 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                              <div>Amount:</div>
+                              <div className="font-mono">{sugar.grams.toFixed(1)}g</div>
+                              
+                              <div>SP Coeff:</div>
+                              <div className="font-mono">{sugar.spCoeff.toFixed(2)}</div>
+                              
+                              <div>PAC Coeff:</div>
+                              <div className="font-mono">{sugar.pacCoeff.toFixed(2)}</div>
+                              
+                              <div className="text-blue-600">SE:</div>
+                              <div className="font-mono text-blue-600">
+                                {sugar.seContribution.toFixed(1)}g ({totalSE > 0 ? ((sugar.seContribution / totalSE) * 100).toFixed(0) : 0}%)
+                              </div>
+                              
+                              <div className="text-purple-600">AFP:</div>
+                              <div className="font-mono text-purple-600">
+                                {sugar.afpContribution.toFixed(1)} ({totalAFP > 0 ? ((sugar.afpContribution / totalAFP) * 100).toFixed(0) : 0}%)
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <Separator className="my-2" />
+                        
+                        <div className="font-semibold bg-primary/10 p-2 rounded space-y-1">
+                          <div className="flex justify-between">
+                            <span>Total SE (Sucrose Equiv):</span>
+                            <span className="font-mono text-blue-600">{totalSE.toFixed(1)}g</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Total AFP (Anti-Freeze):</span>
+                            <span className="font-mono text-purple-600">{totalAFP.toFixed(1)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Calculated SE (v2.1):</span>
+                            <span className="font-mono text-green-600">{metrics.se_g.toFixed(1)}g</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>POD Index:</span>
+                            <span className="font-mono">{metrics.pod_index.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-[10px] text-muted-foreground mt-2 space-y-0.5">
+                          <div>💡 SE = Sweetness Power × Sugar Weight</div>
+                          <div>💡 AFP = PAC Coefficient × Sugar Weight</div>
+                          <div>💡 POD = Protein/Other/Dairy balance index</div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
