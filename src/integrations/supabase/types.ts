@@ -292,6 +292,7 @@ export type Database = {
       ingredients: {
         Row: {
           category: string
+          characterization_pct: number | null
           cost_per_kg: number | null
           created_at: string | null
           fat_pct: number | null
@@ -311,6 +312,7 @@ export type Database = {
         }
         Insert: {
           category: string
+          characterization_pct?: number | null
           cost_per_kg?: number | null
           created_at?: string | null
           fat_pct?: number | null
@@ -330,6 +332,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          characterization_pct?: number | null
           cost_per_kg?: number | null
           created_at?: string | null
           fat_pct?: number | null
