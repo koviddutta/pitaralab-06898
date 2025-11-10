@@ -11,7 +11,6 @@ import { SmartInsightsPanel } from "@/components/SmartInsightsPanel";
 import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
-import FlavourEngine from "@/components/FlavourEngine";
 import MobileRecipeInput from "@/components/MobileRecipeInput";
 import PasteStudio from "@/components/PasteStudio";
 import { CostingModule } from "@/components/CostingModule";

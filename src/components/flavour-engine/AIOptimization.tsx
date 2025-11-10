@@ -3,7 +3,11 @@ import React from 'react';
 import { Zap, CheckCircle, Target, Brain, Sparkles } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { OptimizationSuggestion } from './types';
+
+interface OptimizationSuggestion {
+  message: string;
+  action: () => void;
+}
 
 interface AIOptimizationProps {
   allTargetsMet: boolean;
