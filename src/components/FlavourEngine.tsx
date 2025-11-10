@@ -10,7 +10,8 @@ import RecipeInputs from './flavour-engine/RecipeInputs';
 import ChemistryAnalysis from './flavour-engine/ChemistryAnalysis';
 import AIOptimization from './flavour-engine/AIOptimization';
 import { Ingredient, RecipeTargets } from './flavour-engine/types';
-import { calculateRecipeMetrics, checkTargets, generateOptimizationSuggestions } from './flavour-engine/utils';
+import { PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
+import type { Mode } from '@/types/mode';
 import AIInsights from './flavour-engine/AIInsights';
 import IngredientAnalyzer from './flavour-engine/IngredientAnalyzer';
 import DatabaseManager from './DatabaseManager';
@@ -185,23 +186,70 @@ const FlavourEngine = () => {
     return { ing, grams };
   });
 
+  // Use unified calc.v2 for all calculations
+  const modernMetricsV2 = modernRecipeRows.length > 0 ? calcMetricsV2(modernRecipeRows) : null;
+
+  // Keep old calc for backward compatibility with existing components
   const modernMetrics = modernRecipeRows.length > 0 ? calcMetrics(modernRecipeRows) : {
     ts_add_pct: 0, fat_pct: 0, sugars_pct: 0, msnf_pct: 0, sp: 0, pac: 0,
     total_g: 0, water_g: 0, sugars_g: 0, fat_g: 0, msnf_g: 0, other_g: 0,
     water_pct: 0, other_pct: 0, ts_add_g: 0, ts_mass_g: 0, ts_mass_pct: 0
   };
 
-  // For saving to database, use v2 metrics
-  const modernMetricsV2 = modernRecipeRows.length > 0 ? calcMetricsV2(modernRecipeRows) : null;
+  // Map UI product to calculation mode
+  const resolveMode = (productType: string): Mode => {
+    if (productType === 'ice-cream') return 'ice_cream';
+    if (productType === 'gelato') return 'gelato';
+    if (productType === 'sorbet') return 'sorbet';
+    return 'gelato';
+  };
 
-  // Map UI product to parameter profile key
+  const mode = resolveMode(selectedProduct);
+  const productKey = mode === 'ice_cream' ? 'ice_cream' : mode === 'sorbet' ? 'sorbet' : 'gelato_white';
+  const constraints = PRODUCT_CONSTRAINTS[productKey];
+
+  // For saving to database
   const paramProduct: 'ice_cream'|'gelato_white'|'gelato_finished'|'fruit_gelato'|'sorbet' =
     selectedProduct === 'ice-cream' ? 'ice_cream' :
     selectedProduct === 'gelato'    ? 'gelato_finished' :
                                       'sorbet';
 
-  const metrics = calculateRecipeMetrics(recipe, ingredients);
-  const targetResults = checkTargets(metrics, targets);
+  // Convert v2 metrics to legacy format for existing UI components
+  const metrics = modernMetricsV2 ? {
+    totalSolids: modernMetricsV2.ts_pct,
+    fat: modernMetricsV2.fat_pct,
+    msnf: modernMetricsV2.msnf_pct,
+    pac: modernMetricsV2.fpdt,
+    sweetness: modernMetricsV2.totalSugars_pct,
+    cost: 0, // Not calculated in v2
+    totalWeight: modernMetricsV2.total_g
+  } : {
+    totalSolids: 0,
+    fat: 0,
+    msnf: 0,
+    pac: 0,
+    sweetness: 0,
+    cost: 0,
+    totalWeight: 0
+  };
+
+  // Check targets using v2 constraints
+  const targetResults = {
+    totalSolids: modernMetricsV2 ? 
+      modernMetricsV2.ts_pct >= constraints.totalSolids.optimal[0] && 
+      modernMetricsV2.ts_pct <= constraints.totalSolids.optimal[1] : false,
+    fat: modernMetricsV2 ? 
+      modernMetricsV2.fat_pct >= constraints.fat.optimal[0] &&
+      modernMetricsV2.fat_pct <= constraints.fat.optimal[1] : false,
+    msnf: modernMetricsV2 ?
+      modernMetricsV2.msnf_pct >= constraints.msnf.optimal[0] &&
+      modernMetricsV2.msnf_pct <= constraints.msnf.optimal[1] : false,
+    pac: modernMetricsV2 ?
+      modernMetricsV2.fpdt >= constraints.fpdt.optimal[0] &&
+      modernMetricsV2.fpdt <= constraints.fpdt.optimal[1] : false,
+    sweetness: true // Use sugars validation instead
+  };
+  
   const allTargetsMet = Object.values(targetResults).every(result => result);
 
   const updateRecipe = (ingredient: string, value: string) => {
@@ -219,7 +267,8 @@ const FlavourEngine = () => {
     setRecentChanges(prev => [...prev.slice(-4), `Changed ${ingredient} to ${value}g`]);
   };
 
-  const suggestions = generateOptimizationSuggestions(targetResults, metrics, targets, recipe, updateRecipe);
+  // Suggestions now handled by RecipeCalculatorV2 balancing engine
+  const suggestions: any[] = [];
 
   const handleAutoOptimize = async () => {
     setIsOptimizing(true);
