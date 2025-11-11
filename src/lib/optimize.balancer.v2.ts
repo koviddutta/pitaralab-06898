@@ -144,8 +144,10 @@ export function balanceRecipeLP(
       }
     }
     
+    // PHASE 1: Mode-aware butter bounds
     if (ing.name.toLowerCase().includes('butter') && ing.fat_pct >= 75) {
-      maxGrams = Math.min(maxGrams, totalWeight * 0.08); // Max 8% butter (unless kulfi)
+      const butterMax = mode === 'kulfi' ? 0.15 : 0.08; // Kulfi allows 15% butter, others 8%
+      maxGrams = Math.min(maxGrams, totalWeight * butterMax);
     }
 
     const variable: any = {
@@ -196,6 +198,25 @@ export function balanceRecipeLP(
       min: targetSugarsGrams - (tolerance / 100 * totalWeight),
       max: targetSugarsGrams + (tolerance / 100 * totalWeight)
     };
+  }
+
+  // PHASE 1: Sorbet sugar enforcement (26-31% total sugars, NO dairy)
+  const mode = options.mode || 'gelato';
+  if (mode === 'sorbet') {
+    // Enforce sorbet sugar range (overrides generic target if present)
+    model.constraints.sugars_contribution = {
+      min: 0.26 * totalWeight,
+      max: 0.31 * totalWeight
+    };
+    
+    // Block dairy additions by setting negative fat/MSNF coefficients to zero contribution
+    initialRows.forEach((row, idx) => {
+      const varName = `ing_${idx}`;
+      if (row.ing.fat_pct > 1 || (row.ing.msnf_pct || 0) > 1) {
+        // Force dairy ingredients to zero for sorbet
+        model.constraints[`max_${idx}`] = { max: 0 };
+      }
+    });
   }
 
   try {

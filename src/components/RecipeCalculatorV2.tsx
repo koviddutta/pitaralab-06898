@@ -40,6 +40,8 @@ import { advancedOptimize, OptimizerConfig } from '@/lib/optimize.advanced';
 import { RecipeHistoryDrawer } from '@/components/RecipeHistoryDrawer';
 import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionService';
 import { Wrench } from 'lucide-react';
+import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
+import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
 
 // ============================================================================
 // CENTRAL MODE RESOLVER - Single source of truth
@@ -114,6 +116,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   });
   const isMobile = useIsMobile();
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [lastBalanceStrategy, setLastBalanceStrategy] = useState<'LP' | 'Heuristic' | 'Auto-Fix' | undefined>(undefined);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -551,13 +554,27 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         setMetrics(recalculatedMetrics);
         console.log('🔄 Metrics auto-recalculated post-balance:', recalculatedMetrics);
 
-        // Scroll metrics into view
+        // PHASE 2: Scroll metrics into view with highlight animation
         setTimeout(() => {
-          document.querySelector('[data-metrics-card]')?.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'nearest' 
-          });
+          const metricsCard = document.querySelector('[data-metrics-card]') as HTMLElement;
+          if (metricsCard) {
+            metricsCard.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'nearest' 
+            });
+            
+            // Add brief highlight animation
+            metricsCard.style.outline = '3px solid hsl(var(--primary))';
+            metricsCard.style.outlineOffset = '4px';
+            metricsCard.style.transition = 'outline 0.3s ease';
+            setTimeout(() => {
+              metricsCard.style.outline = 'none';
+            }, 2000);
+          }
         }, 100);
+        
+        // Store strategy for debug panel
+        setLastBalanceStrategy(result.strategy as 'LP' | 'Heuristic');
       }
       
       // Show detailed results
@@ -1390,6 +1407,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         </Card>
       )}
 
+      {/* PHASE 1: DB Health Check - Before metrics */}
+      {rows.length > 0 && (
+        <div className="mt-4">
+          <DatabaseHealthIndicator 
+            availableIngredients={availableIngredients}
+            compact={true}
+          />
+        </div>
+      )}
+
       {metrics && (
         <Card data-metrics-card>
           <CardHeader>
@@ -1563,6 +1590,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         <ScienceValidationPanel 
           validations={scienceValidation} 
           qualityScore={qualityScore}
+        />
+      )}
+
+      {/* PHASE 2: Debug Panel - Below metrics */}
+      {balancingDiagnostics && (
+        <BalancingDebugPanel 
+          diagnostics={balancingDiagnostics}
+          lastStrategy={lastBalanceStrategy}
         />
       )}
 
