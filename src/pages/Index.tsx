@@ -28,6 +28,8 @@ import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import FooterBuildTag from "@/components/FooterBuildTag";
+import AIFlavourEngine from "@/pages/AIFlavourEngine";
+import { QuickAccessPanel } from "@/components/QuickAccessPanel";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -290,7 +292,15 @@ const Index = () => {
             >
               📊 Calculator
             </TabsTrigger>
-            {/* AI Engine tab removed - features now in Calculator > Advanced Tools */}
+            <TabsTrigger 
+              value="ai-flavour-engine"
+              className={isMobile 
+                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
+                : 'flex-1 min-w-[140px] font-medium'}
+              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
+            >
+              🧪 AI Engine
+            </TabsTrigger>
             <TabsTrigger 
               value="paste-studio"
               className={isMobile 
@@ -385,7 +395,11 @@ const Index = () => {
 
           <TabsContent value="calculator" className="mt-4 md:mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 space-y-6">
+                <QuickAccessPanel 
+                  onNavigate={(tab) => setCurrentTab(tab)}
+                  hasRecipe={calculatorRecipe.length > 0}
+                />
                 <RecipeCalculatorV2 
                   onRecipeChange={(recipe, metrics, productType) => {
                     setCalculatorRecipe(recipe);
@@ -402,6 +416,14 @@ const Index = () => {
                 />
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="ai-flavour-engine" className="mt-4 md:mt-6">
+            <AIFlavourEngine 
+              initialRecipe={calculatorRecipe}
+              initialMetrics={calculatorMetrics}
+              initialProductType={calculatorProductType}
+            />
           </TabsContent>
 
           <TabsContent value="paste-studio" className="mt-4 md:mt-6">

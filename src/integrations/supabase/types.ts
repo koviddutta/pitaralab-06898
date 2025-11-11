@@ -62,6 +62,87 @@ export type Database = {
         }
         Relationships: []
       }
+      analysis_history: {
+        Row: {
+          analysis_type: string
+          created_at: string | null
+          id: string
+          recipe_data: Json
+          recipe_name: string | null
+          results: Json
+          user_id: string
+        }
+        Insert: {
+          analysis_type: string
+          created_at?: string | null
+          id?: string
+          recipe_data: Json
+          recipe_name?: string | null
+          results: Json
+          user_id: string
+        }
+        Update: {
+          analysis_type?: string
+          created_at?: string | null
+          id?: string
+          recipe_data?: Json
+          recipe_name?: string | null
+          results?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      balance_events: {
+        Row: {
+          created_at: string | null
+          error_reason: string | null
+          feasible: boolean
+          final_rows: Json | null
+          id: string
+          initial_rows: Json
+          metrics: Json | null
+          mode: string
+          product_type: string
+          strategy: string | null
+          success: boolean
+          suggestions: Json | null
+          targets: Json
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_reason?: string | null
+          feasible: boolean
+          final_rows?: Json | null
+          id?: string
+          initial_rows: Json
+          metrics?: Json | null
+          mode: string
+          product_type: string
+          strategy?: string | null
+          success: boolean
+          suggestions?: Json | null
+          targets: Json
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_reason?: string | null
+          feasible?: boolean
+          final_rows?: Json | null
+          id?: string
+          initial_rows?: Json
+          metrics?: Json | null
+          mode?: string
+          product_type?: string
+          strategy?: string | null
+          success?: boolean
+          suggestions?: Json | null
+          targets?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       base_recipes: {
         Row: {
           created_at: string | null
@@ -289,6 +370,39 @@ export type Database = {
           },
         ]
       }
+      ingredient_costs: {
+        Row: {
+          cost_per_kg: number
+          created_at: string | null
+          currency: string | null
+          id: string
+          ingredient_name: string
+          notes: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cost_per_kg: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          ingredient_name: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cost_per_kg?: number
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          ingredient_name?: string
+          notes?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ingredients: {
         Row: {
           category: string
@@ -349,6 +463,42 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string | null
           water_pct?: number | null
+        }
+        Relationships: []
+      }
+      optimization_presets: {
+        Row: {
+          algorithm: string | null
+          config: Json | null
+          created_at: string | null
+          id: string
+          preset_name: string
+          product_type: string
+          target_metrics: Json
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          algorithm?: string | null
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          preset_name: string
+          product_type: string
+          target_metrics: Json
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          algorithm?: string | null
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          preset_name?: string
+          product_type?: string
+          target_metrics?: Json
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
