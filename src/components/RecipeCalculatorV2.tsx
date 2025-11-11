@@ -45,6 +45,7 @@ import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
 import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SmartInsightsPanel } from '@/components/SmartInsightsPanel';
 
 /**
  * Map mode to product constraints key
@@ -2101,8 +2102,11 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     🔬 Analysis Tools
                   </AccordionTrigger>
                   <AccordionContent>
-                    <Tabs defaultValue="analyzer" className="w-full">
+                    <Tabs defaultValue="ai-insights" className="w-full">
                       <TabsList className="w-full h-auto flex flex-wrap gap-1 p-2 bg-background/80 backdrop-blur-sm">
+                        <TabsTrigger value="ai-insights" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🤖 AI Insights
+                        </TabsTrigger>
                         <TabsTrigger value="analyzer" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
                           🔬 Analyzer
                         </TabsTrigger>
@@ -2110,6 +2114,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                           🌡️ Temperature
                         </TabsTrigger>
                       </TabsList>
+
+                      <TabsContent value="ai-insights" className="mt-4">
+                        <SmartInsightsPanel
+                          recipe={rows.map(r => ({
+                            ingredient: r.ingredient,
+                            quantity_g: r.quantity_g
+                          }))}
+                          metrics={metrics || undefined}
+                          productType={productType}
+                        />
+                      </TabsContent>
 
                       <TabsContent value="analyzer" className="mt-4">
                         <IngredientAnalyzer currentRecipe={rows} />
@@ -2182,8 +2197,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </Accordion>
             ) : (
               // Desktop: Single tab row with all tools
-              <Tabs defaultValue="pairings" className="w-full">
-                <TabsList className="w-full h-auto flex flex-wrap lg:grid lg:grid-cols-6 gap-1 lg:gap-2 p-2 bg-background/80 backdrop-blur-sm">
+              <Tabs defaultValue="ai-insights" className="w-full">
+                <TabsList className="w-full h-auto flex flex-wrap lg:grid lg:grid-cols-7 gap-1 lg:gap-2 p-2 bg-background/80 backdrop-blur-sm">
+                  <TabsTrigger value="ai-insights" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🤖 AI Insights
+                    <Badge variant="secondary" className="ml-1 text-[10px]">NEW</Badge>
+                  </TabsTrigger>
                   <TabsTrigger value="pairings" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
                     🍫 Pairings
                   </TabsTrigger>
@@ -2204,6 +2223,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <Badge variant="secondary" className="ml-1 text-[10px]">Popular</Badge>
                   </TabsTrigger>
                 </TabsList>
+
+              <TabsContent value="ai-insights" className="mt-4">
+                <SmartInsightsPanel
+                  recipe={rows.map(r => ({
+                    ingredient: r.ingredient,
+                    quantity_g: r.quantity_g
+                  }))}
+                  metrics={metrics || undefined}
+                  productType={productType}
+                />
+              </TabsContent>
 
               <TabsContent value="pairings" className="mt-4">
                 <PairingsDrawer
