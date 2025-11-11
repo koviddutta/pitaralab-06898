@@ -93,6 +93,52 @@ export function OptimizationWorkbench({ recipe, metrics, productType }: Optimiza
 
   return (
     <div className="space-y-6">
+      {/* Current Recipe Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Recipe Loaded for Optimization
+          </CardTitle>
+          <CardDescription>
+            {recipe.length} ingredients ready for AI analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2">
+            {recipe.map((ing, i) => (
+              <div key={i} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                <span className="text-sm font-medium">
+                  {ing.ingredient || ing.ingredientData?.name || 'Unknown'}
+                </span>
+                <Badge variant="outline">{ing.quantity_g}g</Badge>
+              </div>
+            ))}
+          </div>
+          
+          {metrics && (
+            <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Sugars</p>
+                <p className="text-lg font-bold">{metrics.sugars_pct?.toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Fat</p>
+                <p className="text-lg font-bold">{metrics.fat_pct?.toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">MSNF</p>
+                <p className="text-lg font-bold">{metrics.msnf_pct?.toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">FPDT</p>
+                <p className="text-lg font-bold">{metrics.fpdt?.toFixed(2)}°C</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Preset Selector */}
       <Card>
         <CardHeader>
@@ -146,22 +192,28 @@ export function OptimizationWorkbench({ recipe, metrics, productType }: Optimiza
         </CardContent>
       </Card>
 
-      {/* Main Optimization Component */}
+      {/* AI Optimization Integration */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
-            AI Optimization
+            AI-Powered Optimization
           </CardTitle>
           <CardDescription>
-            Automatically improve recipe balance for texture, flavor, and composition
+            Use the Calculator's "Auto-Balance" feature for intelligent optimization
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              AI Optimization is available in the Calculator tab. Create a recipe there and use the "Auto-Balance" feature for optimization.
+              <strong>How to optimize your recipe:</strong>
+              <ol className="mt-2 ml-4 list-decimal space-y-1 text-sm">
+                <li>Return to the Calculator tab with your current recipe</li>
+                <li>Click the "Auto-Balance" button to optimize composition</li>
+                <li>The AI will adjust ingredients to meet target metrics</li>
+                <li>Review the optimized recipe and come back here for detailed analysis</li>
+              </ol>
             </AlertDescription>
           </Alert>
         </CardContent>
