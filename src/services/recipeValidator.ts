@@ -487,4 +487,4 @@ export class EnhancedMLService {
   }
 }
 
-export const enhancedMLService = new EnhancedMLService();
+export const recipeValidator = new EnhancedMLService();

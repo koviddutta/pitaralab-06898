@@ -1,43 +1,43 @@
 import { useState, useEffect } from 'react';
-import { enhancedMLService } from '@/services/mlService.enhanced';
+import { recipeValidator } from '@/services/recipeValidator';
 
-interface MLPrediction {
+interface RecipeValidation {
   status: 'pass' | 'warn' | 'fail';
   score: number;
   suggestions: string[];
   confidence?: number;
 }
 
-export function useMLPredictions(metrics: any, productType: string) {
-  const [prediction, setPrediction] = useState<MLPrediction | null>(null);
+export function useRecipeValidation(metrics: any, productType: string) {
+  const [validation, setValidation] = useState<RecipeValidation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!metrics || !productType) {
-      setPrediction(null);
+      setValidation(null);
       return;
     }
 
     setIsLoading(true);
     
-    // Debounce predictions
+    // Debounce validation
     const timer = setTimeout(() => {
       try {
-        const result = enhancedMLService.predictRecipeSuccess(metrics, productType);
-        setPrediction({
+        const result = recipeValidator.predictRecipeSuccess(metrics, productType);
+        setValidation({
           status: result.status,
           score: result.score,
           suggestions: result.suggestions,
           confidence: result.confidence
         });
-        console.log('Enhanced ML Prediction:', result);
+        console.log('Recipe Validation:', result);
       } catch (error) {
-        console.error('ML prediction error:', error);
-        // Show a default prediction even on error
-        setPrediction({
+        console.error('Recipe validation error:', error);
+        // Show a default validation even on error
+        setValidation({
           status: 'warn',
           score: 70,
-          suggestions: ['Unable to generate prediction. Check recipe composition.'],
+          suggestions: ['Unable to generate validation. Check recipe composition.'],
           confidence: 0.5
         });
       } finally {
@@ -48,5 +48,5 @@ export function useMLPredictions(metrics: any, productType: string) {
     return () => clearTimeout(timer);
   }, [metrics, productType]);
 
-  return { prediction, isLoading };
+  return { validation, isLoading };
 }

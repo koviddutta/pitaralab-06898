@@ -36,13 +36,13 @@ export function useAIAnalysis() {
         if (error.message?.includes('rate limit') || error.message?.includes('Rate limit')) {
           toast({
             title: 'Rate limit reached',
-            description: 'You\'ve used all your AI analyses this hour. Try ML predictions or wait.',
+            description: 'You\'ve used all your AI analyses this hour. Try recipe validation or wait.',
             variant: 'destructive',
           });
         } else if (error.message?.includes('ENV_MISSING')) {
           toast({
             title: 'Backend not available',
-            description: 'AI analysis requires backend connection. Using ML predictions.',
+            description: 'AI analysis requires backend connection. Using recipe validation.',
             variant: 'destructive',
           });
         } else {
@@ -62,7 +62,7 @@ export function useAIAnalysis() {
       console.error('AI analysis error:', error);
       toast({
         title: 'AI analysis failed',
-        description: error.message || 'Using ML predictions instead',
+        description: error.message || 'Using recipe validation instead',
         variant: 'destructive',
       });
       setAnalysis(null);

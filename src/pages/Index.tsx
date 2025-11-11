@@ -473,8 +473,8 @@ const Index = () => {
           <TabsContent value="ml-training" className="mt-4 md:mt-6">
             <Card className="p-6">
               <div className="text-center space-y-4">
-                <h3 className="text-lg font-semibold">Database & ML Training</h3>
-                <p className="text-muted-foreground">Manage recipes, import data, and train ML models</p>
+                <h3 className="text-lg font-semibold">Database & Recipe Analysis</h3>
+                <p className="text-muted-foreground">Manage recipes, import data, and train analysis models</p>
                 <Button onClick={() => navigate('/database')}>
                   Open Database Manager
                 </Button>

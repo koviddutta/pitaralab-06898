@@ -1,6 +1,6 @@
 /**
- * ML Training Scheduler
- * Automatically trains ML models when sufficient feedback is collected
+ * Recipe Analysis Training Scheduler
+ * Automatically trains analysis models when sufficient feedback is collected
  */
 
 import { mlService } from '@/services/mlService';

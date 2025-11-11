@@ -50,7 +50,7 @@ export function RecipeFeedbackDialog({
         <DialogHeader>
           <DialogTitle>How did "{recipeName}" turn out?</DialogTitle>
           <DialogDescription>
-            Your feedback helps improve ML predictions for future recipes
+            Your feedback helps improve recipe analysis for future recipes
           </DialogDescription>
         </DialogHeader>
 

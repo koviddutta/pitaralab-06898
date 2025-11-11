@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Brain, Cloud, CloudOff, Activity } from 'lucide-react';
+import { Brain, CloudOff, Activity } from 'lucide-react';
 import { isBackendReady } from '@/integrations/supabase/safeClient';
 import { mlService } from '@/services/mlService';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-export function MLStatusIndicator() {
+export function ValidationStatusIndicator() {
   const [backendStatus, setBackendStatus] = useState<'connected' | 'offline'>('offline');
-  const [mlModel, setMlModel] = useState<any>(null);
+  const [validationModel, setValidationModel] = useState<any>(null);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -15,7 +15,7 @@ export function MLStatusIndicator() {
       setBackendStatus(backend ? 'connected' : 'offline');
       
       const model = mlService.loadModel();
-      setMlModel(model);
+      setValidationModel(model);
     };
 
     checkStatus();
@@ -29,17 +29,17 @@ export function MLStatusIndicator() {
         icon: <CloudOff className="h-3 w-3" />,
         label: 'Offline',
         variant: 'secondary' as const,
-        description: 'Backend offline. ML predictions use local models only.'
+        description: 'Backend offline. Recipe validation uses local rules only.'
       };
     }
 
-    if (mlModel) {
-      const accuracy = Math.round(mlModel.accuracy * 100);
+    if (validationModel) {
+      const accuracy = Math.round(validationModel.accuracy * 100);
       return {
         icon: <Brain className="h-3 w-3" />,
-        label: `ML Active (${accuracy}%)`,
+        label: `Validation Active (${accuracy}%)`,
         variant: 'default' as const,
-        description: `Model trained ${new Date(mlModel.trained_at).toLocaleDateString()}. Backend connected.`
+        description: `Model trained ${new Date(validationModel.trained_at).toLocaleDateString()}. Backend connected.`
       };
     }
 
@@ -47,7 +47,7 @@ export function MLStatusIndicator() {
       icon: <Activity className="h-3 w-3" />,
       label: 'Connected',
       variant: 'outline' as const,
-      description: 'Backend connected. ML model not yet trained.'
+      description: 'Backend connected. Validation model not yet trained.'
     };
   };
 
@@ -64,9 +64,9 @@ export function MLStatusIndicator() {
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-xs">{status.description}</p>
-          {mlModel && (
+          {validationModel && (
             <p className="text-xs text-muted-foreground mt-1">
-              Features: {Object.keys(mlModel.feature_importance || {}).length}
+              Features: {Object.keys(validationModel.feature_importance || {}).length}
             </p>
           )}
         </TooltipContent>

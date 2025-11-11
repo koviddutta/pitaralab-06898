@@ -678,7 +678,7 @@ export default function Database() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">ML Status</CardTitle>
+            <CardTitle className="text-sm font-medium">Validation Status</CardTitle>
           </CardHeader>
           <CardContent>
             {mlService.loadModel() ? (
@@ -858,8 +858,8 @@ export default function Database() {
         <TabsContent value="train">
           <Card>
             <CardHeader>
-              <CardTitle>ML Model Training</CardTitle>
-              <CardDescription>Mark recipes as successful and train the AI model</CardDescription>
+              <CardTitle>Recipe Analysis Training</CardTitle>
+              <CardDescription>Mark recipes as successful and train the analysis model</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-3 gap-4 mb-4">

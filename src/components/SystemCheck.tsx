@@ -142,7 +142,7 @@ export default function SystemCheck() {
             <li>• Machine-aware formulations (batch vs continuous)</li>
             <li>• Real-time PAC/SP calculations with evaporation support</li>
             <li>• Mobile-optimized interface with full feature access</li>
-            <li>• Production logging system for ML model improvement</li>
+            <li>• Production logging system for recipe analysis improvement</li>
           </ul>
         </div>
       )}
