@@ -37,3 +37,6 @@ verify_jwt = true
 
 [functions.explain-warning]
 verify_jwt = true
+
+[functions.ml-predict]
+verify_jwt = true
