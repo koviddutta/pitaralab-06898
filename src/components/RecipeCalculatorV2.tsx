@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
@@ -28,6 +28,8 @@ import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 import type { Mode } from '@/types/mode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useIsMobile } from '@/hooks/use-mobile';
 import PairingsDrawer from '@/components/PairingsDrawer';
 import TemperaturePanel from '@/components/TemperaturePanel';
 import ReverseEngineer from '@/components/ReverseEngineer';
@@ -107,7 +109,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [balancingDiagnostics, setBalancingDiagnostics] = useState<any>(null);
   const [selectedIngredientForPairing, setSelectedIngredientForPairing] = useState<IngredientData | null>(null);
-  const [showAdvancedToolsTutorial, setShowAdvancedToolsTutorial] = useState(false);
+  const [showAdvancedToolsTutorial, setShowAdvancedToolsTutorial] = useState(() => {
+    return !localStorage.getItem('advanced-tools-tutorial-seen');
+  });
+  const isMobile = useIsMobile();
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   
   // Use global ingredients context
@@ -1577,6 +1582,29 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     NEW
                   </Badge>
                 )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-1">
+                      <HelpCircle className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">🤖 AI Engine Features</h4>
+                      <p className="text-sm text-muted-foreground">
+                        All AI Engine features are now here! Use these tools to:
+                      </p>
+                      <ul className="text-sm space-y-1 ml-4 list-disc">
+                        <li>Find flavor pairings</li>
+                        <li>Optimize sugar blends</li>
+                        <li>Analyze ingredients</li>
+                        <li>Tune temperature profiles</li>
+                        <li>Reverse engineer recipes</li>
+                        <li>AI-powered optimization</li>
+                      </ul>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </CardTitle>
               {showAdvancedToolsTutorial && (
                 <Button
@@ -1603,28 +1631,349 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </Alert>
             )}
           </CardHeader>
-          <CardContent className="p-6">
-            <Tabs defaultValue="pairings" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 gap-2">
-                <TabsTrigger value="pairings" className="text-xs lg:text-sm">
-                  🍫 Pairings
-                </TabsTrigger>
-                <TabsTrigger value="temperature" className="text-xs lg:text-sm">
-                  🌡️ Temperature
-                </TabsTrigger>
-                <TabsTrigger value="reverse" className="text-xs lg:text-sm">
-                  🔄 Reverse
-                </TabsTrigger>
-                <TabsTrigger value="analyzer" className="text-xs lg:text-sm">
-                  🔬 Analyzer
-                </TabsTrigger>
-                <TabsTrigger value="sugar-blend" className="text-xs lg:text-sm">
-                  🍬 Sugar Blend
-                </TabsTrigger>
-                <TabsTrigger value="ai-optimize" className="text-xs lg:text-sm">
-                  🤖 AI Optimize
-                </TabsTrigger>
-              </TabsList>
+          <CardContent className="p-6" id="advanced-tools">
+            {isMobile ? (
+              // Mobile: Accordion-style with grouping
+              <Accordion type="single" collapsible defaultValue="optimization" className="w-full">
+                <AccordionItem value="optimization">
+                  <AccordionTrigger className="text-base font-semibold">
+                    🎯 Optimization Tools
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Tabs defaultValue="pairings" className="w-full">
+                      <TabsList className="w-full h-auto flex flex-wrap gap-1 p-2 bg-background/80 backdrop-blur-sm">
+                        <TabsTrigger value="pairings" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🍫 Pairings
+                        </TabsTrigger>
+                        <TabsTrigger value="sugar-blend" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🍬 Sugar Blend
+                        </TabsTrigger>
+                        <TabsTrigger value="ai-optimize" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🤖 AI Optimize
+                          <Badge variant="secondary" className="ml-1 text-[10px]">Popular</Badge>
+                        </TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="pairings" className="mt-4">
+                        <PairingsDrawer
+                          selectedIngredient={selectedIngredientForPairing}
+                          availableIngredients={availableIngredients}
+                          currentMetrics={metrics}
+                          onAddIngredient={(ing, percentage) => {
+                            const totalMass = rows.reduce((sum, r) => sum + r.quantity_g, 0) || 1000;
+                            const gramsToAdd = (percentage / 100) * totalMass;
+                            
+                            const existingRow = rows.find(r => r.ingredient === ing.name);
+                            if (existingRow) {
+                              setRows(rows.map(r => 
+                                r.ingredient === ing.name 
+                                  ? { ...r, quantity_g: r.quantity_g + gramsToAdd }
+                                  : r
+                              ));
+                            } else {
+                              const newRow: IngredientRow = {
+                                ingredientData: ing,
+                                ingredient: ing.name,
+                                quantity_g: gramsToAdd,
+                                sugars_g: ((ing.sugars_pct ?? 0) / 100) * gramsToAdd,
+                                fat_g: ((ing.fat_pct ?? 0) / 100) * gramsToAdd,
+                                msnf_g: ((ing.msnf_pct ?? 0) / 100) * gramsToAdd,
+                                other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * gramsToAdd,
+                                total_solids_g: 0
+                              };
+                              newRow.total_solids_g = newRow.sugars_g + newRow.fat_g + newRow.msnf_g + newRow.other_solids_g;
+                              setRows([...rows, newRow]);
+                            }
+                            
+                            toast({
+                              title: "Pairing Added",
+                              description: `${ing.name} added at ${percentage}% (${gramsToAdd.toFixed(0)}g)`
+                            });
+                          }}
+                        />
+                        <div className="mt-4">
+                          <Label className="text-sm font-semibold mb-2 block">Select ingredient to analyze pairings:</Label>
+                          <Select 
+                            value={selectedIngredientForPairing?.id || ''} 
+                            onValueChange={(id) => {
+                              const ing = availableIngredients.find(i => i.id === id);
+                              setSelectedIngredientForPairing(ing || null);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose an ingredient..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {rows.map((row) => row.ingredientData && (
+                                <SelectItem key={row.ingredientData.id} value={row.ingredientData.id}>
+                                  {row.ingredientData.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </TabsContent>
+
+                      <TabsContent value="sugar-blend" className="mt-4">
+                        <SugarBlendOptimizer
+                          productType={productType as 'gelato' | 'ice-cream' | 'sorbet'}
+                          totalSugarAmount={rows
+                            .filter(r => r.ingredientData?.category === 'sugar')
+                            .reduce((sum, r) => sum + r.quantity_g, 0)}
+                          onOptimizedBlend={(blend) => {
+                            const nonSugarRows = rows.filter(r => r.ingredientData?.category !== 'sugar');
+                            const newSugarRows = Object.entries(blend).map(([name, grams]) => {
+                              const ing = availableIngredients.find(i => i.name === name);
+                              if (!ing) return null;
+                              return {
+                                ingredientData: ing,
+                                ingredient: ing.name,
+                                quantity_g: grams,
+                                sugars_g: ((ing.sugars_pct ?? 0) / 100) * grams,
+                                fat_g: ((ing.fat_pct ?? 0) / 100) * grams,
+                                msnf_g: ((ing.msnf_pct ?? 0) / 100) * grams,
+                                other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * grams,
+                                total_solids_g: 0
+                              } as IngredientRow;
+                            }).filter((r): r is IngredientRow => r !== null);
+                            
+                            newSugarRows.forEach(r => {
+                              r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                            });
+                            
+                            setRows([...nonSugarRows, ...newSugarRows]);
+                            toast({
+                              title: "Sugar Blend Applied",
+                              description: "Recipe updated with optimized sugar blend"
+                            });
+                          }}
+                        />
+                      </TabsContent>
+
+                      <TabsContent value="ai-optimize" className="mt-4">
+                        {metrics && (
+                          <AIOptimization
+                            allTargetsMet={metrics.warnings.length === 0}
+                            suggestions={[]}
+                            isOptimizing={isOptimizing}
+                            currentRows={rows
+                              .filter(r => r.ingredientData)
+                              .map(r => ({
+                                ing: r.ingredientData!,
+                                grams: r.quantity_g,
+                                min: r.quantity_g * 0.5,
+                                max: r.quantity_g * 1.5
+                              }))}
+                            targets={(() => {
+                              const mode = resolveMode(productType);
+                              const constraints = PRODUCT_CONSTRAINTS[productKey(mode, rows)];
+                              return {
+                                fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
+                                msnf_pct: (constraints.msnf.optimal[0] + constraints.msnf.optimal[1]) / 2,
+                                ts_pct: (constraints.totalSolids.optimal[0] + constraints.totalSolids.optimal[1]) / 2
+                              };
+                            })()}
+                            onApplyResult={(optimizedRows: Row[]) => {
+                              const newRows = optimizedRows.map(opt => {
+                                const ing = opt.ing;
+                                return {
+                                  ingredientData: ing,
+                                  ingredient: ing.name,
+                                  quantity_g: opt.grams,
+                                  sugars_g: ((ing.sugars_pct ?? 0) / 100) * opt.grams,
+                                  fat_g: ((ing.fat_pct ?? 0) / 100) * opt.grams,
+                                  msnf_g: ((ing.msnf_pct ?? 0) / 100) * opt.grams,
+                                  other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * opt.grams,
+                                  total_solids_g: 0
+                                } as IngredientRow;
+                              });
+
+                              newRows.forEach(r => {
+                                r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                              });
+
+                              setRows(newRows);
+                              toast({
+                                title: "AI Optimization Applied",
+                                description: "Recipe optimized using AI"
+                              });
+                            }}
+                            onAutoOptimize={async (algorithm: OptimizerConfig['algorithm']) => {
+                              setIsOptimizing(true);
+                              try {
+                                const rowsForOptimize: Row[] = rows
+                                  .filter(r => r.ingredientData)
+                                  .map(r => ({
+                                    ing: r.ingredientData!,
+                                    grams: r.quantity_g,
+                                    min: r.quantity_g * 0.5,
+                                    max: r.quantity_g * 1.5
+                                  }));
+
+                                const mode = resolveMode(productType);
+                                const constraints = PRODUCT_CONSTRAINTS[productKey(mode, rows)];
+                                
+                                const targets = {
+                                  fat_pct: (constraints.fat.optimal[0] + constraints.fat.optimal[1]) / 2,
+                                  msnf_pct: (constraints.msnf.optimal[0] + constraints.msnf.optimal[1]) / 2,
+                                  ts_pct: (constraints.totalSolids.optimal[0] + constraints.totalSolids.optimal[1]) / 2
+                                };
+
+                                const optimized = advancedOptimize(rowsForOptimize, targets, {
+                                  algorithm,
+                                  maxIterations: algorithm === 'hybrid' ? 150 : 200,
+                                  populationSize: 40
+                                });
+
+                                const newRows = optimized.map(opt => {
+                                  const ing = opt.ing;
+                                  return {
+                                    ingredientData: ing,
+                                    ingredient: ing.name,
+                                    quantity_g: opt.grams,
+                                    sugars_g: ((ing.sugars_pct ?? 0) / 100) * opt.grams,
+                                    fat_g: ((ing.fat_pct ?? 0) / 100) * opt.grams,
+                                    msnf_g: ((ing.msnf_pct ?? 0) / 100) * opt.grams,
+                                    other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * opt.grams,
+                                    total_solids_g: 0
+                                  } as IngredientRow;
+                                });
+
+                                newRows.forEach(r => {
+                                  r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                                });
+
+                                setRows(newRows);
+                                toast({
+                                  title: "AI Optimization Complete",
+                                  description: `Recipe optimized using ${algorithm} algorithm`
+                                });
+                              } catch (error) {
+                                console.error('AI optimization error:', error);
+                                toast({
+                                  title: "Optimization Failed",
+                                  description: error instanceof Error ? error.message : "Failed to optimize recipe",
+                                  variant: "destructive"
+                                });
+                              } finally {
+                                setIsOptimizing(false);
+                              }
+                            }}
+                          />
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="analysis">
+                  <AccordionTrigger className="text-base font-semibold">
+                    🔬 Analysis Tools
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Tabs defaultValue="analyzer" className="w-full">
+                      <TabsList className="w-full h-auto flex flex-wrap gap-1 p-2 bg-background/80 backdrop-blur-sm">
+                        <TabsTrigger value="analyzer" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🔬 Analyzer
+                        </TabsTrigger>
+                        <TabsTrigger value="temperature" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🌡️ Temperature
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="analyzer" className="mt-4">
+                        <IngredientAnalyzer currentRecipe={rows} />
+                      </TabsContent>
+
+                      <TabsContent value="temperature" className="mt-4">
+                        {metrics && (
+                          <TemperaturePanel
+                            metrics={metrics}
+                            recipe={rows.map(r => ({
+                              ing: r.ingredientData || {
+                                id: r.ingredient.toLowerCase().replace(/\s+/g, '_'),
+                                name: r.ingredient,
+                                category: 'other' as const,
+                                water_pct: 0,
+                                fat_pct: 0
+                              },
+                              grams: r.quantity_g
+                            }))}
+                            onApplyTuning={(tunedRecipe) => {
+                              const newRows = tunedRecipe
+                                .filter(item => item.grams > 0)
+                                .map(item => {
+                                  const ing = item.ing;
+                                  return {
+                                    ingredientData: ing,
+                                    ingredient: ing.name,
+                                    quantity_g: item.grams,
+                                    sugars_g: ((ing.sugars_pct ?? 0) / 100) * item.grams,
+                                    fat_g: ((ing.fat_pct ?? 0) / 100) * item.grams,
+                                    msnf_g: ((ing.msnf_pct ?? 0) / 100) * item.grams,
+                                    other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * item.grams,
+                                    total_solids_g: 0
+                                  } as IngredientRow;
+                                });
+                              newRows.forEach(r => {
+                                r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                              });
+                              setRows(newRows);
+                              toast({
+                                title: "Temperature Tuning Applied",
+                                description: "Recipe optimized for target temperature"
+                              });
+                            }}
+                          />
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="utilities">
+                  <AccordionTrigger className="text-base font-semibold">
+                    🛠️ Utilities
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <Tabs defaultValue="reverse" className="w-full">
+                      <TabsList className="w-full h-auto flex flex-wrap gap-1 p-2 bg-background/80 backdrop-blur-sm">
+                        <TabsTrigger value="reverse" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
+                          🔄 Reverse Engineer
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="reverse" className="mt-4">
+                        <ReverseEngineer />
+                      </TabsContent>
+                    </Tabs>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ) : (
+              // Desktop: Single tab row with all tools
+              <Tabs defaultValue="pairings" className="w-full">
+                <TabsList className="w-full h-auto flex flex-wrap lg:grid lg:grid-cols-6 gap-1 lg:gap-2 p-2 bg-background/80 backdrop-blur-sm">
+                  <TabsTrigger value="pairings" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🍫 Pairings
+                  </TabsTrigger>
+                  <TabsTrigger value="temperature" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🌡️ Temperature
+                  </TabsTrigger>
+                  <TabsTrigger value="reverse" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🔄 Reverse
+                  </TabsTrigger>
+                  <TabsTrigger value="analyzer" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🔬 Analyzer
+                  </TabsTrigger>
+                  <TabsTrigger value="sugar-blend" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🍬 Sugar Blend
+                  </TabsTrigger>
+                  <TabsTrigger value="ai-optimize" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
+                    🤖 AI Optimize
+                    <Badge variant="secondary" className="ml-1 text-[10px]">Popular</Badge>
+                  </TabsTrigger>
+                </TabsList>
 
               <TabsContent value="pairings" className="mt-4">
                 <PairingsDrawer
@@ -1887,8 +2236,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 )}
               </TabsContent>
             </Tabs>
+            )}
           </CardContent>
         </Card>
+      )}
+      {/* Mobile Quick Access Button */}
+      {isMobile && rows.length > 0 && (
+        <Button
+          className="fixed bottom-4 right-4 rounded-full shadow-lg z-50 h-14 w-14"
+          size="icon"
+          onClick={() => {
+            document.getElementById('advanced-tools')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
+          <Wrench className="h-5 w-5" />
+        </Button>
       )}
     </div>
   );
