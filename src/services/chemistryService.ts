@@ -97,14 +97,17 @@ export function analyzeIngredientChemistry(ingredient: IngredientData): Chemistr
  * Analyze complete recipe chemistry
  */
 export function analyzeRecipeChemistry(
-  ingredients: Array<{ ingredientData: IngredientData; quantity_g: number }>,
+  ingredients: Array<{ ingredientData?: IngredientData; quantity_g: number }>,
   metrics: MetricsV2
 ): RecipeChemistryAnalysis {
-  const totalWeight = ingredients.reduce((sum, ing) => sum + ing.quantity_g, 0);
+  // Filter out ingredients without data
+  const validIngredients = ingredients.filter(ing => ing.ingredientData) as Array<{ ingredientData: IngredientData; quantity_g: number }>;
+  
+  const totalWeight = validIngredients.reduce((sum, ing) => sum + ing.quantity_g, 0);
   
   // Calculate nutritional profile
   let totalCalories = 0;
-  ingredients.forEach(ing => {
+  validIngredients.forEach(ing => {
     const analysis = analyzeIngredientChemistry(ing.ingredientData);
     totalCalories += (analysis.nutritionalImpact.calories * ing.quantity_g) / 1000;
   });

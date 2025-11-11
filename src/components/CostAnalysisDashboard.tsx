@@ -7,13 +7,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { DollarSign, Download, Edit, Save, Info } from 'lucide-react';
+import { DollarSign, Download, Edit, Save, Info, AlertTriangle } from 'lucide-react';
 import { calculateRecipeCost, setIngredientCost, getAllIngredientCosts, logCostAnalysis } from '@/services/enhancedCostingService';
 import { CostingParams, DEFAULT_COSTING_PARAMS, exportToCSV, downloadCSV, calculatePricingStrategies } from '@/services/costingService';
 import { useToast } from '@/hooks/use-toast';
+import { RecipeIngredient } from '@/types/recipe';
 
 interface CostAnalysisDashboardProps {
-  recipe: any[];
+  recipe: RecipeIngredient[];
   recipeName: string;
 }
 
@@ -57,9 +58,19 @@ export function CostAnalysisDashboard({ recipe, recipeName }: CostAnalysisDashbo
   const calculateCosts = async () => {
     setIsCalculating(true);
     try {
-      const ingredients = recipe.map(ing => ({
+      // Filter valid ingredients
+      const validIngredients = recipe.filter(ing => 
+        (ing.ingredient || ing.ingredientData?.name) && ing.quantity_g > 0
+      );
+
+      if (validIngredients.length === 0) {
+        setIsCalculating(false);
+        return;
+      }
+
+      const ingredients = validIngredients.map(ing => ({
         name: ing.ingredient || ing.ingredientData?.name || 'Unknown',
-        weight: ing.quantity_g || 0,
+        weight: ing.quantity_g,
       }));
 
       const breakdown = await calculateRecipeCost(ingredients, params);
@@ -124,6 +135,10 @@ export function CostAnalysisDashboard({ recipe, recipeName }: CostAnalysisDashbo
     }
   };
 
+  const validIngredients = recipe.filter(ing => 
+    (ing.ingredient || ing.ingredientData?.name) && ing.quantity_g > 0
+  );
+
   if (recipe.length === 0) {
     return (
       <Card>
@@ -139,6 +154,28 @@ export function CostAnalysisDashboard({ recipe, recipeName }: CostAnalysisDashbo
             <Info className="h-4 w-4" />
             <AlertDescription>
               No recipe loaded. Go to the Calculator tab and create a recipe, then come back here to analyze costs.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (validIngredients.length === 0 && recipe.length > 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Cost Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Cannot analyze costs: Recipe ingredients are missing required data.
+              Please check your recipe in the Calculator tab.
             </AlertDescription>
           </Alert>
         </CardContent>

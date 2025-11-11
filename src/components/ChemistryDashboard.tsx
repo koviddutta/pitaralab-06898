@@ -5,13 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Beaker, Info, ArrowRight } from 'lucide-react';
+import { Beaker, Info, ArrowRight, AlertTriangle } from 'lucide-react';
 import { analyzeIngredientChemistry, analyzeRecipeChemistry, compareIngredients } from '@/services/chemistryService';
 import { MetricsV2 } from '@/lib/calc.v2';
 import IngredientAnalyzer from './flavour-engine/IngredientAnalyzer';
+import { RecipeIngredient } from '@/types/recipe';
 
 interface ChemistryDashboardProps {
-  recipe: any[];
+  recipe: RecipeIngredient[];
   metrics: MetricsV2 | null;
 }
 
@@ -19,9 +20,14 @@ export function ChemistryDashboard({ recipe, metrics }: ChemistryDashboardProps)
   const [view, setView] = useState<'overview' | 'ingredient' | 'compare'>('overview');
   const [selectedIngredient, setSelectedIngredient] = useState<any>(null);
 
+  // Filter out rows without proper ingredient data
+  const validRecipe = recipe.filter(ing => 
+    ing.ingredientData && ing.quantity_g > 0
+  );
+
   // Analyze recipe if available
-  const recipeAnalysis = recipe.length > 0 && metrics ? 
-    analyzeRecipeChemistry(recipe, metrics) : null;
+  const recipeAnalysis = validRecipe.length > 0 && metrics ? 
+    analyzeRecipeChemistry(validRecipe, metrics) : null;
 
   if (recipe.length === 0) {
     return (
@@ -38,6 +44,28 @@ export function ChemistryDashboard({ recipe, metrics }: ChemistryDashboardProps)
             <Info className="h-4 w-4" />
             <AlertDescription>
               No recipe loaded. Go to the Calculator tab and create a recipe, then click "Analyze Chemistry" to see detailed analysis here.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (validRecipe.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Beaker className="h-5 w-5" />
+            Chemistry Analysis
+          </CardTitle>
+          <CardDescription>Deep ingredient composition analysis</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Recipe contains ingredients without complete data. Please ensure all ingredients are selected from the ingredient database.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -189,7 +217,19 @@ export function ChemistryDashboard({ recipe, metrics }: ChemistryDashboardProps)
         <CardContent>
           <div className="grid gap-3">
             {recipe.map((ing, i) => {
-              if (!ing.ingredientData) return null;
+              if (!ing.ingredientData) {
+                return (
+                  <div key={i} className="p-3 border border-yellow-200 rounded-lg bg-yellow-50">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="text-sm text-yellow-700">
+                        {ing.ingredient}: Missing ingredient data
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+              
               const analysis = analyzeIngredientChemistry(ing.ingredientData);
               
               return (

@@ -144,7 +144,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (onRecipeChange) {
       const recipeData = rows.map(row => ({
         ingredient: row.ingredient,
-        quantity: row.quantity_g,
+        quantity_g: row.quantity_g,
         ingredientData: row.ingredientData
       }));
       onRecipeChange(recipeData, metrics, productType);

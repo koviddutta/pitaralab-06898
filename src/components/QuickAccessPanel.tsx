@@ -29,7 +29,11 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
             <div className="font-medium text-xs">Chemistry</div>
             <div className="text-xs text-muted-foreground">Ingredient Analysis</div>
           </div>
-          {!hasRecipe && <Badge variant="secondary" className="text-xs">Need Recipe</Badge>}
+          {hasRecipe ? (
+            <Badge variant="default" className="text-xs bg-green-500">Ready</Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs">Need Recipe</Badge>
+          )}
         </Button>
 
         <Button
@@ -43,7 +47,11 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
             <div className="font-medium text-xs">Costs</div>
             <div className="text-xs text-muted-foreground">Real-time Pricing</div>
           </div>
-          {!hasRecipe && <Badge variant="secondary" className="text-xs">Need Recipe</Badge>}
+          {hasRecipe ? (
+            <Badge variant="default" className="text-xs bg-green-500">Ready</Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs">Need Recipe</Badge>
+          )}
         </Button>
 
         <Button
@@ -57,7 +65,11 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
             <div className="font-medium text-xs">AI Optimize</div>
             <div className="text-xs text-muted-foreground">Auto-balance</div>
           </div>
-          {!hasRecipe && <Badge variant="secondary" className="text-xs">Need Recipe</Badge>}
+          {hasRecipe ? (
+            <Badge variant="default" className="text-xs bg-green-500">Ready</Badge>
+          ) : (
+            <Badge variant="secondary" className="text-xs">Need Recipe</Badge>
+          )}
         </Button>
 
         <Button
