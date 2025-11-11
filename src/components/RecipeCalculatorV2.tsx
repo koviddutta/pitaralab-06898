@@ -27,6 +27,7 @@ import { diagnoseFeasibility, Feasibility, applyAutoFix } from '@/lib/diagnostic
 import { checkDbHealth } from '@/lib/ingredientMap';
 import { ScienceValidationPanel } from '@/components/ScienceValidationPanel';
 import type { Mode } from '@/types/mode';
+import { resolveMode } from '@/lib/mode';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -42,22 +43,6 @@ import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionServic
 import { Wrench } from 'lucide-react';
 import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
-
-// ============================================================================
-// CENTRAL MODE RESOLVER - Single source of truth
-// ============================================================================
-
-/**
- * Resolve product type to calculation mode
- * Single source of truth for mode mapping
- */
-export function resolveMode(productType: string): Mode {
-  if (productType === 'ice_cream') return 'ice_cream';
-  if (productType === 'gelato') return 'gelato';
-  if (productType === 'sorbet') return 'sorbet';
-  if (productType === 'kulfi') return 'kulfi';
-  return 'gelato'; // safe fallback
-}
 
 /**
  * Map mode to product constraints key
@@ -396,6 +381,53 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         missingIngredients: diagnosis.missingIngredients,
         suggestions: diagnosis.suggestions
       });
+
+      // ============ GENTLE PREPASS (Auto-Fix BEFORE Feasibility) ============
+      // Run auto-fix FIRST to add missing levers before feasibility check
+      const prepassFeasibility: Feasibility = diagnoseFeasibility(optRows, availableIngredients, targets, mode);
+      
+      if (!prepassFeasibility.feasible && prepassFeasibility.missingCanonicals && prepassFeasibility.missingCanonicals.length > 0) {
+        console.log('🛠️ Running gentle prepass auto-fix...');
+        const prepassAutoFix = applyAutoFix(optRows, availableIngredients, mode, prepassFeasibility);
+        
+        if (prepassAutoFix.applied) {
+          console.log('✅ Prepass auto-fix applied:', prepassAutoFix.addedIngredients);
+          
+          // Add prepass ingredients to optRows
+          prepassAutoFix.addedIngredients.forEach(added => {
+            const ing = availableIngredients.find(i => i.name === added.name);
+            if (ing) {
+              optRows.push({ ing, grams: added.grams, min: 0, max: 1000 });
+              
+              // Also add to UI rows for display
+              const newRow: IngredientRow = {
+                ingredientData: ing,
+                ingredient: ing.name,
+                quantity_g: added.grams,
+                sugars_g: ((ing.sugars_pct ?? 0) / 100) * added.grams,
+                fat_g: ((ing.fat_pct ?? 0) / 100) * added.grams,
+                msnf_g: ((ing.msnf_pct ?? 0) / 100) * added.grams,
+                other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * added.grams,
+                total_solids_g: 0
+              };
+              newRow.total_solids_g = newRow.sugars_g + newRow.fat_g + newRow.msnf_g + newRow.other_solids_g;
+              rows.push(newRow);
+            }
+          });
+          
+          toast({
+            title: '🛠️ Gentle Prepass Applied',
+            description: (
+              <ul className="text-xs space-y-1">
+                {prepassAutoFix.addedIngredients.map((a, i) => (
+                  <li key={i}>+ {a.grams.toFixed(1)}g {a.name} ({a.reason})</li>
+                ))}
+              </ul>
+            ),
+            duration: 3000
+          });
+        }
+      }
 
       // ============ HARD FEASIBILITY GATE ============
       // Pre-flight check - must pass before attempting LP/heuristics
@@ -831,6 +863,93 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setCurrentRecipeId(null);
   };
 
+  /**
+   * Apply 70/10/20 sugar preset (optimal blend)
+   * 70% Sucrose, 10% Dextrose, 20% Glucose Syrup
+   */
+  const applySugarPreset = () => {
+    // Find sugar ingredients
+    const sucrose = availableIngredients.find(i => 
+      i.name.toLowerCase().includes('sucrose') && (i.sugars_pct || 0) >= 95
+    );
+    const dextrose = availableIngredients.find(i => 
+      i.name.toLowerCase().includes('dextrose') && (i.sugars_pct || 0) >= 95
+    );
+    const glucoseSyrup = availableIngredients.find(i => 
+      (i.name.toLowerCase().includes('glucose') || i.name.toLowerCase().includes('syrup')) && 
+      (i.sugars_pct || 0) >= 70
+    );
+
+    if (!sucrose || !dextrose || !glucoseSyrup) {
+      toast({
+        title: 'Missing Sugar Ingredients',
+        description: 'Need Sucrose, Dextrose, and Glucose Syrup in database',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Calculate current total sugars
+    const currentTotalSugars = rows.reduce((sum, r) => sum + r.sugars_g, 0);
+    const targetSugars = currentTotalSugars > 0 ? currentTotalSugars : 180; // Default 180g if none
+
+    // Calculate preset amounts (70/10/20)
+    const sucroseAmount = targetSugars * 0.70;
+    const dextroseAmount = targetSugars * 0.10;
+    const glucoseAmount = targetSugars * 0.20;
+
+    // Remove existing sugar rows
+    const nonSugarRows = rows.filter(r => 
+      !r.ingredientData || (r.ingredientData.sugars_pct || 0) < 90
+    );
+
+    // Add preset sugars
+    const newRows: IngredientRow[] = [
+      ...nonSugarRows,
+      {
+        ingredientData: sucrose,
+        ingredient: sucrose.name,
+        quantity_g: sucroseAmount,
+        sugars_g: sucroseAmount * (sucrose.sugars_pct || 100) / 100,
+        fat_g: 0,
+        msnf_g: 0,
+        other_solids_g: 0,
+        total_solids_g: sucroseAmount * (sucrose.sugars_pct || 100) / 100
+      },
+      {
+        ingredientData: dextrose,
+        ingredient: dextrose.name,
+        quantity_g: dextroseAmount,
+        sugars_g: dextroseAmount * (dextrose.sugars_pct || 100) / 100,
+        fat_g: 0,
+        msnf_g: 0,
+        other_solids_g: 0,
+        total_solids_g: dextroseAmount * (dextrose.sugars_pct || 100) / 100
+      },
+      {
+        ingredientData: glucoseSyrup,
+        ingredient: glucoseSyrup.name,
+        quantity_g: glucoseAmount,
+        sugars_g: glucoseAmount * (glucoseSyrup.sugars_pct || 75) / 100,
+        fat_g: 0,
+        msnf_g: 0,
+        other_solids_g: 0,
+        total_solids_g: glucoseAmount * (glucoseSyrup.sugars_pct || 75) / 100
+      }
+    ];
+
+    setRows(newRows);
+    
+    toast({
+      title: '✅ Sugar Preset Applied',
+      description: `70% Sucrose (${sucroseAmount.toFixed(0)}g), 10% Dextrose (${dextroseAmount.toFixed(0)}g), 20% Glucose (${glucoseAmount.toFixed(0)}g)`,
+      duration: 4000
+    });
+
+    // Auto-recalculate
+    setTimeout(() => calculateMetrics(), 100);
+  };
+
   const handleRestoreVersion = (version: RecipeVersion) => {
     try {
       // Restore recipe data from version
@@ -1124,6 +1243,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
                 Balance Recipe
               </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    onClick={applySugarPreset}
+                    disabled={rows.length === 0}
+                    variant="outline"
+                    size="sm"
+                  >
+                    70/10/20 Preset
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
+                </TooltipContent>
+              </Tooltip>
               <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
                 {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save

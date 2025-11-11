@@ -7,6 +7,8 @@ import { IngredientData } from '@/types/ingredients';
 import leightonTable from './leightonTable.json';
 import { adjustPACforAcids, AcidityAdjustment, FruitAcidityInput } from './fruit.v1';
 import { predictOverrun, suggestServingTemp, OverrunPrediction, ServingTempRecommendation } from './serving.v1';
+import type { Mode } from '@/types/mode';
+import { resolveMode } from './mode';
 
 export type MetricsV2 = {
   // Basic composition (g)

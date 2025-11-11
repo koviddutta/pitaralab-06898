@@ -17,6 +17,7 @@ import {
 import { diagnoseBalancingFailure } from './ingredientMapper';
 import { findCanonical, classifyIngredient } from './ingredientMap';
 import type { Mode } from '@/types/mode';
+import { resolveMode } from './mode';
 // @ts-ignore - javascript-lp-solver doesn't have types
 import solver from 'javascript-lp-solver';
 
