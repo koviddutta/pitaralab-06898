@@ -17,18 +17,32 @@ export interface IngredientCostData {
 }
 
 /**
- * Get ingredient cost from database or default
+ * Get ingredient cost per kg for current user
+ * Priority: 1) Inventory price, 2) User's ingredient_costs table, 3) Default (0)
  */
 export async function getIngredientCost(ingredientName: string): Promise<number> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return 0;
 
+  // Priority 1: Check inventory for this ingredient (most up-to-date pricing)
+  const { data: inventoryData, error: inventoryError } = await supabase
+    .from('ingredient_inventory')
+    .select('cost_per_kg')
+    .eq('user_id', user.id)
+    .eq('ingredient_name', ingredientName)
+    .maybeSingle();
+
+  if (!inventoryError && inventoryData?.cost_per_kg) {
+    return parseFloat(inventoryData.cost_per_kg.toString());
+  }
+
+  // Priority 2: Check ingredient_costs table
   const { data, error } = await supabase
     .from('ingredient_costs' as any)
     .select('cost_per_kg')
     .eq('user_id', user.id)
     .eq('ingredient_name', ingredientName)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return 0;
   return (data as any).cost_per_kg;

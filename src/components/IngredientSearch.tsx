@@ -4,6 +4,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { IngredientData } from "@/types/ingredients";
+import { useInventoryIntegration } from "@/hooks/useInventoryIntegration";
 
 interface IngredientSearchProps {
   ingredients: IngredientData[];
@@ -65,6 +66,7 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
   const inputRef = useRef<HTMLInputElement>(null);
   const recentIds = getRecent();
   const recentIngredients = ingredients.filter(i => recentIds.includes(i.id));
+  const { getInventoryStatus } = useInventoryIntegration();
 
   // Focus on "/" key
   useEffect(() => {
@@ -97,6 +99,21 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
   const stabilizers = ingredients.filter(i => i.category === "stabilizer");
 
   const allResults = q ? results : recentIngredients;
+
+  const getStockBadge = (ingredientName: string) => {
+    const status = getInventoryStatus(ingredientName);
+    
+    switch (status.status) {
+      case 'in-stock':
+        return <Badge variant="secondary" className="ml-2 text-xs bg-green-500/10 text-green-600 dark:text-green-400">🟢 {status.stockLevel?.toFixed(1)}kg</Badge>;
+      case 'low-stock':
+        return <Badge variant="secondary" className="ml-2 text-xs bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">🟡 {status.stockLevel?.toFixed(1)}kg</Badge>;
+      case 'out-of-stock':
+        return <Badge variant="secondary" className="ml-2 text-xs bg-red-500/10 text-red-600 dark:text-red-400">🔴 Out</Badge>;
+      default:
+        return null;
+    }
+  };
 
   return (
     <Command className="rounded-lg border border-border shadow-elegant">
@@ -149,7 +166,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                 onSelect={() => handleSelect(ing)}
                 className={`transition-all duration-200 ease-in-out ${selectedIndex === idx ? "bg-accent" : ""}`}
               >
-                <span className="font-medium text-base">{ing.name}</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="font-medium text-base">{ing.name}</span>
+                  {getStockBadge(ing.name)}
+                </div>
                 <Badge variant="secondary" className="ml-auto text-xs">
                   {ing.category}
                 </Badge>
@@ -167,7 +187,10 @@ export function IngredientSearch({ ingredients, onSelect, open, onOpenChange }: 
                 onSelect={() => handleSelect(ing)}
                 className={`transition-all duration-200 ease-in-out ${selectedIndex === idx ? "bg-accent" : ""}`}
               >
-                <span className="font-medium text-base">{ing.name}</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="font-medium text-base">{ing.name}</span>
+                  {getStockBadge(ing.name)}
+                </div>
                 <Badge variant="secondary" className="ml-auto text-xs">
                   {ing.category}
                 </Badge>

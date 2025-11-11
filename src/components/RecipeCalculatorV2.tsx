@@ -43,6 +43,8 @@ import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionServic
 import { Wrench } from 'lucide-react';
 import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
+import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * Map mode to product constraints key
@@ -102,9 +104,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const isMobile = useIsMobile();
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [lastBalanceStrategy, setLastBalanceStrategy] = useState<'LP' | 'Heuristic' | 'Auto-Fix' | undefined>(undefined);
+  const [deductFromInventory, setDeductFromInventory] = useState(true); // Default to true
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
+  
+  // Inventory integration
+  const { checkStockAvailability, deductFromInventory: performDeduction, getInventoryStatus } = useInventoryIntegration();
 
   // Helper to get constraints for current product type
   const getConstraints = () => {
@@ -242,8 +248,22 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     newRows[index].ingredient = ingredient.name;
     newRows[index].ingredientData = ingredient;
     
-    // Auto-calculate based on current quantity
+    // Check inventory stock before adding
     const qty = newRows[index].quantity_g || 0;
+    if (qty > 0) {
+      const quantityKg = qty / 1000;
+      const stockCheck = checkStockAvailability(ingredient.name, quantityKg);
+      
+      if (!stockCheck.available && stockCheck.message) {
+        toast({
+          title: 'Inventory Warning',
+          description: stockCheck.message,
+          variant: 'default'
+        });
+      }
+    }
+    
+    // Auto-calculate based on current quantity
     newRows[index].sugars_g = ((ingredient.sugars_pct ?? 0) / 100) * qty;
     newRows[index].fat_g = ((ingredient.fat_pct ?? 0) / 100) * qty;
     newRows[index].msnf_g = ((ingredient.msnf_pct ?? 0) / 100) * qty;
@@ -843,6 +863,32 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           metrics,
           'Manual save'
         );
+        
+        // Deduct from inventory if checkbox is checked
+        if (deductFromInventory) {
+          const deductionPromises = rows
+            .filter(r => r.ingredientData && r.quantity_g > 0)
+            .map(async (r) => {
+              const quantityKg = r.quantity_g / 1000;
+              return performDeduction(r.ingredient, quantityKg, recipeId, recipeName);
+            });
+          
+          const deductionResults = await Promise.all(deductionPromises);
+          const failures = deductionResults.filter(result => !result.success);
+          
+          if (failures.length > 0) {
+            toast({
+              title: 'Partial Inventory Deduction',
+              description: `${failures.length} ingredient(s) could not be deducted from inventory`,
+              variant: 'default'
+            });
+          } else if (deductionResults.length > 0) {
+            toast({
+              title: 'Inventory Updated',
+              description: `Stock deducted for ${deductionResults.length} ingredient(s)`,
+            });
+          }
+        }
       }
     } catch (error: any) {
       toast({
@@ -1258,10 +1304,25 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                   <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
                 </TooltipContent>
               </Tooltip>
-              <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
-                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save
-              </Button>
+              
+              <div className="flex items-center gap-3">
+                <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+                
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="deduct-inventory"
+                    checked={deductFromInventory}
+                    onCheckedChange={(checked) => setDeductFromInventory(checked as boolean)}
+                  />
+                  <Label htmlFor="deduct-inventory" className="text-sm cursor-pointer">
+                    Deduct from inventory
+                  </Label>
+                </div>
+              </div>
+              
               <Button 
                 onClick={() => setShowHistoryDrawer(true)} 
                 disabled={!currentRecipeId || !isAuthenticated}
