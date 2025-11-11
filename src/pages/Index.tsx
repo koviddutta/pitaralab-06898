@@ -22,7 +22,7 @@ import { WelcomeTour, showTourAgain } from "@/components/WelcomeTour";
 import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Card, CardContent } from "@/components/ui/card";
-import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle, Wrench } from "lucide-react";
+import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle, Wrench, Package } from "lucide-react";
 import { migratePinProfiles } from "@/lib/migratePinProfiles";
 import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import { useToast } from "@/hooks/use-toast";
@@ -191,6 +191,10 @@ const Index = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/inventory')}>
+                  <Package className="h-4 w-4 mr-2" />
+                  Inventory Management
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={showTourAgain}>
                   <HelpCircle className="h-4 w-4 mr-2" />
                   Show Tour Again

@@ -403,6 +403,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ingredient_inventory: {
+        Row: {
+          batch_number: string | null
+          cost_per_kg: number | null
+          created_at: string | null
+          current_stock_kg: number
+          expiry_date: string | null
+          id: string
+          ingredient_name: string
+          minimum_stock_kg: number
+          notes: string | null
+          storage_location: string | null
+          supplier: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_number?: string | null
+          cost_per_kg?: number | null
+          created_at?: string | null
+          current_stock_kg?: number
+          expiry_date?: string | null
+          id?: string
+          ingredient_name: string
+          minimum_stock_kg?: number
+          notes?: string | null
+          storage_location?: string | null
+          supplier?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_number?: string | null
+          cost_per_kg?: number | null
+          created_at?: string | null
+          current_stock_kg?: number
+          expiry_date?: string | null
+          id?: string
+          ingredient_name?: string
+          minimum_stock_kg?: number
+          notes?: string | null
+          storage_location?: string | null
+          supplier?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ingredients: {
         Row: {
           category: string
@@ -465,6 +513,91 @@ export type Database = {
           water_pct?: number | null
         }
         Relationships: []
+      }
+      inventory_alerts: {
+        Row: {
+          alert_message: string
+          alert_type: string
+          created_at: string | null
+          id: string
+          inventory_id: string | null
+          is_read: boolean | null
+          user_id: string
+        }
+        Insert: {
+          alert_message: string
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          inventory_id?: string | null
+          is_read?: boolean | null
+          user_id: string
+        }
+        Update: {
+          alert_message?: string
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          inventory_id?: string | null
+          is_read?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_alerts_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "ingredient_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_transactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          inventory_id: string
+          new_stock_kg: number
+          previous_stock_kg: number
+          quantity_kg: number
+          reason: string | null
+          recipe_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          inventory_id: string
+          new_stock_kg: number
+          previous_stock_kg: number
+          quantity_kg: number
+          reason?: string | null
+          recipe_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          inventory_id?: string
+          new_stock_kg?: number
+          previous_stock_kg?: number
+          quantity_kg?: number
+          reason?: string | null
+          recipe_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_transactions_inventory_id_fkey"
+            columns: ["inventory_id"]
+            isOneToOne: false
+            referencedRelation: "ingredient_inventory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       optimization_presets: {
         Row: {
