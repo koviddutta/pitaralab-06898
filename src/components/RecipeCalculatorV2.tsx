@@ -572,9 +572,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const calcMode = resolveMode(productType);
-      const tolerance = calcMode === 'ice_cream' ? 0.35 : 0.15;
+      const tolerance = calcMode === 'ice_cream' ? 0.5 : 0.3; // Relaxed tolerances
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
-        maxIterations: 100,
+        maxIterations: 200, // Increased from 100
         tolerance,
         enableFeasibilityCheck: true,
         useLPSolver: true,

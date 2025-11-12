@@ -83,7 +83,7 @@ export function balanceRecipeLP(
     allowCoreDairy?: boolean;
   } = {}
 ): LPSolverResult {
-  const tolerance = options.tolerance || 0.35; // Increased from 0.15 to 0.35
+  const tolerance = options.tolerance || 0.5; // Increased tolerance to 0.5 percentage points
 
   if (!initialRows || initialRows.length === 0) {
     return {
@@ -119,11 +119,11 @@ export function balanceRecipeLP(
     let minGrams = 0; // Can reduce to zero by default
     let maxGrams = row.grams * 3; // Can increase up to 3x by default
 
-    // CORE INGREDIENT PROTECTION: Lock core ingredients within flexible bounds
+    // CORE INGREDIENT PROTECTION: Allow flexible adjustments for balancing
     const role = classifyIngredient(ing);
     if (role === 'core' && !options.allowCoreDairy) {
-      minGrams = initialAmount * 0.5; // Allow reducing to 50%
-      maxGrams = initialAmount * 2.0; // Allow doubling
+      minGrams = initialAmount * 0.3; // Allow reducing to 30%
+      maxGrams = initialAmount * 3.0; // Allow tripling
     }
 
     // Apply category-specific bounds
@@ -178,27 +178,32 @@ export function balanceRecipeLP(
   // Constraint 3: Fat percentage target
   if (targets.fat_pct !== undefined) {
     const targetFatGrams = (targets.fat_pct / 100) * totalWeight;
+    // Tolerance is in percentage points, so convert: tolerance% of totalWeight grams
+    const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.fat_contribution = {
-      min: targetFatGrams - (tolerance / 100 * totalWeight),
-      max: targetFatGrams + (tolerance / 100 * totalWeight)
+      min: targetFatGrams - toleranceGrams,
+      max: targetFatGrams + toleranceGrams
     };
   }
 
   // Constraint 4: MSNF percentage target
   if (targets.msnf_pct !== undefined) {
     const targetMSNFGrams = (targets.msnf_pct / 100) * totalWeight;
+    const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.msnf_contribution = {
-      min: targetMSNFGrams - (tolerance / 100 * totalWeight),
-      max: targetMSNFGrams + (tolerance / 100 * totalWeight)
+      min: targetMSNFGrams - toleranceGrams,
+      max: targetMSNFGrams + toleranceGrams
     };
   }
 
-  // Constraint 5: Sugars percentage target
-  if (targets.totalSugars_pct !== undefined) {
-    const targetSugarsGrams = (targets.totalSugars_pct / 100) * totalWeight;
+  // Constraint 5: Sugars percentage target (check both property names)
+  const sugarTarget = targets.totalSugars_pct ?? targets.sugars_pct;
+  if (sugarTarget !== undefined) {
+    const targetSugarsGrams = (sugarTarget / 100) * totalWeight;
+    const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.sugars_contribution = {
-      min: targetSugarsGrams - (tolerance / 100 * totalWeight),
-      max: targetSugarsGrams + (tolerance / 100 * totalWeight)
+      min: targetSugarsGrams - toleranceGrams,
+      max: targetSugarsGrams + toleranceGrams
     };
   }
 
@@ -650,10 +655,14 @@ function scoreMetrics(metrics: MetricsV2, targets: OptimizeTarget): number {
     score += Math.abs(metrics.msnf_pct - targets.msnf_pct);
     count++;
   }
-  if (targets.totalSugars_pct !== undefined) {
-    score += Math.abs(metrics.totalSugars_pct - targets.totalSugars_pct);
+  
+  // Check both sugar property names
+  const sugarTarget = targets.totalSugars_pct ?? targets.sugars_pct;
+  if (sugarTarget !== undefined) {
+    score += Math.abs(metrics.totalSugars_pct - sugarTarget);
     count++;
   }
+  
   if (targets.fpdt !== undefined) {
     score += Math.abs(metrics.fpdt - targets.fpdt) * 10; // Weight FPDT more heavily
     count++;
@@ -691,12 +700,14 @@ function identifyPriorityAdjustment(
     }
   }
 
-  if (targets.totalSugars_pct !== undefined) {
-    const delta = Math.abs(metrics.totalSugars_pct - targets.totalSugars_pct);
+  // Check both sugar property names
+  const sugarTarget = targets.totalSugars_pct ?? targets.sugars_pct;
+  if (sugarTarget !== undefined) {
+    const delta = Math.abs(metrics.totalSugars_pct - sugarTarget);
     if (delta > maxDelta) {
       maxDelta = delta;
       priority = 'sugars';
-      direction = metrics.totalSugars_pct > targets.totalSugars_pct ? 'decrease' : 'increase';
+      direction = metrics.totalSugars_pct > sugarTarget ? 'decrease' : 'increase';
     }
   }
 
@@ -720,8 +731,8 @@ export function balanceRecipeV2(
     allowCoreDairy?: boolean;
   } = {}
 ): BalanceResultV2 {
-  const maxIterations = options.maxIterations || 50;
-  const tolerance = options.tolerance || 0.1; // 0.1% tolerance
+  const maxIterations = options.maxIterations || 200; // Increased from 50
+  const tolerance = options.tolerance || 0.5; // Increased default tolerance to 0.5%
   const enableFeasibilityCheck = options.enableFeasibilityCheck !== false;
   const useLPSolver = options.useLPSolver !== false; // Default: try LP first
   const productType = options.productType || 'gelato_white';
@@ -783,64 +794,55 @@ export function balanceRecipeV2(
     };
   }
 
-  // Step 0.5: Try LP Solver first (if enabled and sufficient ingredients)
-  if (useLPSolver) {
-    // Check for ingredient diversity before attempting LP
-    const hasDiversity = diagnosis.hasWater && 
-                        (diagnosis.hasFatSource || diagnosis.hasMSNFSource);
+  // Step 0.5: Try LP Solver first (if enabled and at least 2 ingredients)
+  if (useLPSolver && initialRows.length >= 2) {
+    console.log('🔧 Attempting LP Solver...');
     
-    if (!hasDiversity) {
-      adjustmentsSummary.push(
-        `⚠️ Recipe lacks ingredient diversity for optimal balancing:`,
-        diagnosis.hasWater ? '' : `   • Add dairy/water ingredient`,
-        diagnosis.hasFatSource ? '' : `   • Add cream or butter for fat adjustment`,
-        diagnosis.hasMSNFSource ? '' : `   • Add skim milk powder for MSNF adjustment`,
-        ``,
-        `ℹ️ Attempting heuristic balancing with available ingredients...`
-      );
-    } else {
-      const lpResult = balanceRecipeLP(initialRows, targets, { 
-        tolerance, 
-        mode: resolveMode(productType),
-        allowCoreDairy: options.allowCoreDairy 
-      });
+    const lpResult = balanceRecipeLP(initialRows, targets, { 
+      tolerance, 
+      mode: resolveMode(productType),
+      allowCoreDairy: options.allowCoreDairy 
+    });
+    
+    if (lpResult.success) {
+      const lpMetrics = calcMetricsV2(lpResult.rows);
+      const lpScore = scoreMetrics(lpMetrics, targets);
       
-      if (lpResult.success) {
-        const lpMetrics = calcMetricsV2(lpResult.rows);
-        const lpScore = scoreMetrics(lpMetrics, targets);
-        
-        if (lpScore < tolerance) {
-          const scienceValidation = enableScienceValidation 
-            ? validateRecipeScience(lpMetrics, productType)
-            : undefined;
-          const qualityScore = scienceValidation 
-            ? getRecipeQualityScore(scienceValidation)
-            : undefined;
+      console.log(`✅ LP Solver succeeded with score: ${(lpScore * 100).toFixed(2)}%`);
+      
+      if (lpScore < tolerance) {
+        const scienceValidation = enableScienceValidation 
+          ? validateRecipeScience(lpMetrics, productType)
+          : undefined;
+        const qualityScore = scienceValidation 
+          ? getRecipeQualityScore(scienceValidation)
+          : undefined;
 
-          return {
-            success: true,
-            rows: lpResult.rows,
+        return {
+          success: true,
+          rows: lpResult.rows,
+          metrics: lpMetrics,
+          originalMetrics,
+          iterations: 1,
+          progress: [{
+            iteration: 0,
             metrics: lpMetrics,
-            originalMetrics,
-            iterations: 1,
-            progress: [{
-              iteration: 0,
-              metrics: lpMetrics,
-              adjustments: ['LP Solver: Optimal solution found'],
-              score: lpScore
-            }],
-            strategy: 'Linear Programming (Simplex)',
-            message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
-            adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution'],
-            scienceValidation,
-            qualityScore
-          };
-        } else {
-          adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
-        }
+            adjustments: ['LP Solver: Optimal solution found'],
+            score: lpScore
+          }],
+          strategy: 'Linear Programming (Simplex)',
+          message: `Optimal solution found using LP solver. Score: ${(lpScore * 100).toFixed(2)}%`,
+          adjustmentsSummary: ['Linear Programming solver found mathematically optimal solution'],
+          scienceValidation,
+          qualityScore
+        };
       } else {
-        adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+        console.log(`⚠️ LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance ${(tolerance * 100).toFixed(2)}%. Trying heuristic approach.`);
+        adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
       }
+    } else {
+      console.log(`❌ LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+      adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
     }
   }
 
