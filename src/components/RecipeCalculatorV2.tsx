@@ -158,23 +158,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }
   }, [rows, metrics, productType, onRecipeChange]);
 
-  // STEP 4: State Validation Hook - Prevent corrupted state
-  useEffect(() => {
-    const cleanedRows = rows.map(row => ({
-      ...row,
-      quantity_g: typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0,
-      sugars_g: typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g : 0,
-      fat_g: typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g : 0,
-      msnf_g: typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g : 0,
-      other_solids_g: typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g : 0,
-      total_solids_g: typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g : 0,
-    }));
-    
-    if (JSON.stringify(cleanedRows) !== JSON.stringify(rows)) {
-      console.warn('🔧 Cleaned corrupted state - prevented symbol rendering bug');
-      setRows(cleanedRows);
-    }
-  }, [rows]);
+  // Helper function for dynamic step sizes based on quantity
+  const getStepSize = (quantity: number): number => {
+    if (quantity >= 500) return 10;  // Large amounts: ±10g
+    if (quantity >= 100) return 5;   // Medium amounts: ±5g
+    if (quantity >= 10) return 1;    // Small amounts: ±1g
+    return 0.1;                       // Tiny amounts: ±0.1g
+  };
 
   const addRow = () => {
     setRows([...rows, {
@@ -246,8 +236,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const updateRow = (index: number, field: keyof IngredientRow, value: string | number) => {
     setRows(prevRows => {
       const newRows = [...prevRows];
-      // Enforce number types for numeric fields
-      const numericValue = typeof value === 'number' ? value : parseFloat(value);
+      
+      // Inline validation - only validate the field being changed
+      let numericValue = typeof value === 'number' ? value : parseFloat(value);
+      if (isNaN(numericValue) || !isFinite(numericValue)) {
+        numericValue = 0;
+      }
       const safeValue = isNaN(numericValue) ? 0 : numericValue;
       
       newRows[index] = { ...newRows[index], [field]: safeValue };
@@ -578,14 +572,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const calcMode = resolveMode(productType);
-      const tolerance = calcMode === 'ice_cream' ? 0.25 : 0.15;
+      const tolerance = calcMode === 'ice_cream' ? 0.35 : 0.15;
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 100,
         tolerance,
         enableFeasibilityCheck: true,
         useLPSolver: true,
         productType: productType,
-        enableScienceValidation: true
+        enableScienceValidation: true,
+        allowCoreDairy: true  // Allow adjusting milk/cream during balancing
       });
 
       console.log('✅ Balancing result:', {
@@ -594,6 +589,42 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         iterations: result.iterations,
         message: result.message
       });
+
+      // Enhanced error messages if balancing failed
+      if (!result.success) {
+        const currentMetrics = calcMetricsV2(optRows, { mode: calcMode });
+        const suggestions = [];
+        
+        if (currentMetrics.fat_pct < targets.fat_pct - 2) {
+          suggestions.push('Add heavy cream (35%+ fat) or butter to increase fat content');
+        }
+        if (currentMetrics.msnf_pct < targets.msnf_pct - 2) {
+          suggestions.push('Add skim milk powder (SMP) to increase MSNF');
+        }
+        if (!optRows.some(r => r.ing?.water_pct > 95)) {
+          suggestions.push('Add water as a diluent to improve flexibility');
+        }
+        if (currentMetrics.totalSugars_pct < targets.sugars_pct - 2) {
+          suggestions.push('Add sucrose or dextrose to increase sugar content');
+        }
+        
+        toast({
+          title: 'Balancing Failed',
+          description: suggestions.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm">{result.message}</p>
+              <p className="text-sm font-semibold">💡 Suggestions:</p>
+              <ul className="text-sm list-disc pl-4 space-y-1">
+                {suggestions.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          ) : result.message,
+          variant: 'destructive',
+          duration: 10000
+        });
+        setIsOptimizing(false);
+        return;
+      }
 
       // Store validation results
       setScienceValidation(result.scienceValidation);
@@ -1242,19 +1273,24 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       </Popover>
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        max="10000"
-                        value={typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0}
-                        onChange={(e) => updateRow(index, 'quantity_g', parseFloat(e.target.value) || 0)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step={getStepSize(row.quantity_g)}
+                          min="0"
+                          max="10000"
+                          value={typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0}
+                          onChange={(e) => updateRow(index, 'quantity_g', parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          ±{getStepSize(row.quantity_g)}g
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.sugars_g.toFixed(1)}
+                        value={typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g.toFixed(1) : '0.0'}
                         onChange={(e) => updateRow(index, 'sugars_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />
@@ -1262,7 +1298,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.fat_g.toFixed(1)}
+                        value={typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g.toFixed(1) : '0.0'}
                         onChange={(e) => updateRow(index, 'fat_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />
@@ -1270,7 +1306,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.msnf_g.toFixed(1)}
+                        value={typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g.toFixed(1) : '0.0'}
                         onChange={(e) => updateRow(index, 'msnf_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />
@@ -1278,7 +1314,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.other_solids_g.toFixed(1)}
+                        value={typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g.toFixed(1) : '0.0'}
                         onChange={(e) => updateRow(index, 'other_solids_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />
@@ -1286,7 +1322,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.total_solids_g.toFixed(1)}
+                        value={typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g.toFixed(1) : '0.0'}
                         onChange={(e) => updateRow(index, 'total_solids_g', parseFloat(e.target.value) || 0)}
                         className="bg-muted/50"
                       />

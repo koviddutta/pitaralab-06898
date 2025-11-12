@@ -80,9 +80,10 @@ export function balanceRecipeLP(
   options: {
     tolerance?: number;
     mode?: Mode;
+    allowCoreDairy?: boolean;
   } = {}
 ): LPSolverResult {
-  const tolerance = options.tolerance || 0.15; // 0.15% default tolerance
+  const tolerance = options.tolerance || 0.35; // Increased from 0.15 to 0.35
 
   if (!initialRows || initialRows.length === 0) {
     return {
@@ -118,11 +119,11 @@ export function balanceRecipeLP(
     let minGrams = 0; // Can reduce to zero by default
     let maxGrams = row.grams * 3; // Can increase up to 3x by default
 
-    // CORE INGREDIENT PROTECTION: Lock core ingredients within ±2%
+    // CORE INGREDIENT PROTECTION: Lock core ingredients within flexible bounds
     const role = classifyIngredient(ing);
-    if (role === 'core') {
-      minGrams = initialAmount * 0.98; // -2% max
-      maxGrams = initialAmount * 1.02; // +2% max
+    if (role === 'core' && !options.allowCoreDairy) {
+      minGrams = initialAmount * 0.5; // Allow reducing to 50%
+      maxGrams = initialAmount * 2.0; // Allow doubling
     }
 
     // Apply category-specific bounds
@@ -716,6 +717,7 @@ export function balanceRecipeV2(
     useLPSolver?: boolean;
     productType?: string;
     enableScienceValidation?: boolean;
+    allowCoreDairy?: boolean;
   } = {}
 ): BalanceResultV2 {
   const maxIterations = options.maxIterations || 50;
@@ -797,7 +799,11 @@ export function balanceRecipeV2(
         `ℹ️ Attempting heuristic balancing with available ingredients...`
       );
     } else {
-      const lpResult = balanceRecipeLP(initialRows, targets, { tolerance });
+      const lpResult = balanceRecipeLP(initialRows, targets, { 
+        tolerance, 
+        mode: resolveMode(productType),
+        allowCoreDairy: options.allowCoreDairy 
+      });
       
       if (lpResult.success) {
         const lpMetrics = calcMetricsV2(lpResult.rows);
