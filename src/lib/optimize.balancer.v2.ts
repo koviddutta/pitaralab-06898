@@ -431,9 +431,9 @@ export const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
     fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
   },
   ice_cream: {
-    totalSolids: { optimal: [36, 42], acceptable: [34, 44] },
-    fat: { optimal: [10, 16], acceptable: [8, 18] },
-    msnf: { optimal: [9, 14], acceptable: [8, 15] },
+    totalSolids: { optimal: [36, 42], acceptable: [33, 45] },
+    fat: { optimal: [10, 16], acceptable: [7, 20] },
+    msnf: { optimal: [9, 12], acceptable: [7, 16] },
     fpdt: { optimal: [2.2, 3.2], acceptable: [2.0, 3.5] }
   },
   sorbet: {

@@ -158,6 +158,24 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }
   }, [rows, metrics, productType, onRecipeChange]);
 
+  // STEP 4: State Validation Hook - Prevent corrupted state
+  useEffect(() => {
+    const cleanedRows = rows.map(row => ({
+      ...row,
+      quantity_g: typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0,
+      sugars_g: typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g : 0,
+      fat_g: typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g : 0,
+      msnf_g: typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g : 0,
+      other_solids_g: typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g : 0,
+      total_solids_g: typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g : 0,
+    }));
+    
+    if (JSON.stringify(cleanedRows) !== JSON.stringify(rows)) {
+      console.warn('🔧 Cleaned corrupted state - prevented symbol rendering bug');
+      setRows(cleanedRows);
+    }
+  }, [rows]);
+
   const addRow = () => {
     setRows([...rows, {
       ingredient: '',
