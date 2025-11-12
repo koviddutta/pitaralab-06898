@@ -226,22 +226,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const updateRow = (index: number, field: keyof IngredientRow, value: string | number) => {
-    const newRows = [...rows];
-    newRows[index] = { ...newRows[index], [field]: value };
-    
-    // Auto-calculate nutritional values when quantity changes
-    if (field === 'quantity_g' && newRows[index].ingredientData) {
-      const ing = newRows[index].ingredientData!;
-      const qty = Number(value);
+    setRows(prevRows => {
+      const newRows = [...prevRows];
+      // Enforce number types for numeric fields
+      const numericValue = typeof value === 'number' ? value : parseFloat(value);
+      const safeValue = isNaN(numericValue) ? 0 : numericValue;
       
-      newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
-      newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
-      newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
-      newRows[index].other_solids_g = ((ing.other_solids_pct ?? 0) / 100) * qty;
-      newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
-    }
-    
-    setRows(newRows);
+      newRows[index] = { ...newRows[index], [field]: safeValue };
+      
+      // Auto-calculate nutritional values when quantity changes
+      if (field === 'quantity_g' && newRows[index].ingredientData) {
+        const ing = newRows[index].ingredientData!;
+        const qty = safeValue;
+        
+        newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
+        newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
+        newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
+        newRows[index].other_solids_g = ((ing.other_solids_pct ?? 0) / 100) * qty;
+        newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
+      }
+      
+      return newRows;
+    });
   };
 
   const handleIngredientSelect = (index: number, ingredient: IngredientData) => {
@@ -553,9 +559,11 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
+      const calcMode = resolveMode(productType);
+      const tolerance = calcMode === 'ice_cream' ? 0.25 : 0.15;
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
-        maxIterations: 50,
-        tolerance: 0.15,
+        maxIterations: 100,
+        tolerance,
         enableFeasibilityCheck: true,
         useLPSolver: true,
         productType: productType,
@@ -1218,7 +1226,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     <TableCell>
                       <Input
                         type="number"
-                        value={row.quantity_g}
+                        step="1"
+                        min="0"
+                        max="10000"
+                        value={typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0}
                         onChange={(e) => updateRow(index, 'quantity_g', parseFloat(e.target.value) || 0)}
                       />
                     </TableCell>
