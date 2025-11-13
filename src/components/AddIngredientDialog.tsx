@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,10 @@ interface AddIngredientDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  prefilledData?: Partial<IngredientData>;
 }
 
-export function AddIngredientDialog({ onIngredientAdded, trigger, open: controlledOpen, onOpenChange: externalOnOpenChange }: AddIngredientDialogProps) {
+export function AddIngredientDialog({ onIngredientAdded, trigger, open: controlledOpen, onOpenChange: externalOnOpenChange, prefilledData }: AddIngredientDialogProps) {
   const { toast } = useToast();
   const { refetch } = useIngredients();
   const [isLoading, setIsLoading] = useState(false);
@@ -32,19 +33,39 @@ export function AddIngredientDialog({ onIngredientAdded, trigger, open: controll
   };
   
   const [formData, setFormData] = useState({
-    name: '',
-    category: 'other' as IngredientData['category'],
-    water_pct: 0,
-    sugars_pct: 0,
-    fat_pct: 0,
-    msnf_pct: 0,
-    other_solids_pct: 0,
-    sp_coeff: undefined as number | undefined,
-    pac_coeff: undefined as number | undefined,
-    cost_per_kg: undefined as number | undefined,
-    notes: [] as string[],
-    tags: [] as string[]
+    name: prefilledData?.name || '',
+    category: (prefilledData?.category || 'other') as IngredientData['category'],
+    water_pct: prefilledData?.water_pct || 0,
+    sugars_pct: prefilledData?.sugars_pct || 0,
+    fat_pct: prefilledData?.fat_pct || 0,
+    msnf_pct: prefilledData?.msnf_pct || 0,
+    other_solids_pct: prefilledData?.other_solids_pct || 0,
+    sp_coeff: prefilledData?.sp_coeff,
+    pac_coeff: prefilledData?.pac_coeff,
+    cost_per_kg: prefilledData?.cost_per_kg,
+    notes: prefilledData?.notes || [] as string[],
+    tags: prefilledData?.tags || [] as string[]
   });
+
+  // Update form when prefilledData changes
+  useEffect(() => {
+    if (prefilledData) {
+      setFormData({
+        name: prefilledData.name || '',
+        category: (prefilledData.category || 'other') as IngredientData['category'],
+        water_pct: prefilledData.water_pct || 0,
+        sugars_pct: prefilledData.sugars_pct || 0,
+        fat_pct: prefilledData.fat_pct || 0,
+        msnf_pct: prefilledData.msnf_pct || 0,
+        other_solids_pct: prefilledData.other_solids_pct || 0,
+        sp_coeff: prefilledData.sp_coeff,
+        pac_coeff: prefilledData.pac_coeff,
+        cost_per_kg: prefilledData.cost_per_kg,
+        notes: prefilledData.notes || [],
+        tags: prefilledData.tags || []
+      });
+    }
+  }, [prefilledData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

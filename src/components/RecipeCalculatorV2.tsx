@@ -11,7 +11,9 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
@@ -77,6 +79,16 @@ interface IngredientRow {
   total_solids_g: number;
 }
 
+interface BalancingSuggestion {
+  id: string;
+  action: 'add' | 'increase' | 'decrease' | 'remove';
+  ingredientName: string;
+  ingredientId: string;
+  quantityChange: number; // grams to add/remove
+  reason: string; // e.g., "to increase fat by 3.5%"
+  priority: number; // 1-3 (1 = critical, 3 = optional)
+}
+
 interface RecipeCalculatorV2Props {
   onRecipeChange?: (recipe: any[], metrics: MetricsV2 | null, productType: string) => void;
 }
@@ -106,6 +118,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [lastBalanceStrategy, setLastBalanceStrategy] = useState<'LP' | 'Heuristic' | 'Auto-Fix' | undefined>(undefined);
   const [deductFromInventory, setDeductFromInventory] = useState(true); // Default to true
+  const [showAddIngredientDialog, setShowAddIngredientDialog] = useState(false);
+  const [balancingSuggestions, setBalancingSuggestions] = React.useState<BalancingSuggestion[]>([]);
+  const [showSuggestionsDialog, setShowSuggestionsDialog] = React.useState(false);
+  const [missingIngredient, setMissingIngredient] = React.useState<{
+    name: string;
+    id: string;
+    suggestion: BalancingSuggestion;
+  } | null>(null);
+  const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
@@ -166,13 +187,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     return 0.1;                       // Tiny amounts: ±0.1g
   };
 
-  // PHASE 1: Buffered Quantity Input Component
+  // PHASE 1: Buffered Quantity Input Component with Visual Feedback
   // Prevents input resets during typing by buffering changes until blur/Enter
-  const QuantityInput = ({ value, onChange, step, rowIndex }: { 
+  const QuantityInput = ({ value, onChange, step, rowIndex, className }: { 
     value: number; 
     onChange: (val: number) => void; 
     step: number;
     rowIndex: number;
+    className?: string;
   }) => {
     const [buffer, setBuffer] = React.useState(value.toString());
     const [isFocused, setIsFocused] = React.useState(false);
@@ -200,27 +222,39 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     };
 
     return (
-      <Input
-        type="number"
-        step={step}
-        min="0"
-        max="10000"
-        value={buffer}
-        onChange={handleChange}
-        onFocus={() => setIsFocused(true)}
-        onBlur={commitValue}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            commitValue();
-            e.currentTarget.blur();
-          } else if (e.key === 'Escape') {
-            setBuffer(value.toString());
-            setIsFocused(false);
-            e.currentTarget.blur();
-          }
-        }}
-        className="w-full"
-      />
+      <div className="relative w-full">
+        <Input
+          type="number"
+          step={step}
+          min="0"
+          max="10000"
+          value={buffer}
+          onChange={handleChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={commitValue}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              commitValue();
+              e.currentTarget.blur();
+            } else if (e.key === 'Escape') {
+              setBuffer(value.toString());
+              setIsFocused(false);
+              e.currentTarget.blur();
+            }
+          }}
+          className={cn(
+            "text-base font-medium transition-all",
+            isFocused && "ring-2 ring-primary ring-offset-2 border-primary",
+            !isFocused && "bg-background",
+            className
+          )}
+        />
+        {isFocused && (
+          <div className="absolute -top-6 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-1">
+            Type value & press Enter
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -648,61 +682,84 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         message: result.message
       });
 
-      // PHASE 3: Enhanced error messages with specific gaps and quantified suggestions
+      // PHASE 2: Enhanced error messages with actionable structured suggestions
       if (!result.success) {
         const currentMetrics = calcMetricsV2(optRows, { mode: calcMode });
-        const suggestions = [];
+        const structuredSuggestions: BalancingSuggestion[] = [];
         
         // Calculate ACTUAL gaps between current and target
         const fatGap = targets.fat_pct - currentMetrics.fat_pct;
         const msnfGap = targets.msnf_pct - currentMetrics.msnf_pct;
         const sugarGap = targets.totalSugars_pct - currentMetrics.totalSugars_pct;
         
+        // Generate actionable suggestions with ingredient IDs
         if (Math.abs(fatGap) > 2) {
           if (fatGap > 0) {
-            suggestions.push(`Add ${Math.abs(fatGap * 10).toFixed(0)}g heavy cream (35%+ fat) to increase fat by ${fatGap.toFixed(1)}%`);
+            const amountNeeded = Math.abs(fatGap * 10);
+            structuredSuggestions.push({
+              id: 'fat-increase',
+              action: 'add',
+              ingredientName: 'Heavy Cream 35%',
+              ingredientId: 'cream_35', // Canonical ID from database
+              quantityChange: amountNeeded,
+              reason: `to increase fat by ${fatGap.toFixed(1)}%`,
+              priority: 1
+            });
           } else {
-            suggestions.push(`Reduce cream or add ${Math.abs(fatGap * 15).toFixed(0)}g water to decrease fat by ${Math.abs(fatGap).toFixed(1)}%`);
+            const amountNeeded = Math.abs(fatGap * 15);
+            structuredSuggestions.push({
+              id: 'fat-decrease',
+              action: 'add',
+              ingredientName: 'Water',
+              ingredientId: 'water',
+              quantityChange: amountNeeded,
+              reason: `to dilute fat by ${Math.abs(fatGap).toFixed(1)}%`,
+              priority: 2
+            });
           }
         }
         
         if (Math.abs(msnfGap) > 2) {
           if (msnfGap > 0) {
-            suggestions.push(`Add ${Math.abs(msnfGap * 10).toFixed(0)}g skim milk powder (SMP) to increase MSNF by ${msnfGap.toFixed(1)}%`);
-          } else {
-            suggestions.push(`Reduce milk powder or add ${Math.abs(msnfGap * 12).toFixed(0)}g water to decrease MSNF by ${Math.abs(msnfGap).toFixed(1)}%`);
+            const amountNeeded = Math.abs(msnfGap * 10);
+            structuredSuggestions.push({
+              id: 'msnf-increase',
+              action: 'add',
+              ingredientName: 'Skim Milk Powder (SMP)',
+              ingredientId: 'smp',
+              quantityChange: amountNeeded,
+              reason: `to increase MSNF by ${msnfGap.toFixed(1)}%`,
+              priority: 1
+            });
           }
         }
         
         if (Math.abs(sugarGap) > 2) {
           if (sugarGap > 0) {
-            suggestions.push(`Add ${Math.abs(sugarGap * 10).toFixed(0)}g sucrose to increase sugars by ${sugarGap.toFixed(1)}%`);
-          } else {
-            suggestions.push(`Reduce sugar or add ${Math.abs(sugarGap * 10).toFixed(0)}g water to decrease sugars by ${Math.abs(sugarGap).toFixed(1)}%`);
+            const amountNeeded = Math.abs(sugarGap * 10);
+            structuredSuggestions.push({
+              id: 'sugar-increase',
+              action: 'add',
+              ingredientName: 'Sucrose',
+              ingredientId: 'sucrose',
+              quantityChange: amountNeeded,
+              reason: `to increase sugars by ${sugarGap.toFixed(1)}%`,
+              priority: 2
+            });
           }
         }
         
+        // Show structured suggestions dialog instead of toast
+        showBalancingSuggestionsDialog(structuredSuggestions, currentMetrics, targets);
+        setIsOptimizing(false);
+        return;
+      }
+      
+      // Success - show original toast logic
+      if (result.success) {
         toast({
-          title: '⚠️ Balancing Failed',
-          description: (
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Current vs Target:</p>
-              <div className="text-xs space-y-1 font-mono">
-                <div>Fat: {currentMetrics.fat_pct.toFixed(1)}% → {targets.fat_pct}% ({fatGap > 0 ? '+' : ''}{fatGap.toFixed(1)}%)</div>
-                <div>MSNF: {currentMetrics.msnf_pct.toFixed(1)}% → {targets.msnf_pct}% ({msnfGap > 0 ? '+' : ''}{msnfGap.toFixed(1)}%)</div>
-                <div>Sugars: {currentMetrics.totalSugars_pct.toFixed(1)}% → {targets.totalSugars_pct}% ({sugarGap > 0 ? '+' : ''}{sugarGap.toFixed(1)}%)</div>
-              </div>
-              {suggestions.length > 0 && (
-                <>
-                  <p className="text-sm font-semibold mt-2">💡 Specific Actions:</p>
-                  <ul className="text-xs list-disc pl-4 space-y-1">
-                    {suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                  </ul>
-                </>
-              )}
-            </div>
-          ),
-          variant: 'destructive',
+          title: '✅ Recipe Balanced',
+          description: `Successfully balanced using ${result.strategy}`,
           duration: 15000
         });
         setIsOptimizing(false);
@@ -851,6 +908,155 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       });
     } finally {
       setIsOptimizing(false);
+    }
+  };
+
+  // PHASE 2: Actionable suggestions system
+  const showBalancingSuggestionsDialog = (
+    suggestions: BalancingSuggestion[],
+    currentMetrics: any,
+    targets: any
+  ) => {
+    setBalancingSuggestions(suggestions);
+    setShowSuggestionsDialog(true);
+  };
+
+  // PHASE 2: Apply a single suggestion
+  const applySuggestion = (suggestion: BalancingSuggestion) => {
+    // Find ingredient in available list with alias matching
+    const ingredient = availableIngredients.find(
+      ing => ing.id === suggestion.ingredientId || 
+             ing.name.toLowerCase().includes(suggestion.ingredientName.toLowerCase()) ||
+             // Also check for common aliases
+             (suggestion.ingredientId === 'cream_35' && ing.name.toLowerCase().includes('heavy cream')) ||
+             (suggestion.ingredientId === 'cream_35' && ing.name.toLowerCase().includes('cream 35')) ||
+             (suggestion.ingredientId === 'smp' && ing.name.toLowerCase().includes('skim milk powder')) ||
+             (suggestion.ingredientId === 'smp' && ing.name.toLowerCase().includes('milk powder')) ||
+             (suggestion.ingredientId === 'water' && ing.name.toLowerCase() === 'water') ||
+             (suggestion.ingredientId === 'sucrose' && ing.name.toLowerCase().includes('sucrose')) ||
+             (suggestion.ingredientId === 'sucrose' && ing.name.toLowerCase().includes('sugar'))
+    );
+    
+    if (!ingredient) {
+      // PHASE 3: Ingredient doesn't exist - offer to create it with default values
+      const defaultData: any = {
+        name: suggestion.ingredientName,
+        category: 'other' as any
+      };
+      
+      // Add default composition based on ingredient type
+      if (suggestion.ingredientId === 'cream_35') {
+        defaultData.fat_pct = 35;
+        defaultData.msnf_pct = 5;
+        defaultData.water_pct = 60;
+        defaultData.category = 'dairy';
+      } else if (suggestion.ingredientId === 'smp') {
+        defaultData.msnf_pct = 96;
+        defaultData.water_pct = 4;
+        defaultData.category = 'dairy';
+      } else if (suggestion.ingredientId === 'water') {
+        defaultData.water_pct = 100;
+        defaultData.category = 'other';
+      } else if (suggestion.ingredientId === 'sucrose') {
+        defaultData.sugars_pct = 100;
+        defaultData.category = 'sugar';
+      }
+      
+      setMissingIngredient({
+        name: suggestion.ingredientName,
+        id: suggestion.ingredientId,
+        suggestion: suggestion
+      });
+      setPrefilledIngredientData(defaultData);
+      setShowAddIngredientDialog(true);
+      return;
+    }
+    
+    // Check if ingredient already exists in recipe
+    const existingRowIndex = rows.findIndex(r => r.ingredientData?.id === ingredient.id);
+    
+    if (existingRowIndex >= 0) {
+      // Increase existing quantity
+      const currentQty = rows[existingRowIndex].quantity_g;
+      const newQty = currentQty + suggestion.quantityChange;
+      updateRow(existingRowIndex, 'quantity_g', newQty);
+      
+      toast({
+        title: '✅ Suggestion Applied',
+        description: `Increased ${ingredient.name} from ${currentQty.toFixed(0)}g to ${newQty.toFixed(0)}g`,
+        duration: 3000
+      });
+    } else {
+      // Add new row with ingredient
+      const qty = suggestion.quantityChange;
+      const newRow: IngredientRow = {
+        ingredient: ingredient.name,
+        quantity_g: qty,
+        sugars_g: ((ingredient.sugars_pct ?? 0) / 100) * qty,
+        fat_g: ((ingredient.fat_pct ?? 0) / 100) * qty,
+        msnf_g: ((ingredient.msnf_pct ?? 0) / 100) * qty,
+        other_solids_g: ((ingredient.other_solids_pct ?? 0) / 100) * qty,
+        total_solids_g: (((ingredient.sugars_pct ?? 0) + (ingredient.fat_pct ?? 0) + (ingredient.msnf_pct ?? 0) + (ingredient.other_solids_pct ?? 0)) / 100) * qty,
+        ingredientData: ingredient
+      };
+      
+      setRows(prev => [...prev, newRow]);
+      
+      toast({
+        title: '✅ Suggestion Applied',
+        description: `Added ${qty.toFixed(0)}g ${ingredient.name} to recipe`,
+        duration: 3000
+      });
+    }
+    
+    // Remove this suggestion from the list
+    setBalancingSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+  };
+
+  // PHASE 2: Apply ALL suggestions at once
+  const applyAllSuggestions = () => {
+    const currentSuggestions = [...balancingSuggestions];
+    currentSuggestions.forEach(suggestion => {
+      applySuggestion(suggestion);
+    });
+    
+    setShowSuggestionsDialog(false);
+    
+    toast({
+      title: '✨ All Suggestions Applied',
+      description: 'Recipe has been updated. Click "Balance Recipe" again to check results.',
+      duration: 5000
+    });
+  };
+
+  const handleIngredientAdded = (newIngredient: IngredientData) => {
+    // If this was added from a missing ingredient suggestion, apply it
+    if (missingIngredient) {
+      const qty = missingIngredient.suggestion.quantityChange;
+      const newRow: IngredientRow = {
+        ingredient: newIngredient.name,
+        quantity_g: qty,
+        sugars_g: ((newIngredient.sugars_pct ?? 0) / 100) * qty,
+        fat_g: ((newIngredient.fat_pct ?? 0) / 100) * qty,
+        msnf_g: ((newIngredient.msnf_pct ?? 0) / 100) * qty,
+        other_solids_g: ((newIngredient.other_solids_pct ?? 0) / 100) * qty,
+        total_solids_g: (((newIngredient.sugars_pct ?? 0) + (newIngredient.fat_pct ?? 0) + (newIngredient.msnf_pct ?? 0) + (newIngredient.other_solids_pct ?? 0)) / 100) * qty,
+        ingredientData: newIngredient
+      };
+      
+      setRows(prev => [...prev, newRow]);
+      
+      // Remove the suggestion
+      setBalancingSuggestions(prev => prev.filter(s => s.id !== missingIngredient.suggestion.id));
+      
+      toast({
+        title: '✅ Ingredient Added',
+        description: `Added ${qty.toFixed(0)}g ${newIngredient.name} to recipe`,
+        duration: 3000
+      });
+      
+      setMissingIngredient(null);
+      setPrefilledIngredientData(null);
     }
   };
 
@@ -1181,15 +1387,23 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   return (
     <div className="space-y-6">
       <AddIngredientDialog 
-        open={addIngredientIndex !== null}
+        open={addIngredientIndex !== null || showAddIngredientDialog}
         onOpenChange={(open) => {
-          if (!open) setAddIngredientIndex(null);
+          if (!open) {
+            setAddIngredientIndex(null);
+            setShowAddIngredientDialog(false);
+            setMissingIngredient(null);
+            setPrefilledIngredientData(null);
+          }
         }}
         onIngredientAdded={(ing) => {
           if (addIngredientIndex !== null) {
             handleIngredientSelect(addIngredientIndex, ing);
+            setAddIngredientIndex(null);
+          } else {
+            handleIngredientAdded(ing);
+            setShowAddIngredientDialog(false);
           }
-          setAddIngredientIndex(null);
         }}
       />
       
@@ -1367,20 +1581,21 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                         </PopoverContent>
                       </Popover>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="min-w-[180px]">
                       <div className="flex items-center gap-2">
                         <QuantityInput
                           value={row.quantity_g}
                           onChange={(val) => updateRow(index, 'quantity_g', val)}
                           step={getStepSize(row.quantity_g)}
                           rowIndex={index}
+                          className="text-base font-medium"
                         />
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap cursor-help">
+                              <Badge variant="outline" className="text-xs whitespace-nowrap cursor-help">
                                 ±{getStepSize(row.quantity_g)}g
-                              </span>
+                              </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Use arrow keys to adjust by ±{getStepSize(row.quantity_g)}g</p>
@@ -1394,40 +1609,45 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       <Input
                         type="number"
                         value={typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g.toFixed(1) : '0.0'}
-                        onChange={(e) => updateRow(index, 'sugars_g', parseFloat(e.target.value) || 0)}
-                        className="bg-muted/50"
+                        readOnly
+                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                        title="Auto-calculated from ingredient composition"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         value={typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g.toFixed(1) : '0.0'}
-                        onChange={(e) => updateRow(index, 'fat_g', parseFloat(e.target.value) || 0)}
-                        className="bg-muted/50"
+                        readOnly
+                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                        title="Auto-calculated from ingredient composition"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         value={typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g.toFixed(1) : '0.0'}
-                        onChange={(e) => updateRow(index, 'msnf_g', parseFloat(e.target.value) || 0)}
-                        className="bg-muted/50"
+                        readOnly
+                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                        title="Auto-calculated from ingredient composition"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         value={typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g.toFixed(1) : '0.0'}
-                        onChange={(e) => updateRow(index, 'other_solids_g', parseFloat(e.target.value) || 0)}
-                        className="bg-muted/50"
+                        readOnly
+                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                        title="Auto-calculated from ingredient composition"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         value={typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g.toFixed(1) : '0.0'}
-                        onChange={(e) => updateRow(index, 'total_solids_g', parseFloat(e.target.value) || 0)}
-                        className="bg-muted/50"
+                        readOnly
+                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                        title="Auto-calculated from ingredient composition"
                       />
                     </TableCell>
                     <TableCell>
@@ -2680,6 +2900,78 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           <Wrench className="h-5 w-5" />
         </Button>
       )}
+
+      {/* PHASE 2: Balancing Suggestions Dialog */}
+      <Dialog open={showSuggestionsDialog} onOpenChange={setShowSuggestionsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Balancing Failed - Auto-Fix Available
+            </DialogTitle>
+            <DialogDescription>
+              The recipe couldn't be automatically balanced. Apply these suggestions to get closer to your targets.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {balancingSuggestions.length > 0 ? (
+              <>
+                <div className="space-y-2">
+                  {balancingSuggestions.map((suggestion, index) => (
+                    <Card key={suggestion.id} className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant={suggestion.priority === 1 ? "destructive" : "secondary"}>
+                              {suggestion.priority === 1 ? "Critical" : "Recommended"}
+                            </Badge>
+                            <span className="font-medium">{suggestion.ingredientName}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {suggestion.action === 'add' ? 'Add' : 'Increase'} {suggestion.quantityChange.toFixed(0)}g {suggestion.reason}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => applySuggestion(suggestion)}
+                          className="whitespace-nowrap"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Apply
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+                
+                <Separator />
+                
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {balancingSuggestions.length} suggestion{balancingSuggestions.length > 1 ? 's' : ''} available
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setShowSuggestionsDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={applyAllSuggestions}>
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Apply All & Re-Balance
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="h-12 w-12 mx-auto mb-4 text-success" />
+                <p>All suggestions have been applied!</p>
+                <p className="text-sm mt-2">Close this dialog and click "Balance Recipe" again.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
