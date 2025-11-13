@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -164,6 +164,64 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (quantity >= 100) return 5;   // Medium amounts: ±5g
     if (quantity >= 10) return 1;    // Small amounts: ±1g
     return 0.1;                       // Tiny amounts: ±0.1g
+  };
+
+  // PHASE 1: Buffered Quantity Input Component
+  // Prevents input resets during typing by buffering changes until blur/Enter
+  const QuantityInput = ({ value, onChange, step, rowIndex }: { 
+    value: number; 
+    onChange: (val: number) => void; 
+    step: number;
+    rowIndex: number;
+  }) => {
+    const [buffer, setBuffer] = React.useState(value.toString());
+    const [isFocused, setIsFocused] = React.useState(false);
+
+    // Sync buffer with prop when not focused
+    React.useEffect(() => {
+      if (!isFocused) {
+        setBuffer(value.toString());
+      }
+    }, [value, isFocused]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setBuffer(e.target.value);
+    };
+
+    const commitValue = () => {
+      const parsed = parseFloat(buffer);
+      if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
+        onChange(parsed);
+      } else {
+        // Invalid input - revert to last valid value
+        setBuffer(value.toString());
+      }
+      setIsFocused(false);
+    };
+
+    return (
+      <Input
+        type="number"
+        step={step}
+        min="0"
+        max="10000"
+        value={buffer}
+        onChange={handleChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={commitValue}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            commitValue();
+            e.currentTarget.blur();
+          } else if (e.key === 'Escape') {
+            setBuffer(value.toString());
+            setIsFocused(false);
+            e.currentTarget.blur();
+          }
+        }}
+        className="w-full"
+      />
+    );
   };
 
   const addRow = () => {
@@ -572,7 +630,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const calcMode = resolveMode(productType);
-      const tolerance = calcMode === 'ice_cream' ? 0.5 : 0.3; // Relaxed tolerances
+      const tolerance = calcMode === 'ice_cream' ? 1.5 : 0.8; // PHASE 2: Increased tolerance for LP solver success
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 200, // Increased from 100
         tolerance,
@@ -590,37 +648,62 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         message: result.message
       });
 
-      // Enhanced error messages if balancing failed
+      // PHASE 3: Enhanced error messages with specific gaps and quantified suggestions
       if (!result.success) {
         const currentMetrics = calcMetricsV2(optRows, { mode: calcMode });
         const suggestions = [];
         
-        if (currentMetrics.fat_pct < targets.fat_pct - 2) {
-          suggestions.push('Add heavy cream (35%+ fat) or butter to increase fat content');
+        // Calculate ACTUAL gaps between current and target
+        const fatGap = targets.fat_pct - currentMetrics.fat_pct;
+        const msnfGap = targets.msnf_pct - currentMetrics.msnf_pct;
+        const sugarGap = targets.totalSugars_pct - currentMetrics.totalSugars_pct;
+        
+        if (Math.abs(fatGap) > 2) {
+          if (fatGap > 0) {
+            suggestions.push(`Add ${Math.abs(fatGap * 10).toFixed(0)}g heavy cream (35%+ fat) to increase fat by ${fatGap.toFixed(1)}%`);
+          } else {
+            suggestions.push(`Reduce cream or add ${Math.abs(fatGap * 15).toFixed(0)}g water to decrease fat by ${Math.abs(fatGap).toFixed(1)}%`);
+          }
         }
-        if (currentMetrics.msnf_pct < targets.msnf_pct - 2) {
-          suggestions.push('Add skim milk powder (SMP) to increase MSNF');
+        
+        if (Math.abs(msnfGap) > 2) {
+          if (msnfGap > 0) {
+            suggestions.push(`Add ${Math.abs(msnfGap * 10).toFixed(0)}g skim milk powder (SMP) to increase MSNF by ${msnfGap.toFixed(1)}%`);
+          } else {
+            suggestions.push(`Reduce milk powder or add ${Math.abs(msnfGap * 12).toFixed(0)}g water to decrease MSNF by ${Math.abs(msnfGap).toFixed(1)}%`);
+          }
         }
-        if (!optRows.some(r => r.ing?.water_pct > 95)) {
-          suggestions.push('Add water as a diluent to improve flexibility');
-        }
-        if (currentMetrics.totalSugars_pct < targets.sugars_pct - 2) {
-          suggestions.push('Add sucrose or dextrose to increase sugar content');
+        
+        if (Math.abs(sugarGap) > 2) {
+          if (sugarGap > 0) {
+            suggestions.push(`Add ${Math.abs(sugarGap * 10).toFixed(0)}g sucrose to increase sugars by ${sugarGap.toFixed(1)}%`);
+          } else {
+            suggestions.push(`Reduce sugar or add ${Math.abs(sugarGap * 10).toFixed(0)}g water to decrease sugars by ${Math.abs(sugarGap).toFixed(1)}%`);
+          }
         }
         
         toast({
-          title: 'Balancing Failed',
-          description: suggestions.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm">{result.message}</p>
-              <p className="text-sm font-semibold">💡 Suggestions:</p>
-              <ul className="text-sm list-disc pl-4 space-y-1">
-                {suggestions.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
+          title: '⚠️ Balancing Failed',
+          description: (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Current vs Target:</p>
+              <div className="text-xs space-y-1 font-mono">
+                <div>Fat: {currentMetrics.fat_pct.toFixed(1)}% → {targets.fat_pct}% ({fatGap > 0 ? '+' : ''}{fatGap.toFixed(1)}%)</div>
+                <div>MSNF: {currentMetrics.msnf_pct.toFixed(1)}% → {targets.msnf_pct}% ({msnfGap > 0 ? '+' : ''}{msnfGap.toFixed(1)}%)</div>
+                <div>Sugars: {currentMetrics.totalSugars_pct.toFixed(1)}% → {targets.totalSugars_pct}% ({sugarGap > 0 ? '+' : ''}{sugarGap.toFixed(1)}%)</div>
+              </div>
+              {suggestions.length > 0 && (
+                <>
+                  <p className="text-sm font-semibold mt-2">💡 Specific Actions:</p>
+                  <ul className="text-xs list-disc pl-4 space-y-1">
+                    {suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                  </ul>
+                </>
+              )}
             </div>
-          ) : result.message,
+          ),
           variant: 'destructive',
-          duration: 10000
+          duration: 15000
         });
         setIsOptimizing(false);
         return;
@@ -1202,7 +1285,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               <TableHeader>
                 <TableRow>
                   <TableHead>Ingredient</TableHead>
-                  <TableHead>Qty (g)</TableHead>
+                  <TableHead>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="cursor-help">Qty (g)</span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>All quantities in grams (g)</p>
+                          <p className="text-xs text-muted-foreground mt-1">Type directly or use arrow keys</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableHead>
                   <TableHead>Sugars (g)</TableHead>
                   <TableHead>Fat (g)</TableHead>
                   <TableHead>MSNF (g)</TableHead>
@@ -1274,17 +1369,25 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
+                        <QuantityInput
+                          value={row.quantity_g}
+                          onChange={(val) => updateRow(index, 'quantity_g', val)}
                           step={getStepSize(row.quantity_g)}
-                          min="0"
-                          max="10000"
-                          value={typeof row.quantity_g === 'number' && !isNaN(row.quantity_g) ? row.quantity_g : 0}
-                          onChange={(e) => updateRow(index, 'quantity_g', parseFloat(e.target.value) || 0)}
+                          rowIndex={index}
                         />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          ±{getStepSize(row.quantity_g)}g
-                        </span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap cursor-help">
+                                ±{getStepSize(row.quantity_g)}g
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Use arrow keys to adjust by ±{getStepSize(row.quantity_g)}g</p>
+                              <p className="text-xs text-muted-foreground">Or type directly and press Enter</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </TableCell>
                     <TableCell>

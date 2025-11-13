@@ -115,15 +115,23 @@ export function balanceRecipeLP(
     const initialAmount = row.grams;
     const mode = options.mode || 'gelato';
 
-    // Calculate category-specific bounds
+    // PHASE 2: Calculate category-specific bounds with increased flexibility
     let minGrams = 0; // Can reduce to zero by default
-    let maxGrams = row.grams * 3; // Can increase up to 3x by default
+    let maxGrams = Math.max(row.grams * 5, 500); // Can increase up to 5x OR 500g minimum
 
-    // CORE INGREDIENT PROTECTION: Allow flexible adjustments for balancing
+    // PHASE 2: CORE INGREDIENT PROTECTION - only for TRUE core (fruits, flavors, stabilizers)
+    // Dairy ingredients are NEVER locked as 'core' for balancing purposes
     const role = classifyIngredient(ing);
-    if (role === 'core' && !options.allowCoreDairy) {
-      minGrams = initialAmount * 0.3; // Allow reducing to 30%
-      maxGrams = initialAmount * 3.0; // Allow tripling
+    if (role === 'core') {
+      const isTrulyCore = ing.category === 'fruit' || 
+                          ing.category === 'flavor' || 
+                          ing.category === 'stabilizer';
+      
+      if (isTrulyCore && !options.allowCoreDairy) {
+        minGrams = initialAmount * 0.8; // Allow ±20% for true core ingredients
+        maxGrams = initialAmount * 1.2;
+      }
+      // Dairy ingredients (milk, cream, butter) are always flexible, no restrictions
     }
 
     // Apply category-specific bounds
@@ -227,15 +235,82 @@ export function balanceRecipeLP(
   }
 
   try {
+    // PHASE 2: Add LP Model debugging before solving
+    console.log('🔧 LP Model Summary:');
+    console.log('  Variables:', Object.keys(model.variables).length);
+    console.log('  Constraints:', Object.keys(model.constraints).length);
+    console.log('  Ingredient bounds:', initialRows.map((row, idx) => ({
+      name: row.ing.name,
+      initial: row.grams.toFixed(1) + 'g',
+      min: model.constraints[`min_${idx}`]?.min || 'none',
+      max: model.constraints[`max_${idx}`]?.max || 'none'
+    })));
+
     // Solve the LP problem
     const result = solver.Solve(model);
 
+    // PHASE 3: Enhanced LP failure diagnostics
     if (!result || result.feasible === false) {
+      // Diagnose constraint conflicts
+      const diagnostics = {
+        conflictingConstraints: [] as string[]
+      };
+
+      // Check if fat target is achievable with available ingredients
+      const maxFatPossible = initialRows.reduce((sum, row) => 
+        sum + (row.grams * 5 * (row.ing.fat_pct / 100)), 0
+      );
+      const minFatPossible = initialRows.reduce((sum, row) => 
+        sum + (row.grams * 0 * (row.ing.fat_pct / 100)), 0
+      );
+      
+      const targetFatMin = (targets.fat_pct / 100 - tolerance / 100) * totalWeight;
+      const targetFatMax = (targets.fat_pct / 100 + tolerance / 100) * totalWeight;
+      
+      if (targetFatMin > maxFatPossible || targetFatMax < minFatPossible) {
+        diagnostics.conflictingConstraints.push(
+          `Fat target ${targets.fat_pct}% (${targetFatMin.toFixed(1)}-${targetFatMax.toFixed(1)}g) ` +
+          `is outside achievable range ${minFatPossible.toFixed(1)}-${maxFatPossible.toFixed(1)}g`
+        );
+      }
+
+      // Check MSNF achievability
+      const maxMSNFPossible = initialRows.reduce((sum, row) => 
+        sum + (row.grams * 5 * (row.ing.msnf_pct / 100)), 0
+      );
+      const targetMSNFMin = (targets.msnf_pct / 100 - tolerance / 100) * totalWeight;
+      const targetMSNFMax = (targets.msnf_pct / 100 + tolerance / 100) * totalWeight;
+      
+      if (targetMSNFMin > maxMSNFPossible) {
+        diagnostics.conflictingConstraints.push(
+          `MSNF target ${targets.msnf_pct}% (${targetMSNFMin.toFixed(1)}-${targetMSNFMax.toFixed(1)}g) ` +
+          `exceeds max achievable ${maxMSNFPossible.toFixed(1)}g`
+        );
+      }
+
+      // Check sugar achievability
+      const maxSugarPossible = initialRows.reduce((sum, row) => 
+        sum + (row.grams * 5 * (row.ing.sugars_pct / 100)), 0
+      );
+      const targetSugarMin = (targets.totalSugars_pct / 100 - tolerance / 100) * totalWeight;
+      const targetSugarMax = (targets.totalSugars_pct / 100 + tolerance / 100) * totalWeight;
+      
+      if (targetSugarMin > maxSugarPossible) {
+        diagnostics.conflictingConstraints.push(
+          `Sugar target ${targets.totalSugars_pct}% (${targetSugarMin.toFixed(1)}-${targetSugarMax.toFixed(1)}g) ` +
+          `exceeds max achievable ${maxSugarPossible.toFixed(1)}g`
+        );
+      }
+
       return {
         success: false,
         rows: initialRows,
-        message: 'LP solver found no feasible solution',
-        error: 'Infeasible constraints - targets may be impossible with current ingredients'
+        message: diagnostics.conflictingConstraints.length > 0
+          ? `Cannot balance: ${diagnostics.conflictingConstraints[0]}`
+          : 'LP solver encountered numerical issues',
+        error: result?.feasible === false 
+          ? 'Infeasible constraints: ' + diagnostics.conflictingConstraints.join('; ')
+          : 'Solver failed to find solution'
       };
     }
 
