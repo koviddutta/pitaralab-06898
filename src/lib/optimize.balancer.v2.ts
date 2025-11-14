@@ -83,7 +83,7 @@ export function balanceRecipeLP(
     allowCoreDairy?: boolean;
   } = {}
 ): LPSolverResult {
-  const tolerance = options.tolerance || 0.5; // Increased tolerance to 0.5 percentage points
+  const tolerance = options.tolerance || 3.0; // Increased tolerance to 3.0 percentage points
 
   if (!initialRows || initialRows.length === 0) {
     return {
@@ -117,7 +117,7 @@ export function balanceRecipeLP(
 
     // PHASE 2: Calculate category-specific bounds with increased flexibility
     let minGrams = 0; // Can reduce to zero by default
-    let maxGrams = Math.max(row.grams * 5, 500); // Can increase up to 5x OR 500g minimum
+    let maxGrams = Math.max(row.grams * 10, 2000); // Can increase up to 10x OR 2000g maximum
 
     // PHASE 2: CORE INGREDIENT PROTECTION - only for TRUE core (fruits, flavors, stabilizers)
     // Dairy ingredients are NEVER locked as 'core' for balancing purposes
@@ -180,27 +180,29 @@ export function balanceRecipeLP(
     model.constraints[`max_${idx}`] = { max: maxGrams };
   });
 
-  // Constraint 1: Total weight must equal original weight
-  model.constraints.total_weight = { equal: totalWeight };
+  // Constraint: Total weight can vary ±5% to give LP solver flexibility
+  model.constraints.total_weight = {
+    min: totalWeight * 0.95,
+    max: totalWeight * 1.05
+  };
 
-  // Constraint 3: Fat percentage target
+  // Fat percentage target - WIDER tolerance
   if (targets.fat_pct !== undefined) {
     const targetFatGrams = (targets.fat_pct / 100) * totalWeight;
-    // Tolerance is in percentage points, so convert: tolerance% of totalWeight grams
     const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.fat_contribution = {
-      min: targetFatGrams - toleranceGrams,
-      max: targetFatGrams + toleranceGrams
+      min: targetFatGrams - toleranceGrams * 1.5,
+      max: targetFatGrams + toleranceGrams * 1.5
     };
   }
 
-  // Constraint 4: MSNF percentage target
+  // MSNF percentage target - WIDER tolerance
   if (targets.msnf_pct !== undefined) {
     const targetMSNFGrams = (targets.msnf_pct / 100) * totalWeight;
     const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.msnf_contribution = {
-      min: targetMSNFGrams - toleranceGrams,
-      max: targetMSNFGrams + toleranceGrams
+      min: targetMSNFGrams - toleranceGrams * 1.5,
+      max: targetMSNFGrams + toleranceGrams * 1.5
     };
   }
 
@@ -210,8 +212,8 @@ export function balanceRecipeLP(
     const targetSugarsGrams = (sugarTarget / 100) * totalWeight;
     const toleranceGrams = (tolerance / 100) * totalWeight;
     model.constraints.sugars_contribution = {
-      min: targetSugarsGrams - toleranceGrams,
-      max: targetSugarsGrams + toleranceGrams
+      min: targetSugarsGrams - toleranceGrams * 1.5,
+      max: targetSugarsGrams + toleranceGrams * 1.5
     };
   }
 
