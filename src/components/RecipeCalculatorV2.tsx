@@ -179,13 +179,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }
   }, [rows, metrics, productType, onRecipeChange]);
 
-  // Helper function for dynamic step sizes based on quantity
-  const getStepSize = (quantity: number): number => {
-    if (quantity >= 500) return 10;  // Large amounts: ±10g
-    if (quantity >= 100) return 5;   // Medium amounts: ±5g
-    if (quantity >= 10) return 1;    // Small amounts: ±1g
-    return 0.1;                       // Tiny amounts: ±0.1g
-  };
+  const FIXED_STEP_SIZE = 10; // Always ±10g
 
   // PHASE 1: Buffered Quantity Input Component with Visual Feedback
   // Prevents input resets during typing by buffering changes until blur/Enter
@@ -198,8 +192,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   }) => {
     const [buffer, setBuffer] = React.useState(value.toString());
     const [isFocused, setIsFocused] = React.useState(false);
+    const [isInvalid, setIsInvalid] = React.useState(false);
 
-    // Sync buffer with prop when not focused
     React.useEffect(() => {
       if (!isFocused) {
         setBuffer(value.toString());
@@ -207,16 +201,27 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     }, [value, isFocused]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setBuffer(e.target.value);
+      const raw = e.target.value;
+      setBuffer(raw);
+      
+      // Real-time validation feedback (don't commit yet)
+      const parsed = parseFloat(raw);
+      setIsInvalid(raw !== '' && (isNaN(parsed) || parsed < 0));
     };
 
     const commitValue = () => {
       const parsed = parseFloat(buffer);
       if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-        onChange(parsed);
+        onChange(Math.round(parsed * 10) / 10); // Round to 1 decimal
+        setIsInvalid(false);
+      } else if (buffer === '' || buffer === '0') {
+        onChange(0);
+        setBuffer('0');
+        setIsInvalid(false);
       } else {
-        // Invalid input - revert to last valid value
+        // Invalid - revert
         setBuffer(value.toString());
+        setIsInvalid(false);
       }
       setIsFocused(false);
     };
@@ -224,13 +229,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     return (
       <div className="relative w-full">
         <Input
-          type="number"
-          step={step}
-          min="0"
-          max="10000"
+          type="text"
+          inputMode="decimal"
           value={buffer}
           onChange={handleChange}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            setIsInvalid(false);
+          }}
           onBlur={commitValue}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -238,20 +244,34 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               e.currentTarget.blur();
             } else if (e.key === 'Escape') {
               setBuffer(value.toString());
+              setIsInvalid(false);
               setIsFocused(false);
               e.currentTarget.blur();
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              onChange(value + step);
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              onChange(Math.max(0, value - step));
             }
           }}
           className={cn(
-            "text-base font-medium transition-all",
+            "text-lg font-semibold transition-all",
             isFocused && "ring-2 ring-primary ring-offset-2 border-primary",
-            !isFocused && "bg-background",
+            isInvalid && "ring-2 ring-destructive border-destructive",
+            !isFocused && !isInvalid && "bg-background",
             className
           )}
+          placeholder="0"
         />
         {isFocused && (
-          <div className="absolute -top-6 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-1">
-            Type value & press Enter
+          <div className="absolute -top-8 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-2 bg-primary/10 px-2 py-1 rounded">
+            Type grams, press Enter ↵
+          </div>
+        )}
+        {isInvalid && (
+          <div className="absolute -bottom-6 left-0 text-xs text-destructive font-medium">
+            Enter valid number ≥ 0
           </div>
         )}
       </div>
@@ -923,21 +943,38 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
   // PHASE 2: Apply a single suggestion
   const applySuggestion = (suggestion: BalancingSuggestion) => {
-    // Find ingredient in available list with alias matching
-    const ingredient = availableIngredients.find(
-      ing => ing.id === suggestion.ingredientId || 
-             ing.name.toLowerCase().includes(suggestion.ingredientName.toLowerCase()) ||
-             // Also check for common aliases
-             (suggestion.ingredientId === 'cream_35' && ing.name.toLowerCase().includes('heavy cream')) ||
-             (suggestion.ingredientId === 'cream_35' && ing.name.toLowerCase().includes('cream 35')) ||
-             (suggestion.ingredientId === 'smp' && ing.name.toLowerCase().includes('skim milk powder')) ||
-             (suggestion.ingredientId === 'smp' && ing.name.toLowerCase().includes('milk powder')) ||
-             (suggestion.ingredientId === 'water' && ing.name.toLowerCase() === 'water') ||
-             (suggestion.ingredientId === 'sucrose' && ing.name.toLowerCase().includes('sucrose')) ||
-             (suggestion.ingredientId === 'sucrose' && ing.name.toLowerCase().includes('sugar'))
-    );
+    // Find ingredient in available list - IMPROVED name-based matching
+    const ingredient = availableIngredients.find(ing => {
+      // Exact name match (case-insensitive)
+      if (ing.name.toLowerCase() === suggestion.ingredientName.toLowerCase()) return true;
+      
+      // Partial name match for common aliases
+      const nameMatch = ing.name.toLowerCase().includes(suggestion.ingredientName.toLowerCase().split(' ')[0]);
+      
+      // Check canonical aliases
+      const isHeavyCream = suggestion.ingredientId === 'cream_35' && 
+                           (ing.name.toLowerCase().includes('heavy cream') || 
+                            ing.name.toLowerCase().includes('cream 35'));
+      const isSMP = suggestion.ingredientId === 'smp' && 
+                    ing.name.toLowerCase().includes('skim milk powder');
+      const isWater = suggestion.ingredientId === 'water' && 
+                      ing.name.toLowerCase() === 'water';
+      const isSucrose = suggestion.ingredientId === 'sucrose' && 
+                        ing.name.toLowerCase().includes('sucrose');
+      const isButter = suggestion.ingredientId === 'butter' && 
+                       ing.name.toLowerCase().includes('butter');
+      
+      return nameMatch || isHeavyCream || isSMP || isWater || isSucrose || isButter;
+    });
     
     if (!ingredient) {
+      toast({
+        title: '❌ Ingredient Not Found',
+        description: `"${suggestion.ingredientName}" is not in your database. Click "Add Ingredient" below to create it.`,
+        variant: 'destructive',
+        duration: 6000
+      });
+      
       // PHASE 3: Ingredient doesn't exist - offer to create it with default values
       const defaultData: any = {
         name: suggestion.ingredientName,
@@ -1495,7 +1532,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
             {!showTemplates && (
               <>
-              <Table>
+          <div className="overflow-x-auto rounded-md border">
+            <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Ingredient</TableHead>
@@ -1581,75 +1619,65 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                         </PopoverContent>
                       </Popover>
                     </TableCell>
-                    <TableCell className="min-w-[180px]">
-                      <div className="flex items-center gap-2">
-                        <QuantityInput
-                          value={row.quantity_g}
-                          onChange={(val) => updateRow(index, 'quantity_g', val)}
-                          step={getStepSize(row.quantity_g)}
-                          rowIndex={index}
-                          className="text-base font-medium"
-                        />
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-xs whitespace-nowrap cursor-help">
-                                ±{getStepSize(row.quantity_g)}g
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Use arrow keys to adjust by ±{getStepSize(row.quantity_g)}g</p>
-                              <p className="text-xs text-muted-foreground">Or type directly and press Enter</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g.toFixed(1) : '0.0'}
-                        readOnly
-                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
-                        title="Auto-calculated from ingredient composition"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g.toFixed(1) : '0.0'}
-                        readOnly
-                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
-                        title="Auto-calculated from ingredient composition"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g.toFixed(1) : '0.0'}
-                        readOnly
-                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
-                        title="Auto-calculated from ingredient composition"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g.toFixed(1) : '0.0'}
-                        readOnly
-                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
-                        title="Auto-calculated from ingredient composition"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        value={typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g.toFixed(1) : '0.0'}
-                        readOnly
-                        className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
-                        title="Auto-calculated from ingredient composition"
-                      />
-                    </TableCell>
+                <TableCell className="min-w-[220px]">
+                  <div className="flex items-center gap-2">
+                    <QuantityInput
+                      value={row.quantity_g}
+                      onChange={(val) => updateRow(index, 'quantity_g', val)}
+                      step={FIXED_STEP_SIZE}
+                      rowIndex={index}
+                      className="text-lg font-bold"
+                    />
+                    <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                      ±{FIXED_STEP_SIZE}g
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell className="min-w-[120px]">
+                  <Input
+                    type="number"
+                    value={typeof row.sugars_g === 'number' && !isNaN(row.sugars_g) ? row.sugars_g.toFixed(1) : '0.0'}
+                    readOnly
+                    className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                    title="Auto-calculated from ingredient composition"
+                  />
+                </TableCell>
+                <TableCell className="min-w-[120px]">
+                  <Input
+                    type="number"
+                    value={typeof row.fat_g === 'number' && !isNaN(row.fat_g) ? row.fat_g.toFixed(1) : '0.0'}
+                    readOnly
+                    className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                    title="Auto-calculated from ingredient composition"
+                  />
+                </TableCell>
+                <TableCell className="min-w-[120px]">
+                  <Input
+                    type="number"
+                    value={typeof row.msnf_g === 'number' && !isNaN(row.msnf_g) ? row.msnf_g.toFixed(1) : '0.0'}
+                    readOnly
+                    className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                    title="Auto-calculated from ingredient composition"
+                  />
+                </TableCell>
+                <TableCell className="min-w-[120px]">
+                  <Input
+                    type="number"
+                    value={typeof row.other_solids_g === 'number' && !isNaN(row.other_solids_g) ? row.other_solids_g.toFixed(1) : '0.0'}
+                    readOnly
+                    className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                    title="Auto-calculated from ingredient composition"
+                  />
+                </TableCell>
+                <TableCell className="min-w-[140px]">
+                  <Input
+                    type="number"
+                    value={typeof row.total_solids_g === 'number' && !isNaN(row.total_solids_g) ? row.total_solids_g.toFixed(1) : '0.0'}
+                    readOnly
+                    className="bg-muted/50 text-muted-foreground cursor-not-allowed font-mono text-sm"
+                    title="Auto-calculated from ingredient composition"
+                  />
+                </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => removeRow(index)}>
                         <Trash2 className="h-4 w-4" />
@@ -1659,6 +1687,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 ))}
               </TableBody>
             </Table>
+          </div>
             
             <div className="flex gap-2 flex-wrap">
               <Button onClick={addRow} variant="outline" size="sm">
