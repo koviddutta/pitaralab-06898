@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2 } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2, Brain } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -48,6 +48,19 @@ import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
 import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SmartInsightsPanel } from '@/components/SmartInsightsPanel';
+import { AIInsightsPanel } from '@/components/AIInsightsPanel';
+
+// Debounce utility for input stability
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 /**
  * Map mode to product constraints key
@@ -129,7 +142,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
   
   // Use global ingredients context
-  const { ingredients: availableIngredients, isLoading: loadingIngredients } = useIngredients();
+  const { ingredients: availableIngredients, isLoading: loadingIngredients, refetch: refetchIngredients } = useIngredients();
   
   // Inventory integration
   const { checkStockAvailability, deductFromInventory: performDeduction, getInventoryStatus } = useInventoryIntegration();
@@ -193,12 +206,20 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const [buffer, setBuffer] = React.useState(value.toString());
     const [isFocused, setIsFocused] = React.useState(false);
     const [isInvalid, setIsInvalid] = React.useState(false);
+    const [justSaved, setJustSaved] = React.useState(false);
 
+    // ONLY sync if not focused AND value actually changed
     React.useEffect(() => {
-      if (!isFocused) {
+      if (!isFocused && Math.abs(parseFloat(buffer) - value) > 0.01) {
         setBuffer(value.toString());
       }
     }, [value, isFocused]);
+
+    // Debounced onChange to prevent rapid updates
+    const debouncedOnChange = useMemo(
+      () => debounce(onChange, 300),
+      [onChange]
+    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
@@ -212,12 +233,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const commitValue = () => {
       const parsed = parseFloat(buffer);
       if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-        onChange(Math.round(parsed * 10) / 10); // Round to 1 decimal
+        debouncedOnChange(Math.round(parsed * 10) / 10); // Round to 1 decimal
         setIsInvalid(false);
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 1000);
       } else if (buffer === '' || buffer === '0') {
-        onChange(0);
+        debouncedOnChange(0);
         setBuffer('0');
         setIsInvalid(false);
+        setJustSaved(true);
+        setTimeout(() => setJustSaved(false), 1000);
       } else {
         // Invalid - revert
         setBuffer(value.toString());
@@ -227,7 +252,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     };
 
     return (
-      <div className="relative w-full">
+      <div className={cn(
+        "relative w-full transition-all",
+        justSaved && "ring-2 ring-green-500 ring-offset-2 animate-pulse"
+      )}>
         <Input
           type="text"
           inputMode="decimal"
@@ -265,13 +293,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           placeholder="0"
         />
         {isFocused && (
-          <div className="absolute -top-8 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-2 bg-primary/10 px-2 py-1 rounded">
+          <div className="absolute -top-8 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-2 bg-primary/10 px-2 py-1 rounded z-10">
             Type grams, press Enter ↵
           </div>
         )}
         {isInvalid && (
-          <div className="absolute -bottom-6 left-0 text-xs text-destructive font-medium">
+          <div className="absolute -bottom-6 left-0 text-xs text-destructive font-medium z-10">
             Enter valid number ≥ 0
+          </div>
+        )}
+        {justSaved && (
+          <div className="absolute -top-8 right-0 text-xs text-green-600 font-medium animate-in fade-in z-10">
+            ✓ Saved
           </div>
         )}
       </div>
@@ -684,7 +717,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const calcMode = resolveMode(productType);
-      const tolerance = calcMode === 'ice_cream' ? 1.5 : 0.8; // PHASE 2: Increased tolerance for LP solver success
+      const tolerance = calcMode === 'ice_cream' ? 3.0 : 2.0; // Loosened tolerance for better feasibility // PHASE 2: Increased tolerance for LP solver success
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 200, // Increased from 100
         tolerance,
@@ -941,70 +974,96 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setShowSuggestionsDialog(true);
   };
 
-  // PHASE 2: Apply a single suggestion
-  const applySuggestion = (suggestion: BalancingSuggestion) => {
-    // Find ingredient in available list - IMPROVED name-based matching
+  // PHASE 2: Apply a single suggestion - with auto-create missing ingredients
+  const applySuggestion = async (suggestion: BalancingSuggestion) => {
+    console.log(`🔍 Applying suggestion: ${suggestion.ingredientName} (${suggestion.ingredientId})`);
+    
+    // Enhanced ingredient matching with canonical aliases
+    const aliases: Record<string, string[]> = {
+      'cream_35': ['heavy cream', 'heavy cream 35', 'cream 35', 'double cream', 'whipping cream'],
+      'smp': ['skim milk powder', 'skimmed milk powder', 'nonfat milk powder', 'smp', 'dried skim milk'],
+      'water': ['water', 'filtered water', 'drinking water', 'purified water'],
+      'sucrose': ['sucrose', 'white sugar', 'cane sugar', 'table sugar', 'granulated sugar'],
+      'butter': ['butter', 'unsalted butter', 'salted butter', 'sweet cream butter'],
+      'milk': ['whole milk', 'milk', 'fresh milk', 'cow milk'],
+      'dextrose': ['dextrose', 'glucose', 'corn sugar', 'grape sugar']
+    };
+    
     const ingredient = availableIngredients.find(ing => {
-      // Exact name match (case-insensitive)
-      if (ing.name.toLowerCase() === suggestion.ingredientName.toLowerCase()) return true;
+      console.log(`  Checking: ${ing.name}`);
       
-      // Partial name match for common aliases
-      const nameMatch = ing.name.toLowerCase().includes(suggestion.ingredientName.toLowerCase().split(' ')[0]);
+      // Exact match
+      if (ing.name.toLowerCase() === suggestion.ingredientName.toLowerCase()) {
+        console.log('  ✅ Exact match');
+        return true;
+      }
       
-      // Check canonical aliases
-      const isHeavyCream = suggestion.ingredientId === 'cream_35' && 
-                           (ing.name.toLowerCase().includes('heavy cream') || 
-                            ing.name.toLowerCase().includes('cream 35'));
-      const isSMP = suggestion.ingredientId === 'smp' && 
-                    ing.name.toLowerCase().includes('skim milk powder');
-      const isWater = suggestion.ingredientId === 'water' && 
-                      ing.name.toLowerCase() === 'water';
-      const isSucrose = suggestion.ingredientId === 'sucrose' && 
-                        ing.name.toLowerCase().includes('sucrose');
-      const isButter = suggestion.ingredientId === 'butter' && 
-                       ing.name.toLowerCase().includes('butter');
+      // Check against all aliases
+      const searchTerms = aliases[suggestion.ingredientId] || [];
+      const matched = searchTerms.some(term => 
+        ing.name.toLowerCase().includes(term.toLowerCase())
+      );
       
-      return nameMatch || isHeavyCream || isSMP || isWater || isSucrose || isButter;
+      if (matched) console.log('  ✅ Alias match');
+      return matched;
     });
     
     if (!ingredient) {
+      console.log('  ❌ Ingredient not found in database');
+      
+      // Default compositions for common ingredients
+      const defaultCompositions: Record<string, any> = {
+        'cream_35': { name: 'Heavy Cream 35%', fat_pct: 35, msnf_pct: 5.5, water_pct: 58, category: 'dairy', hardening_factor: 1.0 },
+        'smp': { name: 'Skim Milk Powder', fat_pct: 1, msnf_pct: 95, water_pct: 4, category: 'dairy', hardening_factor: 1.0 },
+        'water': { name: 'Water', water_pct: 100, category: 'other', hardening_factor: 0 },
+        'sucrose': { name: 'Sucrose', sugars_pct: 100, category: 'sugar', hardening_factor: 1.0 },
+        'butter': { name: 'Butter', fat_pct: 82, msnf_pct: 2, water_pct: 15.5, category: 'dairy', hardening_factor: 1.0 },
+        'dextrose': { name: 'Dextrose', sugars_pct: 100, category: 'sugar', hardening_factor: 1.0 }
+      };
+      
+      const defaults = defaultCompositions[suggestion.ingredientId];
+      
+      if (defaults) {
+        console.log('  🔧 Auto-creating ingredient with defaults:', defaults);
+        
+        // Auto-create ingredient in database
+        const { data: newIng, error } = await supabase
+          .from('ingredients')
+          .insert(defaults)
+          .select()
+          .single();
+        
+        if (error || !newIng) {
+          console.error('  ❌ Failed to auto-create:', error);
+          toast({
+            title: '❌ Failed to add ingredient',
+            description: error?.message || 'Please add it manually from the ingredient database',
+            variant: 'destructive'
+          });
+          return;
+        }
+        
+        console.log('  ✅ Ingredient auto-created:', newIng);
+        toast({
+          title: '✨ Ingredient Added',
+          description: `${defaults.name} was automatically added to your database`,
+        });
+        
+        // Refresh ingredients list
+        await refetchIngredients();
+        
+        // Re-apply suggestion with newly created ingredient - add small delay
+        setTimeout(() => applySuggestion(suggestion), 500);
+        return;
+      }
+      
+      // Fallback: show manual add dialog
       toast({
         title: '❌ Ingredient Not Found',
-        description: `"${suggestion.ingredientName}" is not in your database. Click "Add Ingredient" below to create it.`,
+        description: `"${suggestion.ingredientName}" is not in your database. Please add it manually.`,
         variant: 'destructive',
         duration: 6000
       });
-      
-      // PHASE 3: Ingredient doesn't exist - offer to create it with default values
-      const defaultData: any = {
-        name: suggestion.ingredientName,
-        category: 'other' as any
-      };
-      
-      // Add default composition based on ingredient type
-      if (suggestion.ingredientId === 'cream_35') {
-        defaultData.fat_pct = 35;
-        defaultData.msnf_pct = 5;
-        defaultData.water_pct = 60;
-        defaultData.category = 'dairy';
-      } else if (suggestion.ingredientId === 'smp') {
-        defaultData.msnf_pct = 96;
-        defaultData.water_pct = 4;
-        defaultData.category = 'dairy';
-      } else if (suggestion.ingredientId === 'water') {
-        defaultData.water_pct = 100;
-        defaultData.category = 'other';
-      } else if (suggestion.ingredientId === 'sucrose') {
-        defaultData.sugars_pct = 100;
-        defaultData.category = 'sugar';
-      }
-      
-      setMissingIngredient({
-        name: suggestion.ingredientName,
-        id: suggestion.ingredientId,
-        suggestion: suggestion
-      });
-      setPrefilledIngredientData(defaultData);
       setShowAddIngredientDialog(true);
       return;
     }
@@ -1050,20 +1109,23 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setBalancingSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
   };
 
-  // PHASE 2: Apply ALL suggestions at once
-  const applyAllSuggestions = () => {
-    const currentSuggestions = [...balancingSuggestions];
-    currentSuggestions.forEach(suggestion => {
-      applySuggestion(suggestion);
-    });
-    
+  // PHASE 2: Apply ALL suggestions at once - with auto re-balance
+  const applyAllSuggestions = async () => {
+    for (const suggestion of balancingSuggestions) {
+      await applySuggestion(suggestion);
+    }
     setShowSuggestionsDialog(false);
     
     toast({
       title: '✨ All Suggestions Applied',
-      description: 'Recipe has been updated. Click "Balance Recipe" again to check results.',
-      duration: 5000
+      description: 'Re-balancing recipe automatically...',
+      duration: 3000
     });
+    
+    // Auto-trigger balancing after applying suggestions
+    setTimeout(() => {
+      balanceRecipe();
+    }, 1000);
   };
 
   const handleIngredientAdded = (newIngredient: IngredientData) => {
