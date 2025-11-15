@@ -73,6 +73,12 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
           description: 'Please wait before analyzing another recipe.',
           variant: 'destructive',
         });
+      } else if (err.message?.includes('LOVABLE_API_KEY')) {
+        toast({
+          title: 'AI Configuration Error',
+          description: 'AI features require proper setup. Contact support if this persists.',
+          variant: 'destructive',
+        });
       }
     } finally {
       setIsLoading(false);
