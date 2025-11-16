@@ -1,5 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -164,17 +163,18 @@ BE EXTREMELY SPECIFIC. Use exact numbers, ingredient names, and technical terms.
     });
   } catch (error) {
     console.error('❌ Error in analyze-recipe:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        balance_assessment: `Analysis failed: ${error.message}`,
+        error: errorMessage,
+        balance_assessment: `Analysis failed: ${errorMessage}`,
         texture_prediction: 'Unable to predict',
         optimization_suggestions: [],
-        risk_warnings: [`Error: ${error.message}`],
+        risk_warnings: [`Error: ${errorMessage}`],
         recommended_adjustments: [],
       }),
       {
-        status: error.message.includes('Rate limit') ? 429 : 500,
+        status: (error instanceof Error && error.message.includes('Rate limit')) ? 429 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
