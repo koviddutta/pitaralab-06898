@@ -42,14 +42,27 @@ Deno.serve(async (req) => {
     let recipeDesc = '';
     
     if (Array.isArray(recipe)) {
-      recipeDesc = recipe.map((r: any) => 
-        `${r.ingredient || r.ingredientId}: ${r.quantity_g || r.grams}g`
-      ).join(', ');
+      // Look up ingredient names from database using IDs
+      const ingredientIds = recipe.map((r: any) => r.ingredientId).filter(Boolean);
+      const { data: ingredients } = await supabase
+        .from('ingredients')
+        .select('id, name')
+        .in('id', ingredientIds);
+      
+      const ingredientMap = new Map(ingredients?.map(i => [i.id, i.name]) || []);
+      
+      recipeDesc = recipe.map((r: any) => {
+        const name = r.ingredient || ingredientMap.get(r.ingredientId) || r.ingredientId;
+        const quantity = r.quantity_g || r.grams;
+        return `${name}: ${quantity}g`;
+      }).join(', ');
     } else if (recipe.rows) {
       recipeDesc = recipe.rows.map((r: any) => 
         `${r.ingredient}: ${r.quantity_g}g`
       ).join(', ');
     }
+    
+    console.log('📝 Recipe description:', recipeDesc);
 
     // Create expert-level prompt
     const prompt = `You are a world-class ice cream scientist and formulator with 20+ years experience. Analyze this ${productType} recipe in EXTREME DETAIL:
