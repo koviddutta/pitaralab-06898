@@ -51,16 +51,7 @@ import { SmartInsightsPanel } from '@/components/SmartInsightsPanel';
 import { AIInsightsPanel } from '@/components/AIInsightsPanel';
 
 // Debounce utility for input stability
-const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+// Debounce removed - using direct state updates for better input reliability
 
 /**
  * Map mode to product constraints key
@@ -206,26 +197,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const [buffer, setBuffer] = React.useState(value.toString());
     const [isFocused, setIsFocused] = React.useState(false);
     const [isInvalid, setIsInvalid] = React.useState(false);
-    const [justSaved, setJustSaved] = React.useState(false);
 
     // ONLY sync if not focused AND value actually changed
     React.useEffect(() => {
-      if (!isFocused && Math.abs(parseFloat(buffer) - value) > 0.01) {
+      if (!isFocused) {
         setBuffer(value.toString());
       }
     }, [value, isFocused]);
-
-    // Debounced onChange to prevent rapid updates
-    const debouncedOnChange = useMemo(
-      () => debounce(onChange, 300),
-      [onChange]
-    );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
       setBuffer(raw);
       
-      // Real-time validation feedback (don't commit yet)
+      // Real-time validation feedback
       const parsed = parseFloat(raw);
       setIsInvalid(raw !== '' && (isNaN(parsed) || parsed < 0));
     };
@@ -233,16 +217,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const commitValue = () => {
       const parsed = parseFloat(buffer);
       if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-        debouncedOnChange(Math.round(parsed * 10) / 10); // Round to 1 decimal
+        onChange(Math.round(parsed * 10) / 10); // Direct call, no debounce
         setIsInvalid(false);
-        setJustSaved(true);
-        setTimeout(() => setJustSaved(false), 1000);
       } else if (buffer === '' || buffer === '0') {
-        debouncedOnChange(0);
+        onChange(0);
         setBuffer('0');
         setIsInvalid(false);
-        setJustSaved(true);
-        setTimeout(() => setJustSaved(false), 1000);
       } else {
         // Invalid - revert
         setBuffer(value.toString());
@@ -252,10 +232,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     };
 
     return (
-      <div className={cn(
-        "relative w-full transition-all",
-        justSaved && "ring-2 ring-green-500 ring-offset-2 animate-pulse"
-      )}>
+      <div className="relative w-full">
         <Input
           type="text"
           inputMode="decimal"
@@ -300,11 +277,6 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         {isInvalid && (
           <div className="absolute -bottom-6 left-0 text-xs text-destructive font-medium z-10">
             Enter valid number ≥ 0
-          </div>
-        )}
-        {justSaved && (
-          <div className="absolute -top-8 right-0 text-xs text-green-600 font-medium animate-in fade-in z-10">
-            ✓ Saved
           </div>
         )}
       </div>
@@ -717,7 +689,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       // Use the new V2 balancing engine with multi-role classification and substitution rules
       console.log('⚙️ Calling RecipeBalancerV2.balance...');
       const calcMode = resolveMode(productType);
-      const tolerance = calcMode === 'ice_cream' ? 3.0 : 2.0; // Loosened tolerance for better feasibility // PHASE 2: Increased tolerance for LP solver success
+      const tolerance = calcMode === 'ice_cream' ? 3.0 : 2.0;
+      
+      console.log('🎯 Balancing with:', {
+        tolerance,
+        calcMode,
+        targets,
+        ingredientCount: optRows.length,
+        totalWeight: optRows.reduce((sum, r) => sum + r.grams, 0)
+      });
+      
       const result = RecipeBalancerV2.balance(optRows, targets, availableIngredients, {
         maxIterations: 200, // Increased from 100
         tolerance,
@@ -737,6 +718,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       // PHASE 2: Enhanced error messages with actionable structured suggestions
       if (!result.success) {
+        console.log('❌ Balancing failed, generating suggestions...');
         const currentMetrics = calcMetricsV2(optRows, { mode: calcMode });
         const structuredSuggestions: BalancingSuggestion[] = [];
         
@@ -745,10 +727,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         const msnfGap = targets.msnf_pct - currentMetrics.msnf_pct;
         const sugarGap = targets.totalSugars_pct - currentMetrics.totalSugars_pct;
         
+        console.log('📊 Gaps:', { fatGap, msnfGap, sugarGap });
+        
         // Generate actionable suggestions with ingredient IDs
         if (Math.abs(fatGap) > 2) {
           if (fatGap > 0) {
-            const amountNeeded = Math.abs(fatGap * 10);
+            const amountNeeded = Math.abs(fatGap * 15);
             structuredSuggestions.push({
               id: 'fat-increase',
               action: 'add',
@@ -759,7 +743,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               priority: 1
             });
           } else {
-            const amountNeeded = Math.abs(fatGap * 15);
+            const amountNeeded = Math.abs(fatGap * 20);
             structuredSuggestions.push({
               id: 'fat-decrease',
               action: 'add',
@@ -774,7 +758,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         
         if (Math.abs(msnfGap) > 2) {
           if (msnfGap > 0) {
-            const amountNeeded = Math.abs(msnfGap * 10);
+            const amountNeeded = Math.abs(msnfGap * 15);
             structuredSuggestions.push({
               id: 'msnf-increase',
               action: 'add',
@@ -789,7 +773,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         
         if (Math.abs(sugarGap) > 2) {
           if (sugarGap > 0) {
-            const amountNeeded = Math.abs(sugarGap * 10);
+            const amountNeeded = Math.abs(sugarGap * 15);
             structuredSuggestions.push({
               id: 'sugar-increase',
               action: 'add',
@@ -801,6 +785,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             });
           }
         }
+        
+        console.log('💡 Generated suggestions:', structuredSuggestions);
         
         // Show structured suggestions dialog instead of toast
         showBalancingSuggestionsDialog(structuredSuggestions, currentMetrics, targets);
@@ -2704,12 +2690,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 </TabsList>
 
               <TabsContent value="ai-insights" className="mt-4">
-                <SmartInsightsPanel
+                <AIInsightsPanel
                   recipe={rows.map(r => ({
-                    ingredient: r.ingredient,
-                    quantity_g: r.quantity_g
+                    ingredientId: r.ingredientData?.id || r.ingredient,
+                    grams: r.quantity_g
                   }))}
-                  metrics={metrics || undefined}
+                  metrics={metrics}
                   productType={productType}
                 />
               </TabsContent>
