@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { isBackendReady } from '@/integrations/supabase/safeClient';
-import { useToast } from '@/hooks/use-toast';
+import { showApiErrorToast } from '@/lib/ui/errors';
 
 interface AIInsightsPanelProps {
   recipe: { ingredientId: string; grams: number }[];
@@ -27,7 +27,6 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
   const [analysis, setAnalysis] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   // Auto-analyze when recipe changes
   useEffect(() => {
@@ -67,19 +66,8 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
       const errorMsg = err.message || 'Failed to analyze recipe';
       setError(errorMsg);
       
-      if (err.message?.includes('rate limit')) {
-        toast({
-          title: 'Rate limit reached',
-          description: 'Please wait before analyzing another recipe.',
-          variant: 'destructive',
-        });
-      } else if (err.message?.includes('LOVABLE_API_KEY')) {
-        toast({
-          title: 'AI Configuration Error',
-          description: 'AI features require proper setup. Contact support if this persists.',
-          variant: 'destructive',
-        });
-      }
+      // Use standardized error handler for consistent UX
+      showApiErrorToast(err, 'AI Analysis failed');
     } finally {
       setIsLoading(false);
     }

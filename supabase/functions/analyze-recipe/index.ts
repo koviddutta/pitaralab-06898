@@ -164,6 +164,14 @@ BE EXTREMELY SPECIFIC. Use exact numbers, ingredient names, and technical terms.
   } catch (error) {
     console.error('❌ Error in analyze-recipe:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    // Determine appropriate status code
+    let status = 500;
+    if (error instanceof Error) {
+      if (error.message.includes('Rate limit')) status = 429;
+      if (error.message.includes('AI credits depleted')) status = 402;
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: errorMessage,
@@ -174,7 +182,7 @@ BE EXTREMELY SPECIFIC. Use exact numbers, ingredient names, and technical terms.
         recommended_adjustments: [],
       }),
       {
-        status: (error instanceof Error && error.message.includes('Rate limit')) ? 429 : 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
