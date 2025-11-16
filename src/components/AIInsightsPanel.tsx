@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, AlertTriangle, Lightbulb, TrendingUp, Loader2 } from 'lucide-react';
+import { Brain, AlertTriangle, Lightbulb, TrendingUp, Loader2, Sparkles } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -8,10 +8,12 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { isBackendReady } from '@/integrations/supabase/safeClient';
 import { showApiErrorToast } from '@/lib/ui/errors';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface AIInsightsPanelProps {
   recipe: { ingredientId: string; grams: number }[];
@@ -27,17 +29,20 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
   const [analysis, setAnalysis] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creditsExhausted, setCreditsExhausted] = useState(false);
+  const [lastErrorTime, setLastErrorTime] = useState<number>(0);
+  const [lastErrorType, setLastErrorType] = useState<string>('');
 
-  // Auto-analyze when recipe changes
-  useEffect(() => {
-    if (recipe && recipe.length > 0 && metrics) {
-      analyzeRecipe();
-    } else {
-      setAnalysis(null);
-    }
-  }, [recipe, metrics]);
+  // Debounce recipe and metrics to prevent rapid API calls
+  const debouncedRecipe = useDebounce(recipe, 2000);
+  const debouncedMetrics = useDebounce(metrics, 2000);
 
   const analyzeRecipe = async () => {
+    // Don't analyze if credits are exhausted
+    if (creditsExhausted) {
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -60,14 +65,30 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
       }
 
       setAnalysis(data);
+      setError(null);
       console.log('AI Analysis complete:', data);
     } catch (err: any) {
       console.error('Failed to analyze recipe:', err);
       const errorMsg = err.message || 'Failed to analyze recipe';
+      const errorType = err.status?.toString() || 'unknown';
       setError(errorMsg);
       
-      // Use standardized error handler for consistent UX
-      showApiErrorToast(err, 'AI Analysis failed');
+      // Detect 402 credit exhaustion errors
+      if (err.status === 402 || errorMsg.includes('AI credits depleted')) {
+        setCreditsExhausted(true);
+      }
+
+      // Prevent duplicate error toasts (max 1 per 5 seconds for same error type)
+      const now = Date.now();
+      const shouldShowToast = 
+        errorType !== lastErrorType || 
+        (now - lastErrorTime) > 5000;
+
+      if (shouldShowToast) {
+        showApiErrorToast(err, 'AI Analysis failed');
+        setLastErrorTime(now);
+        setLastErrorType(errorType);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +125,28 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
           </CardHeader>
           <AccordionContent>
             <CardContent className="space-y-4 pt-2">
+              {/* Manual Analyze Button */}
+              {!analysis && !isLoading && (
+                <div className="flex flex-col items-center justify-center py-6 space-y-3">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Get AI-powered insights on your recipe composition and balance
+                  </p>
+                  <Button
+                    onClick={analyzeRecipe}
+                    disabled={!recipe || recipe.length === 0 || creditsExhausted}
+                    className="gap-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Analyze Recipe with AI
+                  </Button>
+                  {creditsExhausted && (
+                    <p className="text-xs text-destructive">
+                      AI credits depleted. Please add credits to continue.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {isLoading && (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -111,9 +154,17 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
                 </div>
               )}
 
-              {error && (
+              {error && !creditsExhausted && (
                 <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
                   <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
+
+              {creditsExhausted && analysis && (
+                <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
+                  <p className="text-sm text-warning">
+                    AI credits depleted. Analysis shown is from previous request.
+                  </p>
                 </div>
               )}
 
@@ -178,19 +229,27 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Analysis Timestamp */}
-                  <div className="pt-2 border-t">
+                  {/* Analysis Timestamp & Re-analyze Button */}
+                  <div className="pt-2 border-t space-y-2">
                     <p className="text-xs text-muted-foreground text-center">
                       🤖 AI-powered analysis • Updated {new Date(analysis.analysisTimestamp).toLocaleTimeString()}
                     </p>
+                    {!creditsExhausted && (
+                      <div className="flex justify-center">
+                        <Button
+                          onClick={analyzeRecipe}
+                          disabled={isLoading}
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          Re-analyze
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </>
-              )}
-
-              {!isLoading && !error && !analysis && (
-                <div className="text-center py-4 text-sm text-muted-foreground">
-                  Add ingredients to get AI insights
-                </div>
               )}
             </CardContent>
           </AccordionContent>
