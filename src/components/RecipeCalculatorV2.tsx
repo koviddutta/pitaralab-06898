@@ -2581,12 +2581,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       </TabsList>
 
                       <TabsContent value="ai-insights" className="mt-4">
-                        <SmartInsightsPanel
+                        <AIInsightsPanel
                           recipe={rows.map(r => ({
-                            ingredient: r.ingredient,
-                            quantity_g: r.quantity_g
+                            ingredientId: r.ingredientData?.id || r.ingredient,
+                            grams: r.quantity_g
                           }))}
-                          metrics={metrics || undefined}
+                          metrics={metrics}
                           productType={productType}
                         />
                       </TabsContent>
