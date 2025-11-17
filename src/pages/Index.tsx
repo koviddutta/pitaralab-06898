@@ -7,7 +7,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
-import { SmartInsightsPanel } from "@/components/SmartInsightsPanel";
+import { AIInsightsPanel } from "@/components/AIInsightsPanel";
 import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
@@ -413,8 +413,11 @@ const Index = () => {
                 />
               </div>
               <div className="lg:col-span-1">
-                <SmartInsightsPanel
-                  recipe={calculatorRecipe}
+                <AIInsightsPanel
+                  recipe={calculatorRecipe.map(r => ({
+                    ingredientId: r.ingredient,
+                    grams: r.quantity_g
+                  }))}
                   metrics={calculatorMetrics}
                   productType={calculatorProductType}
                 />
