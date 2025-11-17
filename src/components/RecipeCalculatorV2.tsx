@@ -47,7 +47,6 @@ import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
 import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SmartInsightsPanel } from '@/components/SmartInsightsPanel';
 import { AIInsightsPanel } from '@/components/AIInsightsPanel';
 
 // Debounce utility for input stability
@@ -131,6 +130,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     suggestion: BalancingSuggestion;
   } | null>(null);
   const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
+  
+  // Controlled tab state for consistent navigation
+  const [activeTab, setActiveTab] = useState('ai-insights');
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients, refetch: refetchIngredients } = useIngredients();
@@ -354,19 +356,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setRows(prevRows => {
       const newRows = [...prevRows];
       
-      // Inline validation - only validate the field being changed
+      // Validate numeric input
       let numericValue = typeof value === 'number' ? value : parseFloat(value);
-      if (isNaN(numericValue) || !isFinite(numericValue)) {
+      if (isNaN(numericValue) || !isFinite(numericValue) || numericValue < 0) {
         numericValue = 0;
       }
-      const safeValue = isNaN(numericValue) ? 0 : numericValue;
       
-      newRows[index] = { ...newRows[index], [field]: safeValue };
+      newRows[index] = { ...newRows[index], [field]: numericValue };
       
       // Auto-calculate nutritional values when quantity changes
       if (field === 'quantity_g' && newRows[index].ingredientData) {
         const ing = newRows[index].ingredientData!;
-        const qty = safeValue;
+        const qty = numericValue;
         
         newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
         newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
@@ -377,6 +378,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       
       return newRows;
     });
+    
+    // Trigger metrics recalculation
+    setTimeout(() => calculateMetrics(), 50);
   };
 
   const handleIngredientSelect = (index: number, ingredient: IngredientData) => {
@@ -2567,7 +2571,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     🔬 Analysis Tools
                   </AccordionTrigger>
                   <AccordionContent>
-                    <Tabs defaultValue="ai-insights" className="w-full">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                       <TabsList className="w-full h-auto flex flex-wrap gap-1 p-2 bg-background/80 backdrop-blur-sm">
                         <TabsTrigger value="ai-insights" className="flex-1 min-w-[140px] text-xs whitespace-nowrap">
                           🤖 AI Insights
@@ -2662,7 +2666,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </Accordion>
             ) : (
               // Desktop: Single tab row with all tools
-              <Tabs defaultValue="ai-insights" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full h-auto flex flex-wrap lg:grid lg:grid-cols-7 gap-1 lg:gap-2 p-2 bg-background/80 backdrop-blur-sm">
                   <TabsTrigger value="ai-insights" className="flex-1 min-w-[100px] text-xs lg:text-sm whitespace-nowrap">
                     🤖 AI Insights
