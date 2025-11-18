@@ -172,6 +172,31 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return () => clearTimeout(timer);
     }
   }, [rows.length]);
+  
+  // Debounced metrics calculation when rows change
+  useEffect(() => {
+    if (rows.length === 0) return;
+    
+    const timer = setTimeout(() => {
+      // Silently calculate metrics without showing toast for auto-calculations
+      const calcRows: Row[] = rows
+        .filter(r => r.ingredientData && r.quantity_g > 0)
+        .map(r => ({
+          ing: r.ingredientData!,
+          grams: r.quantity_g,
+          min: 0,
+          max: 1000
+        }));
+      
+      if (calcRows.length > 0) {
+        const mode = resolveMode(productType);
+        const calculated = calcMetricsV2(calcRows, { mode });
+        setMetrics(calculated);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [rows, productType]);
 
   // Notify parent component when recipe changes
   useEffect(() => {
@@ -308,9 +333,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (resolvedIngredients.length === 0) {
       toast({
         title: 'Template Error',
-        description: 'Could not find matching ingredients in database',
+        description: `Template "${template.name}" could not load any ingredients. Check your ingredient library and template tags.`,
         variant: 'destructive'
       });
+      console.error('Template failed to load:', template.name, 'No ingredients resolved');
       return;
     }
 
@@ -318,7 +344,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const newRows: IngredientRow[] = resolvedIngredients
       .map(({ ingredientId, grams }) => {
         const ingredientData = availableIngredients.find(ing => ing.id === ingredientId);
-        if (!ingredientData) return null;
+        if (!ingredientData) {
+          console.warn('Ingredient not found in library:', ingredientId);
+          return null;
+        }
 
         const qty = grams;
         return {
@@ -334,18 +363,42 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       })
       .filter((row) => row !== null) as IngredientRow[];
 
+    if (newRows.length === 0) {
+      toast({
+        title: 'Template Error',
+        description: `Template "${template.name}" could not load. No ingredients found in the library.`,
+        variant: 'destructive'
+      });
+      console.error('Template failed:', template.name, 'All ingredients missing from library');
+      return;
+    }
+    
+    // Check if some ingredients were skipped
+    if (newRows.length < resolvedIngredients.length) {
+      const skipped = resolvedIngredients.length - newRows.length;
+      toast({
+        title: 'Template Partially Loaded',
+        description: `Loaded ${newRows.length} ingredients, ${skipped} ingredients were not found in the library.`,
+        variant: 'default'
+      });
+    }
+
     setRows(newRows);
     setRecipeName(template.name);
     setProductType(template.mode === 'kulfi' ? 'kulfi' : 'gelato');
     setShowTemplates(false);
 
-    // Auto-calculate metrics
-    setTimeout(() => calculateMetrics(), 100);
-
-    toast({
-      title: 'Template Loaded',
-      description: `${template.name} loaded with ${newRows.length} ingredients`
-    });
+    // Only calculate metrics if we have rows
+    if (newRows.length > 0) {
+      setTimeout(() => calculateMetrics(), 100);
+      
+      if (newRows.length === resolvedIngredients.length) {
+        toast({
+          title: 'Template Loaded',
+          description: `${template.name} loaded with ${newRows.length} ingredients`
+        });
+      }
+    }
   };
 
   const handleStartFromScratch = () => {
@@ -378,9 +431,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       
       return newRows;
     });
-    
-    // Trigger metrics recalculation
-    setTimeout(() => calculateMetrics(), 50);
+    // Metrics recalculation moved to debounced useEffect
   };
 
   const handleIngredientSelect = (index: number, ingredient: IngredientData) => {
@@ -468,6 +519,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         description: 'Add ingredients before balancing',
         variant: 'destructive'
       });
+      return;
+    }
+    
+    // Pre-flight check: Ensure all rows have ingredientData
+    const missingData = rows.filter(r => !r.ingredientData && r.ingredient);
+    if (missingData.length > 0) {
+      toast({
+        title: 'Missing ingredient data',
+        description: 'Some ingredients must be selected from the database using Smart Ingredient Search',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Pre-flight check: Ensure metrics are calculated
+    if (!metrics) {
+      toast({
+        title: 'Calculate metrics first',
+        description: 'Please calculate metrics before balancing',
+        variant: 'default'
+      });
+      calculateMetrics();
       return;
     }
 
@@ -1620,7 +1693,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                             variant="outline"
                             className="w-full justify-start text-left font-normal"
                           >
-                            {row.ingredient || (
+                            {row.ingredient ? (
+                              <div className="flex items-center gap-2 w-full">
+                                <span className="flex-1">{row.ingredient}</span>
+                                {!row.ingredientData && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Not from DB
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
                               <>
                                 <Search className="mr-2 h-4 w-4" />
                                 Search ingredient...
