@@ -49,11 +49,14 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
     try {
       // Check if backend is ready
       if (!isBackendReady()) {
-        throw new Error('Backend not configured. AI features require cloud connection.');
+        setError('AI backend not connected. Using recipe validation instead.');
+        setIsLoading(false);
+        return;
       }
 
+      // Use debounced values to prevent analyzing stale data
       const { data, error: fnError } = await supabase.functions.invoke('analyze-recipe', {
-        body: { recipe, metrics, productType }
+        body: { recipe: debouncedRecipe, metrics: debouncedMetrics, productType }
       });
 
       if (fnError) {
@@ -117,14 +120,20 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
         <AccordionItem value="ai-insights" className="border-none">
           <CardHeader className="pb-0">
             <AccordionTrigger className="hover:no-underline py-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Brain className="h-5 w-5 text-primary" />
-                🤖 AI Analysis {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              </CardTitle>
+              <div className="flex items-center justify-between w-full pr-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  AI Recipe Analysis
+                </CardTitle>
+              </div>
             </AccordionTrigger>
           </CardHeader>
           <AccordionContent>
-            <CardContent className="space-y-4 pt-2">
+            <CardContent className="pt-2 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Click <strong>Analyze Recipe</strong> to run AI-powered analysis on your current recipe and metrics.
+              </p>
+              
               {/* Manual Analyze Button */}
               {!analysis && !isLoading && (
                 <div className="flex flex-col items-center justify-center py-6 space-y-3">
