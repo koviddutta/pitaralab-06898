@@ -238,13 +238,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       
       // Real-time validation feedback
       const parsed = parseFloat(raw);
-      setIsInvalid(raw !== '' && (isNaN(parsed) || parsed < 0));
+      const invalid = raw !== '' && (isNaN(parsed) || parsed < 0);
+      setIsInvalid(invalid);
+      
+      // IMMEDIATE onChange for responsive feedback
+      if (!invalid && raw !== '' && !isNaN(parsed) && parsed >= 0) {
+        onChange(Math.round(parsed * 10) / 10);
+      }
     };
 
     const commitValue = () => {
       const parsed = parseFloat(buffer);
       if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-        onChange(Math.round(parsed * 10) / 10); // Direct call, no debounce
+        onChange(Math.round(parsed * 10) / 10);
         setIsInvalid(false);
       } else if (buffer === '' || buffer === '0') {
         onChange(0);
@@ -536,11 +542,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     // Pre-flight check: Ensure metrics are calculated
     if (!metrics) {
       toast({
-        title: 'Calculate metrics first',
-        description: 'Please calculate metrics before balancing',
-        variant: 'default'
+        title: 'Calculating metrics...',
+        description: 'Preparing to balance recipe',
       });
       calculateMetrics();
+      // Wait for metrics to be ready, then retry balance
+      setTimeout(() => {
+        balanceRecipe();
+      }, 500);
       return;
     }
 

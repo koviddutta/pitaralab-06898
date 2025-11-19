@@ -37,6 +37,16 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
   const debouncedRecipe = useDebounce(recipe, 2000);
   const debouncedMetrics = useDebounce(metrics, 2000);
 
+  // Auto-analyze when debounced values change significantly
+  useEffect(() => {
+    if (!debouncedRecipe || debouncedRecipe.length === 0 || !debouncedMetrics) {
+      return;
+    }
+    
+    // Auto-trigger analysis when recipe stabilizes
+    analyzeRecipe();
+  }, [debouncedRecipe, debouncedMetrics]);
+
   const analyzeRecipe = async () => {
     // Don't analyze if credits are exhausted
     if (creditsExhausted) {
@@ -131,35 +141,37 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
           <AccordionContent>
             <CardContent className="pt-2 space-y-4">
               <p className="text-sm text-muted-foreground">
-                Click <strong>Analyze Recipe</strong> to run AI-powered analysis on your current recipe and metrics.
+                Analysis runs automatically when your recipe stabilizes. You can also manually re-analyze anytime.
               </p>
               
-              {/* Manual Analyze Button */}
-              {!analysis && !isLoading && (
+              {/* Loading State */}
+              {isLoading && (
                 <div className="flex flex-col items-center justify-center py-6 space-y-3">
-                  <p className="text-sm text-muted-foreground text-center">
-                    Get AI-powered insights on your recipe composition and balance
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <p className="text-sm text-muted-foreground">Analyzing recipe with AI...</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Manual Analyze Button */}
+              {!isLoading && (
+                <div className="flex justify-center">
                   <Button
                     onClick={analyzeRecipe}
                     disabled={!recipe || recipe.length === 0 || creditsExhausted}
+                    variant="outline"
+                    size="sm"
                     className="gap-2"
                   >
                     <Sparkles className="h-4 w-4" />
-                    Analyze Recipe with AI
+                    Re-analyze Now
                   </Button>
                   {creditsExhausted && (
                     <p className="text-xs text-destructive">
                       AI credits depleted. Please add credits to continue.
                     </p>
                   )}
-                </div>
-              )}
-
-              {isLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2 text-sm text-muted-foreground">Analyzing recipe...</span>
                 </div>
               )}
 
