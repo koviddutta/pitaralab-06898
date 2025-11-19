@@ -39,13 +39,13 @@ export const AIInsightsPanel: React.FC<AIInsightsPanelProps> = ({
 
   // Auto-analyze when debounced values change significantly
   useEffect(() => {
-    if (!debouncedRecipe || debouncedRecipe.length === 0 || !debouncedMetrics) {
+    if (!debouncedRecipe || debouncedRecipe.length === 0 || !debouncedMetrics || creditsExhausted) {
       return;
     }
     
     // Auto-trigger analysis when recipe stabilizes
     analyzeRecipe();
-  }, [debouncedRecipe, debouncedMetrics]);
+  }, [debouncedRecipe, debouncedMetrics, creditsExhausted]);
 
   const analyzeRecipe = async () => {
     // Don't analyze if credits are exhausted
