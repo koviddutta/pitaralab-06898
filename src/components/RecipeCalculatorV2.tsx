@@ -225,12 +225,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     const [isFocused, setIsFocused] = React.useState(false);
     const [isInvalid, setIsInvalid] = React.useState(false);
 
-    // ONLY sync if not focused AND value actually changed
+    // Sync buffer with value when not focused OR when value changes externally
     React.useEffect(() => {
-      if (!isFocused) {
+      if (!isFocused && buffer !== value.toString()) {
         setBuffer(value.toString());
       }
-    }, [value, isFocused]);
+    }, [value, isFocused, buffer]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
@@ -2797,6 +2797,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TabsContent>
 
               <TabsContent value="pairings" className="mt-4">
+                {rows.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-lg font-semibold mb-2">No Ingredients Added</p>
+                    <p className="text-sm">Add ingredients to your recipe to analyze flavor pairings</p>
+                  </div>
+                ) : (
+                <>
                 <PairingsDrawer
                   selectedIngredient={selectedIngredientForPairing}
                   availableIngredients={availableIngredients}
@@ -2854,10 +2861,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     </SelectContent>
                   </Select>
                 </div>
+                </>
+                )}
               </TabsContent>
 
               <TabsContent value="temperature" className="mt-4">
-                {metrics && (
+                {!metrics ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-lg font-semibold mb-2">Calculate Recipe First</p>
+                    <p className="text-sm">Click 'Calculate' to compute metrics before using temperature tools</p>
+                  </div>
+                ) : (
                   <TemperaturePanel
                     metrics={metrics}
                     recipe={rows.map(r => ({
@@ -2908,6 +2922,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TabsContent>
 
               <TabsContent value="sugar-blend" className="mt-4">
+                {rows.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-lg font-semibold mb-2">No Recipe Available</p>
+                    <p className="text-sm">Add ingredients to optimize sugar blends</p>
+                  </div>
+                ) : (
                 <SugarBlendOptimizer
                   productType={productType as 'gelato' | 'ice-cream' | 'sorbet'}
                   totalSugarAmount={rows
@@ -2943,6 +2963,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                     });
                   }}
                 />
+                )}
               </TabsContent>
 
               <TabsContent value="ai-optimize" className="mt-4">
