@@ -1891,30 +1891,36 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 <Calculator className="mr-2 h-4 w-4" />
                 Calculate
               </Button>
-              <Button 
-                onClick={balanceRecipe} 
-                disabled={isOptimizing || rows.length === 0}
-                variant="secondary"
-                size="sm"
-              >
-                {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                Balance Recipe
-              </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
+              
+              {/* Phase 5: Advanced Mode Only - Balance & Advanced Tools */}
+              {viewMode === 'advanced' && (
+                <>
                   <Button 
-                    onClick={applySugarPreset}
-                    disabled={rows.length === 0}
-                    variant="outline"
+                    onClick={balanceRecipe} 
+                    disabled={isOptimizing || rows.length === 0}
+                    variant="secondary"
                     size="sm"
                   >
-                    70/10/20 Preset
+                    {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                    Balance Recipe
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
-                </TooltipContent>
-              </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={applySugarPreset}
+                        disabled={rows.length === 0}
+                        variant="outline"
+                        size="sm"
+                      >
+                        70/10/20 Preset
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
               
               <div className="flex items-center gap-3">
                 <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
@@ -1934,15 +1940,18 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 </div>
               </div>
               
-              <Button 
-                onClick={() => setShowHistoryDrawer(true)} 
-                disabled={!currentRecipeId || !isAuthenticated}
-                variant="outline" 
-                size="sm"
-              >
-                <History className="mr-2 h-4 w-4" />
-                History
-              </Button>
+              {viewMode === 'advanced' && (
+                <Button 
+                  onClick={() => setShowHistoryDrawer(true)} 
+                  disabled={!currentRecipeId || !isAuthenticated}
+                  variant="outline" 
+                  size="sm"
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  History
+                </Button>
+              )}
+              
               <Button onClick={clearRecipe} variant="ghost" size="sm">
                 Clear
               </Button>
@@ -1952,14 +1961,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                   Browse Templates
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowDebugPanel(!showDebugPanel)}
-              >
-                <Bug className="mr-2 h-4 w-4" />
-                {showDebugPanel ? 'Hide' : 'Show'} Debug
-              </Button>
+              
+              {viewMode === 'advanced' && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowDebugPanel(!showDebugPanel)}
+                >
+                  <Bug className="mr-2 h-4 w-4" />
+                  {showDebugPanel ? 'Hide' : 'Show'} Debug
+                </Button>
+              )}
             </div>
             </>
             )}
