@@ -1652,6 +1652,34 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         </CardContent>
       </Card>
 
+      {/* Phase 5: Basic/Advanced Mode Toggle */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium">Calculator Mode</h3>
+              <p className="text-xs text-muted-foreground">Choose your preferred workflow</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={viewMode === 'basic' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('basic')}
+              >
+                Basic Calculator
+              </Button>
+              <Button
+                variant={viewMode === 'advanced' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('advanced')}
+              >
+                Advanced Tools
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Ingredients</CardTitle>
