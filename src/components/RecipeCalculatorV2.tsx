@@ -2419,8 +2419,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         />
       )}
 
-      {/* Advanced Tools Section */}
-      {rows.length > 0 && (
+      {/* Phase 5: Advanced Tools Section - Only show in Advanced Mode */}
+      {viewMode === 'advanced' && rows.length > 0 && (
         <Card className="mt-6">
           <CardHeader className="gradient-card border-b border-border/50 relative">
             <div className="flex items-center justify-between">
@@ -3155,8 +3155,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           </CardContent>
         </Card>
       )}
-      {/* Mobile Quick Access Button */}
-      {isMobile && rows.length > 0 && (
+      {/* Phase 5: Mobile Quick Access Button - Only in Advanced Mode */}
+      {viewMode === 'advanced' && isMobile && rows.length > 0 && (
         <Button
           className="fixed bottom-4 right-4 rounded-full shadow-lg z-50 h-14 w-14"
           size="icon"
