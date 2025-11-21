@@ -336,13 +336,35 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const loadTemplate = (template: any) => {
+    console.log('📄 Loading template:', template.name);
+    
+    // Phase 3: Guard against loading while ingredients library is loading
+    if (loadingIngredients) {
+      toast({
+        title: 'Please Wait',
+        description: 'Ingredient library is still loading. Please wait a few seconds and try again.',
+        variant: 'default'
+      });
+      return;
+    }
+    
+    // Check if ingredient library is empty
+    if (availableIngredients.length === 0) {
+      toast({
+        title: 'No Ingredients Available',
+        description: 'The ingredient database is empty. Please add ingredients to the database first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     // Resolve template ingredients to actual ingredient data
     const resolvedIngredients = resolveTemplateIngredients(template, availableIngredients);
     
     if (resolvedIngredients.length === 0) {
       toast({
         title: 'Template Error',
-        description: `Template "${template.name}" could not load any ingredients. Check your ingredient library and template tags.`,
+        description: `Template "${template.name}" could not load any ingredients. Template tags don't match any ingredients in your library.`,
         variant: 'destructive'
       });
       console.error('Template failed to load:', template.name, 'No ingredients resolved');
@@ -372,13 +394,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       })
       .filter((row) => row !== null) as IngredientRow[];
 
-    if (newRows.length === 0) {
+    if (newRows.length === 0 && resolvedIngredients.length > 0) {
       toast({
-        title: 'Template Error',
-        description: `Template "${template.name}" could not load. No ingredients found in the library.`,
+        title: 'Template Load Failed',
+        description: `Template "${template.name}" ingredients were resolved by tag, but not found in the current library. Check that your ingredient IDs match.`,
         variant: 'destructive'
       });
-      console.error('Template failed:', template.name, 'All ingredients missing from library');
+      console.error('Template failed:', template.name, 'Ingredients resolved but not found in library');
       return;
     }
     
@@ -387,7 +409,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       const skipped = resolvedIngredients.length - newRows.length;
       toast({
         title: 'Template Partially Loaded',
-        description: `Loaded ${newRows.length} ingredients, ${skipped} ingredients were not found in the library.`,
+        description: `Loaded ${newRows.length} ingredients. ${skipped} ingredients were not found in the library.`,
         variant: 'default'
       });
     }
