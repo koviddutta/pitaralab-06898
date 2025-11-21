@@ -131,8 +131,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   } | null>(null);
   const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
   
+  
   // Controlled tab state for consistent navigation
   const [activeTab, setActiveTab] = useState('ai-insights');
+  
+  // Basic/Advanced mode toggle - simplified calculator view
+  const [basicMode, setBasicMode] = useState(() => {
+    // Default to basic mode for first-time users
+    const saved = localStorage.getItem('calculator-mode');
+    return saved ? saved === 'basic' : true;
+  });
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients, refetch: refetchIngredients } = useIngredients();
@@ -333,6 +341,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const loadTemplate = (template: any) => {
+    // Guard: Check if ingredient library is still loading
+    if (loadingIngredients) {
+      toast({
+        title: 'Ingredient library loading',
+        description: 'Please wait a few seconds and try again',
+        variant: 'default'
+      });
+      return;
+    }
+    
     // Resolve template ingredients to actual ingredient data
     const resolvedIngredients = resolveTemplateIngredients(template, availableIngredients);
     
@@ -491,8 +509,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
     if (calcRows.length === 0) {
       toast({
-        title: 'Invalid ingredients',
-        description: 'Please select ingredients from the database',
+        title: 'No valid ingredients',
+        description: 'Please pick ingredients from the list using Smart Ingredient Search',
         variant: 'destructive'
       });
       return;
@@ -542,14 +560,10 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     // Pre-flight check: Ensure metrics are calculated
     if (!metrics) {
       toast({
-        title: 'Calculating metrics...',
-        description: 'Preparing to balance recipe',
+        title: 'Calculate metrics first',
+        description: 'Click Calculate to compute metrics, then try Balance again',
+        variant: 'destructive'
       });
-      calculateMetrics();
-      // Wait for metrics to be ready, then retry balance
-      setTimeout(() => {
-        balanceRecipe();
-      }, 500);
       return;
     }
 
@@ -1628,6 +1642,39 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </Select>
             </div>
           </div>
+          
+          {/* Basic/Advanced Mode Toggle */}
+          <div className="flex items-center justify-between pt-2 border-t">
+            <Label htmlFor="calculator-mode" className="text-sm text-muted-foreground">
+              Calculator Mode
+            </Label>
+            <div className="flex items-center gap-2">
+              <span className={cn("text-xs transition-colors", basicMode ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                Basic
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 px-2"
+                onClick={() => {
+                  const newMode = !basicMode;
+                  setBasicMode(newMode);
+                  localStorage.setItem('calculator-mode', newMode ? 'basic' : 'advanced');
+                  toast({
+                    title: newMode ? '📊 Basic Mode' : '🔧 Advanced Mode',
+                    description: newMode 
+                      ? 'Showing essential calculator features only' 
+                      : 'All optimization and analysis tools available'
+                  });
+                }}
+              >
+                {basicMode ? '➡️' : '⬅️'}
+              </Button>
+              <span className={cn("text-xs transition-colors", !basicMode ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                Advanced
+              </span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1842,30 +1889,36 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 <Calculator className="mr-2 h-4 w-4" />
                 Calculate
               </Button>
-              <Button 
-                onClick={balanceRecipe} 
-                disabled={isOptimizing || rows.length === 0}
-                variant="secondary"
-                size="sm"
-              >
-                {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-                Balance Recipe
-              </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
+              
+              {/* Advanced features - hidden in basic mode */}
+              {!basicMode && (
+                <>
                   <Button 
-                    onClick={applySugarPreset}
-                    disabled={rows.length === 0}
-                    variant="outline"
+                    onClick={balanceRecipe} 
+                    disabled={isOptimizing || rows.length === 0}
+                    variant="secondary"
                     size="sm"
                   >
-                    70/10/20 Preset
+                    {isOptimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                    Balance Recipe
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
-                </TooltipContent>
-              </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={applySugarPreset}
+                        disabled={rows.length === 0}
+                        variant="outline"
+                        size="sm"
+                      >
+                        70/10/20 Preset
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Apply optimal sugar blend: 70% Sucrose, 10% Dextrose, 20% Glucose Syrup</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
               
               <div className="flex items-center gap-3">
                 <Button onClick={saveRecipe} disabled={isSaving || !isAuthenticated} size="sm">
@@ -2358,8 +2411,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         />
       )}
 
-      {/* Advanced Tools Section */}
-      {rows.length > 0 && (
+      {/* Advanced Tools Section - Hidden in Basic Mode */}
+      {rows.length > 0 && !basicMode && (
         <Card className="mt-6">
           <CardHeader className="gradient-card border-b border-border/50 relative">
             <div className="flex items-center justify-between">
@@ -2688,11 +2741,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       </TabsContent>
 
                       <TabsContent value="analyzer" className="mt-4">
-                        <IngredientAnalyzer currentRecipe={rows} />
+                        {rows.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">No Ingredients Added</p>
+                            <p className="text-sm">Add ingredients to your recipe to analyze them</p>
+                          </div>
+                        ) : (
+                          <IngredientAnalyzer currentRecipe={rows} />
+                        )}
                       </TabsContent>
 
                       <TabsContent value="temperature" className="mt-4">
-                        {metrics && (
+                        {rows.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">No Ingredients Added</p>
+                            <p className="text-sm">Add ingredients to analyze temperature profiles</p>
+                          </div>
+                        ) : !metrics ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">Calculate Recipe First</p>
+                            <p className="text-sm">Click 'Calculate' to compute metrics before using temperature tools</p>
+                          </div>
+                        ) : (
                           <TemperaturePanel
                             metrics={metrics}
                             recipe={rows.map(r => ({
@@ -2918,7 +2988,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TabsContent>
 
               <TabsContent value="analyzer" className="mt-4">
-                <IngredientAnalyzer currentRecipe={rows} />
+                {rows.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-lg font-semibold mb-2">No Ingredients Added</p>
+                    <p className="text-sm">Add ingredients to your recipe to analyze them</p>
+                  </div>
+                ) : (
+                  <IngredientAnalyzer currentRecipe={rows} />
+                )}
               </TabsContent>
 
               <TabsContent value="sugar-blend" className="mt-4">
