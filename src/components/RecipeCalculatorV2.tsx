@@ -134,6 +134,9 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   // Controlled tab state for consistent navigation
   const [activeTab, setActiveTab] = useState('ai-insights');
   
+  // Phase 5: Basic/Advanced Mode Toggle
+  const [viewMode, setViewMode] = useState<'basic' | 'advanced'>('basic');
+  
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients, refetch: refetchIngredients } = useIngredients();
   
@@ -492,7 +495,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     if (calcRows.length === 0) {
       toast({
         title: 'Invalid ingredients',
-        description: 'Please select ingredients from the database',
+        description: 'Please pick ingredients from the list using Smart Ingredient Search (not just type names)',
         variant: 'destructive'
       });
       return;
@@ -539,17 +542,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       return;
     }
     
-    // Pre-flight check: Ensure metrics are calculated
+    // Phase 2: Pre-flight check: Ensure metrics are calculated (no auto-retry)
     if (!metrics) {
       toast({
-        title: 'Calculating metrics...',
-        description: 'Preparing to balance recipe',
+        title: 'Calculate First',
+        description: 'Click "Calculate" to compute metrics, then try Balance again.',
+        variant: 'destructive'
       });
-      calculateMetrics();
-      // Wait for metrics to be ready, then retry balance
-      setTimeout(() => {
-        balanceRecipe();
-      }, 500);
       return;
     }
 
@@ -2688,11 +2687,23 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       </TabsContent>
 
                       <TabsContent value="analyzer" className="mt-4">
-                        <IngredientAnalyzer currentRecipe={rows} />
+                        {rows.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">No Ingredients Added</p>
+                            <p className="text-sm">Add ingredients to your recipe to analyze them</p>
+                          </div>
+                        ) : (
+                          <IngredientAnalyzer currentRecipe={rows} />
+                        )}
                       </TabsContent>
 
                       <TabsContent value="temperature" className="mt-4">
-                        {metrics && (
+                        {!metrics ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">Calculate Recipe First</p>
+                            <p className="text-sm">Click 'Calculate' to compute metrics before using temperature tools</p>
+                          </div>
+                        ) : (
                           <TemperaturePanel
                             metrics={metrics}
                             recipe={rows.map(r => ({
