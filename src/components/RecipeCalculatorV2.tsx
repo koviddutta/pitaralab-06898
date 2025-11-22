@@ -220,8 +220,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
   const FIXED_STEP_SIZE = 10; // Always ±10g
 
-  // PHASE 1: Buffered Quantity Input Component with Visual Feedback
-  // Prevents input resets during typing by buffering changes until blur/Enter
+  // PHASE 1: Simplified Quantity Input - Direct controlled input with no buffering
   const QuantityInput = ({ value, onChange, step, rowIndex, className }: { 
     value: number; 
     onChange: (val: number) => void; 
@@ -229,98 +228,31 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     rowIndex: number;
     className?: string;
   }) => {
-    const [buffer, setBuffer] = React.useState(value.toString());
-    const [isFocused, setIsFocused] = React.useState(false);
-    const [isInvalid, setIsInvalid] = React.useState(false);
-
-    // Sync buffer with value when not focused OR when value changes externally
-    React.useEffect(() => {
-      if (!isFocused && buffer !== value.toString()) {
-        setBuffer(value.toString());
-      }
-    }, [value, isFocused, buffer]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value;
-      setBuffer(raw);
-      
-      // Real-time validation feedback
-      const parsed = parseFloat(raw);
-      const invalid = raw !== '' && (isNaN(parsed) || parsed < 0);
-      setIsInvalid(invalid);
-      
-      // IMMEDIATE onChange for responsive feedback
-      if (!invalid && raw !== '' && !isNaN(parsed) && parsed >= 0) {
-        onChange(Math.round(parsed * 10) / 10);
-      }
-    };
-
-    const commitValue = () => {
-      const parsed = parseFloat(buffer);
-      if (!isNaN(parsed) && isFinite(parsed) && parsed >= 0) {
-        onChange(Math.round(parsed * 10) / 10);
-        setIsInvalid(false);
-      } else if (buffer === '' || buffer === '0') {
-        onChange(0);
-        setBuffer('0');
-        setIsInvalid(false);
-      } else {
-        // Invalid - revert
-        setBuffer(value.toString());
-        setIsInvalid(false);
-      }
-      setIsFocused(false);
-    };
-
     return (
-      <div className="relative w-full">
-        <Input
-          type="text"
-          inputMode="decimal"
-          value={buffer}
-          onChange={handleChange}
-          onFocus={() => {
-            setIsFocused(true);
-            setIsInvalid(false);
-          }}
-          onBlur={commitValue}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              commitValue();
-              e.currentTarget.blur();
-            } else if (e.key === 'Escape') {
-              setBuffer(value.toString());
-              setIsInvalid(false);
-              setIsFocused(false);
-              e.currentTarget.blur();
-            } else if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              onChange(value + step);
-            } else if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              onChange(Math.max(0, value - step));
-            }
-          }}
-          className={cn(
-            "text-lg font-semibold transition-all",
-            isFocused && "ring-2 ring-primary ring-offset-2 border-primary",
-            isInvalid && "ring-2 ring-destructive border-destructive",
-            !isFocused && !isInvalid && "bg-background",
-            className
-          )}
-          placeholder="0"
-        />
-        {isFocused && (
-          <div className="absolute -top-8 left-0 text-xs text-primary font-medium animate-in fade-in slide-in-from-top-2 bg-primary/10 px-2 py-1 rounded z-10">
-            Type grams, press Enter ↵
-          </div>
-        )}
-        {isInvalid && (
-          <div className="absolute -bottom-6 left-0 text-xs text-destructive font-medium z-10">
-            Enter valid number ≥ 0
-          </div>
-        )}
-      </div>
+      <Input
+        type="number"
+        inputMode="decimal"
+        step={step}
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) => {
+          const parsed = parseFloat(e.target.value);
+          if (!isNaN(parsed) && parsed >= 0) {
+            onChange(parsed);
+          } else if (e.target.value === '') {
+            onChange(0);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            onChange(value + step);
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            onChange(Math.max(0, value - step));
+          }
+        }}
+        className={cn("text-lg font-semibold", className)}
+      />
     );
   };
 
@@ -439,6 +371,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         numericValue = 0;
       }
       
+      const oldValue = newRows[index][field];
       newRows[index] = { ...newRows[index], [field]: numericValue };
       
       // Auto-calculate nutritional values when quantity changes
@@ -446,11 +379,23 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         const ing = newRows[index].ingredientData!;
         const qty = numericValue;
         
+        console.log(`📝 UpdateRow[${index}]: quantity_g changed`, {
+          ingredient: ing.name,
+          oldQty: oldValue,
+          newQty: qty,
+          hasIngredientData: !!ing
+        });
+        
         newRows[index].sugars_g = ((ing.sugars_pct ?? 0) / 100) * qty;
         newRows[index].fat_g = ((ing.fat_pct ?? 0) / 100) * qty;
         newRows[index].msnf_g = ((ing.msnf_pct ?? 0) / 100) * qty;
         newRows[index].other_solids_g = ((ing.other_solids_pct ?? 0) / 100) * qty;
         newRows[index].total_solids_g = newRows[index].sugars_g + newRows[index].fat_g + newRows[index].msnf_g + newRows[index].other_solids_g;
+      } else if (field === 'quantity_g') {
+        console.log(`⚠️ UpdateRow[${index}]: quantity_g changed but no ingredientData`, {
+          ingredient: newRows[index].ingredient,
+          qty: numericValue
+        });
       }
       
       return newRows;
@@ -490,6 +435,14 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const calculateMetrics = () => {
+    const rowsWithoutData = rows.filter(r => r.ingredient && !r.ingredientData);
+    
+    console.log('🧮 CalculateMetrics called', {
+      totalRows: rows.length,
+      rowsWithIngredientData: rows.filter(r => r.ingredientData).length,
+      rowsWithoutData: rowsWithoutData.length
+    });
+    
     if (rows.length === 0) {
       toast({
         title: 'No ingredients',
@@ -515,12 +468,27 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
       });
       return;
     }
+    
+    // Warn about text-only rows but continue calculation
+    if (rowsWithoutData.length > 0) {
+      toast({
+        title: 'Some ingredients missing data',
+        description: `${rowsWithoutData.length} ingredient(s) are text-only. Choose from the list for full calculations.`,
+        variant: 'default'
+      });
+    }
 
     // Use the comprehensive v2.1 science engine with central mode resolver
     const mode = resolveMode(productType);
     const calculated = calcMetricsV2(calcRows, { mode });
 
     setMetrics(calculated);
+    
+    console.log('✅ Metrics calculated', {
+      fat_pct: calculated.fat_pct.toFixed(2),
+      msnf_pct: calculated.msnf_pct.toFixed(2),
+      warnings: calculated.warnings.length
+    });
     
     // Show warnings if any
     if (calculated.warnings.length > 0) {
@@ -537,6 +505,12 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const balanceRecipe = () => {
+    console.log('🎯 BalanceRecipe called', {
+      rowCount: rows.length,
+      hasMetrics: !!metrics,
+      productType
+    });
+    
     if (rows.length === 0) {
       toast({
         title: 'No ingredients',
@@ -549,6 +523,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     // Pre-flight check: Ensure all rows have ingredientData
     const missingData = rows.filter(r => !r.ingredientData && r.ingredient);
     if (missingData.length > 0) {
+      console.log('❌ Balance blocked: missing ingredient data', missingData.map(r => r.ingredient));
       toast({
         title: 'Missing ingredient data',
         description: 'Some ingredients must be selected from the database using Smart Ingredient Search',
@@ -559,6 +534,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     
     // Pre-flight check: Ensure metrics are calculated
     if (!metrics) {
+      console.log('❌ Balance blocked: no metrics calculated');
       toast({
         title: 'Calculate metrics first',
         description: 'Click Calculate to compute metrics, then try Balance again',
@@ -1683,7 +1659,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
           <CardTitle>Ingredients</CardTitle>
         </CardHeader>
         <CardContent>
-            <div className="space-y-4">
+          <div className="space-y-4">
             {rows.length === 0 && !showTemplates && (
               <div className="text-center py-8">
                 <Button
@@ -1700,7 +1676,19 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 </p>
               </div>
             )}
-
+            
+            {/* Tip for choosing ingredients from database */}
+            {rows.length > 0 && (
+              <Alert className="mb-4 bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
+                <AlertDescription className="text-sm flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span>
+                    <strong>Tip:</strong> Always choose ingredients from the popup list so the calculator knows their composition.
+                  </span>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {showTemplates && (
               <div className="mb-6">
                 <RecipeTemplates
@@ -2560,39 +2548,51 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       </TabsContent>
 
                       <TabsContent value="sugar-blend" className="mt-4">
-                        <SugarBlendOptimizer
-                          productType={productType as 'gelato' | 'ice-cream' | 'sorbet'}
-                          totalSugarAmount={rows
-                            .filter(r => r.ingredientData?.category === 'sugar')
-                            .reduce((sum, r) => sum + r.quantity_g, 0)}
-                          onOptimizedBlend={(blend) => {
-                            const nonSugarRows = rows.filter(r => r.ingredientData?.category !== 'sugar');
-                            const newSugarRows = Object.entries(blend).map(([name, grams]) => {
-                              const ing = availableIngredients.find(i => i.name === name);
-                              if (!ing) return null;
-                              return {
-                                ingredientData: ing,
-                                ingredient: ing.name,
-                                quantity_g: grams,
-                                sugars_g: ((ing.sugars_pct ?? 0) / 100) * grams,
-                                fat_g: ((ing.fat_pct ?? 0) / 100) * grams,
-                                msnf_g: ((ing.msnf_pct ?? 0) / 100) * grams,
-                                other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * grams,
-                                total_solids_g: 0
-                              } as IngredientRow;
-                            }).filter((r): r is IngredientRow => r !== null);
-                            
-                            newSugarRows.forEach(r => {
-                              r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
-                            });
-                            
-                            setRows([...nonSugarRows, ...newSugarRows]);
-                            toast({
-                              title: "Sugar Blend Applied",
-                              description: "Recipe updated with optimized sugar blend"
-                            });
-                          }}
-                        />
+                        {rows.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">No Recipe Available</p>
+                            <p className="text-sm">Add ingredients to optimize sugar blend</p>
+                          </div>
+                        ) : rows.filter(r => r.ingredientData?.category === 'sugar').length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-lg font-semibold mb-2">No Sugar Ingredients</p>
+                            <p className="text-sm">Add sucrose, dextrose, or glucose syrup to use this tool</p>
+                          </div>
+                        ) : (
+                          <SugarBlendOptimizer
+                            productType={productType as 'gelato' | 'ice-cream' | 'sorbet'}
+                            totalSugarAmount={rows
+                              .filter(r => r.ingredientData?.category === 'sugar')
+                              .reduce((sum, r) => sum + r.quantity_g, 0)}
+                            onOptimizedBlend={(blend) => {
+                              const nonSugarRows = rows.filter(r => r.ingredientData?.category !== 'sugar');
+                              const newSugarRows = Object.entries(blend).map(([name, grams]) => {
+                                const ing = availableIngredients.find(i => i.name === name);
+                                if (!ing) return null;
+                                return {
+                                  ingredientData: ing,
+                                  ingredient: ing.name,
+                                  quantity_g: grams,
+                                  sugars_g: ((ing.sugars_pct ?? 0) / 100) * grams,
+                                  fat_g: ((ing.fat_pct ?? 0) / 100) * grams,
+                                  msnf_g: ((ing.msnf_pct ?? 0) / 100) * grams,
+                                  other_solids_g: ((ing.other_solids_pct ?? 0) / 100) * grams,
+                                  total_solids_g: 0
+                                } as IngredientRow;
+                              }).filter((r): r is IngredientRow => r !== null);
+                              
+                              newSugarRows.forEach(r => {
+                                r.total_solids_g = r.sugars_g + r.fat_g + r.msnf_g + r.other_solids_g;
+                              });
+                              
+                              setRows([...nonSugarRows, ...newSugarRows]);
+                              toast({
+                                title: "Sugar Blend Applied",
+                                description: "Recipe updated with optimized sugar blend"
+                              });
+                            }}
+                          />
+                        )}
                       </TabsContent>
 
                       <TabsContent value="ai-optimize" className="mt-4">
@@ -2747,7 +2747,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                             <p className="text-sm">Add ingredients to your recipe to analyze them</p>
                           </div>
                         ) : (
-                          <IngredientAnalyzer currentRecipe={rows} />
+                          <>
+                            {rows.filter(r => r.ingredient && !r.ingredientData).length > 0 && (
+                              <Alert className="mb-4 bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+                                <AlertDescription className="text-sm">
+                                  <strong>Note:</strong> Some rows are missing composition data. Choose ingredients from the list for best analysis.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                            <IngredientAnalyzer currentRecipe={rows} />
+                          </>
                         )}
                       </TabsContent>
 
