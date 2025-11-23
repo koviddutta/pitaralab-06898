@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2, Brain } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2, Brain, Check, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -130,6 +130,97 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     suggestion: BalancingSuggestion;
   } | null>(null);
   const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
+
+  // Helper function to load base sets
+  const loadBaseSet = (baseType: 'ice_cream' | 'gelato' | 'sorbet') => {
+    let baseIngredients: Array<{ name: string; quantity: number }> = [];
+    
+    if (baseType === 'ice_cream') {
+      baseIngredients = [
+        { name: 'Whole Milk', quantity: 0 },
+        { name: 'Heavy Cream', quantity: 0 },
+        { name: 'Sugar', quantity: 0 },
+        { name: 'Skim Milk Powder', quantity: 0 },
+        { name: 'Egg Yolk', quantity: 0 },
+        { name: 'Stabilizer', quantity: 0 },
+      ];
+      setProductType('ice_cream');
+    } else if (baseType === 'gelato') {
+      baseIngredients = [
+        { name: 'Whole Milk', quantity: 0 },
+        { name: 'Heavy Cream', quantity: 0 },
+        { name: 'Sugar', quantity: 0 },
+        { name: 'Skim Milk Powder', quantity: 0 },
+        { name: 'Stabilizer', quantity: 0 },
+      ];
+      setProductType('gelato');
+    } else if (baseType === 'sorbet') {
+      baseIngredients = [
+        { name: 'Fruit Puree', quantity: 0 },
+        { name: 'Sugar', quantity: 0 },
+        { name: 'Water', quantity: 0 },
+        { name: 'Stabilizer', quantity: 0 },
+      ];
+      setProductType('sorbet');
+    }
+
+    // Map to rows with ingredientData
+    const newRows = baseIngredients.map(ing => {
+      const foundIngredient = availableIngredients.find(
+        avail => avail.name.toLowerCase() === ing.name.toLowerCase()
+      );
+      return {
+        id: Math.random().toString(36).substr(2, 9),
+        ingredient: ing.name,
+        quantity_g: ing.quantity,
+        ingredientData: foundIngredient,
+        sugars_g: 0,
+        fat_g: 0,
+        msnf_g: 0,
+        other_solids_g: 0,
+        total_solids_g: 0,
+      };
+    });
+
+    setRows(newRows);
+    setRecipeName(`${baseType.replace('_', ' ')} Recipe`);
+    toast({
+      title: "Base set loaded",
+      description: `${baseType.replace('_', ' ')} base ingredients loaded. Enter quantities and calculate.`,
+    });
+  };
+
+  // Helper to render core metrics with color-coded status
+  const renderCoreMetric = (label: string, value: number, range: [number, number]) => {
+    const [min, max] = range;
+    const isInRange = value >= min && value <= max;
+    const isClose = !isInRange && ((value >= min - 2 && value < min) || (value > max && value <= max + 2));
+    
+    let statusColor = 'text-green-600 dark:text-green-400';
+    let bgColor = 'bg-green-500/10 border-green-500/20';
+    
+    if (!isInRange) {
+      if (isClose) {
+        statusColor = 'text-amber-600 dark:text-amber-400';
+        bgColor = 'bg-amber-500/10 border-amber-500/20';
+      } else {
+        statusColor = 'text-red-600 dark:text-red-400';
+        bgColor = 'bg-red-500/10 border-red-500/20';
+      }
+    }
+    
+    return (
+      <div className={`border rounded-lg p-3 ${bgColor}`}>
+        <div className="text-xs text-muted-foreground mb-1">{label}</div>
+        <div className={`text-lg font-bold ${statusColor}`}>
+          {value.toFixed(1)}%
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          Target: {min}–{max}%
+        </div>
+      </div>
+    );
+  };
   
   
   // Controlled tab state for consistent navigation
@@ -435,48 +526,59 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const calculateMetrics = () => {
-    const rowsWithoutData = rows.filter(r => r.ingredient && !r.ingredientData);
+    console.log('🧮 calculateMetrics called');
     
-    console.log('🧮 CalculateMetrics called', {
-      totalRows: rows.length,
-      rowsWithIngredientData: rows.filter(r => r.ingredientData).length,
-      rowsWithoutData: rowsWithoutData.length
-    });
+    const totalRows = rows.length;
+    const rowsWithIngredientData = rows.filter(r => r.ingredientData).length;
+    const rowsWithoutData = totalRows - rowsWithIngredientData;
+    const validRows = rows.filter(r => r.ingredientData && r.quantity_g > 0);
     
-    if (rows.length === 0) {
-      toast({
-        title: 'No ingredients',
-        description: 'Add at least one ingredient to calculate metrics',
-        variant: 'destructive'
-      });
+    console.log(`  Total rows: ${totalRows}`);
+    console.log(`  Rows with ingredientData: ${rowsWithIngredientData}`);
+    console.log(`  Rows without ingredientData: ${rowsWithoutData}`);
+    console.log(`  Valid rows (with data + grams > 0): ${validRows.length}`);
+    
+    // More specific error messages
+    if (validRows.length === 0) {
+      if (rowsWithoutData > 0 && rowsWithIngredientData === 0) {
+        console.warn('⚠ No ingredients from database. All rows are text-only.');
+        toast({
+          title: "No valid ingredients",
+          description: "Choose ingredients from the database list and enter quantities to calculate metrics.",
+          variant: "destructive",
+        });
+      } else if (rows.every(r => r.quantity_g === 0)) {
+        console.warn('⚠ All rows have 0 grams.');
+        toast({
+          title: "No quantities entered",
+          description: "Enter gram amounts for your ingredients to calculate metrics.",
+          variant: "destructive",
+        });
+      } else {
+        console.warn('⚠ No valid rows to calculate.');
+        toast({
+          title: "Cannot calculate",
+          description: "Ensure ingredients are from the database and have quantities entered.",
+          variant: "destructive",
+        });
+      }
       return;
+    }
+    
+    // Warn if some rows lack data (text-only ingredients)
+    if (rowsWithoutData > 0) {
+      console.warn(`⚠ ${rowsWithoutData} row(s) have no ingredientData and will be ignored.`);
+      toast({
+        title: "Some ingredients not recognized",
+        description: `${rowsWithoutData} ingredient(s) are not from the database and will be ignored in calculations.`,
+      });
     }
 
     // Convert rows to format expected by calc.v2
-    const calcRows = rows
-      .filter(r => r.ingredientData && r.quantity_g > 0)
-      .map(r => ({
-        ing: r.ingredientData!,
-        grams: r.quantity_g
-      }));
-
-    if (calcRows.length === 0) {
-      toast({
-        title: 'No valid ingredients',
-        description: 'Please pick ingredients from the list using Smart Ingredient Search',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    // Warn about text-only rows but continue calculation
-    if (rowsWithoutData.length > 0) {
-      toast({
-        title: 'Some ingredients missing data',
-        description: `${rowsWithoutData.length} ingredient(s) are text-only. Choose from the list for full calculations.`,
-        variant: 'default'
-      });
-    }
+    const calcRows = validRows.map(r => ({
+      ing: r.ingredientData!,
+      grams: r.quantity_g
+    }));
 
     // Use the comprehensive v2.1 science engine with central mode resolver
     const mode = resolveMode(productType);
@@ -505,41 +607,39 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const balanceRecipe = () => {
-    console.log('🎯 BalanceRecipe called', {
-      rowCount: rows.length,
-      hasMetrics: !!metrics,
-      productType
-    });
+    console.log('⚖ balanceRecipe called');
+    console.log(`  Rows: ${rows.length}`);
+    console.log(`  Has metrics: ${!!metrics}`);
+    console.log(`  Product type: ${productType}`);
     
-    if (rows.length === 0) {
-      toast({
-        title: 'No ingredients',
-        description: 'Add ingredients before balancing',
-        variant: 'destructive'
-      });
-      return;
-    }
+    const validRows = rows.filter(r => r.ingredientData && r.quantity_g > 0);
+    const rowsWithoutData = rows.filter(r => !r.ingredientData && r.ingredient).length;
     
-    // Pre-flight check: Ensure all rows have ingredientData
-    const missingData = rows.filter(r => !r.ingredientData && r.ingredient);
-    if (missingData.length > 0) {
-      console.log('❌ Balance blocked: missing ingredient data', missingData.map(r => r.ingredient));
-      toast({
-        title: 'Missing ingredient data',
-        description: 'Some ingredients must be selected from the database using Smart Ingredient Search',
-        variant: 'destructive'
-      });
-      return;
-    }
-    
-    // Pre-flight check: Ensure metrics are calculated
     if (!metrics) {
-      console.log('❌ Balance blocked: no metrics calculated');
+      console.warn('⚠ balanceRecipe blocked: no metrics. User must calculate first.');
       toast({
-        title: 'Calculate metrics first',
-        description: 'Click Calculate to compute metrics, then try Balance again',
-        variant: 'destructive'
+        title: "Calculate metrics first",
+        description: "Click the Calculate button to update your mix metrics before balancing.",
+        variant: "destructive",
       });
+      return;
+    }
+
+    if (validRows.length === 0) {
+      console.warn('⚠ balanceRecipe blocked: no valid rows with ingredientData.');
+      if (rowsWithoutData > 0) {
+        toast({
+          title: "No valid ingredients",
+          description: "All ingredients must be selected from the database list (not manually typed). Click the ingredient cell and choose from the popup.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "No ingredients to balance",
+          description: "Add ingredients from the database and enter quantities first.",
+          variant: "destructive",
+        });
+      }
       return;
     }
 
@@ -1583,6 +1683,38 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         </Alert>
       )}
 
+      {/* Base Sets Quick Start */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Quick Start with Base Sets</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadBaseSet('ice_cream')}
+            >
+              Classic Ice Cream Base
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadBaseSet('gelato')}
+            >
+              Gelato Base
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadBaseSet('sorbet')}
+            >
+              Fruit Sorbet Base
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1654,6 +1786,24 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         </CardContent>
       </Card>
 
+      {/* Core Metrics Panel (Basic Mode) */}
+      {basicMode && metrics && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Core Mix Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {renderCoreMetric('Fat', metrics.fat_pct, [6, 16])}
+              {renderCoreMetric('MSNF', metrics.msnf_pct, [7, 12])}
+              {renderCoreMetric('Sugar', metrics.totalSugars_pct, [14, 24])}
+              {renderCoreMetric('Total Solids', metrics.ts_pct, [30, 42])}
+              {renderCoreMetric('Water', 100 - metrics.ts_pct, [58, 70])}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Ingredients</CardTitle>
@@ -1683,7 +1833,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                 <AlertDescription className="text-sm flex items-center gap-2">
                   <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   <span>
-                    <strong>Tip:</strong> Always choose ingredients from the popup list so the calculator knows their composition.
+                    <strong>Tip:</strong> Click ingredient cells to search and select from the database. Status badges show if each row is ready for calculations.
                   </span>
                 </AlertDescription>
               </Alert>
@@ -1730,32 +1880,25 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               <TableBody>
                 {rows.map((row, index) => (
                   <TableRow key={index}>
-                    <TableCell>
-                      <Popover open={searchOpen === index} onOpenChange={(open) => setSearchOpen(open ? index : null)}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            {row.ingredient ? (
-                              <div className="flex items-center gap-2 w-full">
-                                <span className="flex-1">{row.ingredient}</span>
-                                {!row.ingredientData && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    <AlertCircle className="h-3 w-3 mr-1" />
-                                    Not from DB
-                                  </Badge>
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                <Search className="mr-2 h-4 w-4" />
-                                Search ingredient...
-                              </>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-full max-w-[400px] p-0 bg-popover border shadow-lg" align="start" sideOffset={8}>
+                    <TableCell className="min-w-[280px]">
+                      <div className="flex items-center gap-2">
+                        <Popover open={searchOpen === index} onOpenChange={(open) => setSearchOpen(open ? index : null)}>
+                          <PopoverTrigger asChild>
+                            <div className="relative flex-1">
+                              <Input
+                                value={row.ingredient || ""}
+                                onChange={(e) => {
+                                  // Allow typing but don't set yet - wait for selection
+                                  setSearchOpen(index);
+                                }}
+                                onFocus={() => setSearchOpen(index)}
+                                placeholder="Type to search ingredients..."
+                                className="pr-8"
+                              />
+                              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full max-w-[400px] p-0 bg-popover border shadow-lg" align="start" sideOffset={8}>
                           {loadingIngredients ? (
                             <div className="p-4 text-center">
                               <p className="text-sm text-muted-foreground">Loading ingredients...</p>
@@ -1797,7 +1940,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                           )}
                         </PopoverContent>
                       </Popover>
-                    </TableCell>
+                      
+                      {/* Status Pill */}
+                      {row.ingredientData && row.quantity_g > 0 && (
+                        <Badge variant="default" className="bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30 shrink-0">
+                          <Check className="h-3 w-3 mr-1" />
+                          In use
+                        </Badge>
+                      )}
+                      {row.ingredientData && row.quantity_g === 0 && (
+                        <Badge variant="secondary" className="bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 shrink-0">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Add grams
+                        </Badge>
+                      )}
+                      {!row.ingredientData && row.ingredient && (
+                        <Badge variant="destructive" className="bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30 shrink-0">
+                          <X className="h-3 w-3 mr-1" />
+                          Not from DB
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                 <TableCell className="min-w-[220px]">
                   <div className="flex items-center gap-2">
                     <QuantityInput
