@@ -102,6 +102,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   const [productType, setProductType] = useState('ice_cream');
   const [rows, setRows] = useState<IngredientRow[]>([]);
   const [metrics, setMetrics] = useState<MetricsV2 | null>(null);
+  const [targetBatchSize, setTargetBatchSize] = useState<number | null>(null);
+  const [servings, setServings] = useState<number>(10);
   const [isSaving, setIsSaving] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [currentRecipeId, setCurrentRecipeId] = useState<string | null>(null);
@@ -208,17 +210,28 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         bgColor = 'bg-red-500/10 border-red-500/20';
       }
     }
+
+    const explanation = getMetricExplanation(label, value, [min, max]);
     
     return (
-      <div className={`border rounded-lg p-3 ${bgColor}`}>
-        <div className="text-xs text-muted-foreground mb-1">{label}</div>
-        <div className={`text-lg font-bold ${statusColor}`}>
-          {value.toFixed(1)}%
-        </div>
-        <div className="text-xs text-muted-foreground mt-1">
-          Target: {min}–{max}%
-        </div>
-      </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`border rounded-lg p-3 ${bgColor} cursor-help`}>
+              <div className="text-xs text-muted-foreground mb-1">{label}</div>
+              <div className={`text-lg font-bold ${statusColor}`}>
+                {value.toFixed(1)}%
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Target: {min}–{max}%
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p className="text-sm">{explanation}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   };
   
@@ -255,10 +268,15 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
+      // Auto-refetch ingredients after authentication
+      if (session && availableIngredients.length === 0) {
+        console.log("🔄 Refetching ingredients after auth...");
+        refetchIngredients();
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [availableIngredients.length, refetchIngredients]);
 
   // Show Advanced Tools tutorial for first-time users
   useEffect(() => {
@@ -310,6 +328,69 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   }, [rows, metrics, productType, onRecipeChange]);
 
   const FIXED_STEP_SIZE = 10; // Always ±10g
+
+  // Calculated values
+  const totalBatch = useMemo(() => {
+    return rows.reduce((sum, r) => sum + r.quantity_g, 0);
+  }, [rows]);
+
+  const totalCost = useMemo(() => {
+    return rows.reduce((sum, r) => {
+      if (r.ingredientData?.cost_per_kg) {
+        return sum + (r.quantity_g / 1000) * r.ingredientData.cost_per_kg;
+      }
+      return sum;
+    }, 0);
+  }, [rows]);
+
+  const costPerServing = totalCost > 0 && servings > 0 ? totalCost / servings : 0;
+
+  // Recipe scaling function
+  const scaleRecipe = (newBatchSize: number) => {
+    if (totalBatch === 0) {
+      toast({
+        title: "Cannot scale",
+        description: "Add ingredients first before scaling",
+        variant: "destructive"
+      });
+      return;
+    }
+    const scaleFactor = newBatchSize / totalBatch;
+    setRows(rows.map(r => ({
+      ...r,
+      quantity_g: Math.round(r.quantity_g * scaleFactor * 10) / 10
+    })));
+    setTargetBatchSize(newBatchSize);
+    toast({
+      title: "Recipe Scaled",
+      description: `Recipe scaled to ${newBatchSize}g (${scaleFactor.toFixed(2)}x)`
+    });
+  };
+
+  // Get explanation for metric status
+  const getMetricExplanation = (metric: string, value: number, target?: [number, number]) => {
+    if (!target) return "";
+    const [min, max] = target;
+    if (value < min) {
+      switch (metric) {
+        case "Fat": return "Too low fat → Icy texture, lacks creaminess and richness";
+        case "MSNF": return "Too low MSNF → Lacks body, may be too soft";
+        case "Sugar": return "Too low sugar → Very hard when frozen, icy texture";
+        case "Total Solids": return "Too low solids → Icy, weak body, poor texture";
+        default: return "";
+      }
+    }
+    if (value > max) {
+      switch (metric) {
+        case "Fat": return "Too high fat → Heavy mouthfeel, may coat palate";
+        case "MSNF": return "Too high MSNF → Risk of chewiness, sandy texture from lactose";
+        case "Sugar": return "Too high sugar → Too soft/slushy when frozen, overly sweet";
+        case "Total Solids": return "Too high solids → Dense, hard to scoop, chewy";
+        default: return "";
+      }
+    }
+    return "✓ Within optimal range for great texture and scoopability";
+  };
 
   // PHASE 1: Simplified Quantity Input - Direct controlled input with no buffering
   const QuantityInput = ({ value, onChange, step, rowIndex, className }: { 
@@ -1804,11 +1885,68 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         </Card>
       )}
 
+      {/* Recipe Scaling & Cost Section */}
+      {rows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Batch Size & Costing</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="batch-size" className="text-sm whitespace-nowrap">Batch Size:</Label>
+                  <Input
+                    id="batch-size"
+                    type="number"
+                    value={targetBatchSize || totalBatch}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (val > 0) scaleRecipe(val);
+                    }}
+                    className="w-28"
+                    placeholder="grams"
+                  />
+                  <span className="text-sm text-muted-foreground">g</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="servings" className="text-sm whitespace-nowrap">Servings:</Label>
+                  <Input
+                    id="servings"
+                    type="number"
+                    value={servings}
+                    onChange={(e) => setServings(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20"
+                    min="1"
+                  />
+                </div>
+              </div>
+              {totalCost > 0 && (
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-medium">
+                    Total Cost: ${totalCost.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Per Serving: ${costPerServing.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Ingredients</CardTitle>
         </CardHeader>
         <CardContent>
+          {loadingIngredients && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-3 text-sm text-muted-foreground">Loading ingredients...</span>
+            </div>
+          )}
           <div className="space-y-4">
             {rows.length === 0 && !showTemplates && (
               <div className="text-center py-8">
@@ -1884,19 +2022,16 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                       <div className="flex items-center gap-2">
                         <Popover open={searchOpen === index} onOpenChange={(open) => setSearchOpen(open ? index : null)}>
                           <PopoverTrigger asChild>
-                            <div className="relative flex-1">
-                              <Input
-                                value={row.ingredient || ""}
-                                onChange={(e) => {
-                                  // Allow typing but don't set yet - wait for selection
-                                  setSearchOpen(index);
-                                }}
-                                onFocus={() => setSearchOpen(index)}
-                                placeholder="Type to search ingredients..."
-                                className="pr-8"
-                              />
-                              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                            </div>
+                            <Button
+                              variant="outline"
+                              onClick={() => setSearchOpen(index)}
+                              className="w-full justify-between font-normal"
+                            >
+                              <span className={row.ingredient ? "text-foreground" : "text-muted-foreground"}>
+                                {row.ingredient || "Select ingredient..."}
+                              </span>
+                              <Search className="h-4 w-4 text-muted-foreground" />
+                            </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-full max-w-[400px] p-0 bg-popover border shadow-lg" align="start" sideOffset={8}>
                           {loadingIngredients ? (
