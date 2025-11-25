@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2, Brain, Check, X } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, Loader2, Search, Zap, BookOpen, Bug, History, HelpCircle, CheckCircle, AlertCircle, Wand2, Brain, Check, X, FileDown, GitCompare } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -43,6 +43,8 @@ import { advancedOptimize, OptimizerConfig } from '@/lib/optimize.advanced';
 import { RecipeHistoryDrawer } from '@/components/RecipeHistoryDrawer';
 import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionService';
 import { Wrench } from 'lucide-react';
+import { RecipeCompareDialog } from '@/components/RecipeCompareDialog';
+import jsPDF from 'jspdf';
 import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
 import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
@@ -132,6 +134,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     suggestion: BalancingSuggestion;
   } | null>(null);
   const [prefilledIngredientData, setPrefilledIngredientData] = React.useState<any>(null);
+  const [showCompareDialog, setShowCompareDialog] = React.useState(false);
+  const [highlightedRow, setHighlightedRow] = React.useState<number | null>(null);
 
   // Helper function to load base sets
   const loadBaseSet = (baseType: 'ice_cream' | 'gelato' | 'sorbet') => {
@@ -576,6 +580,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   };
 
   const handleIngredientSelect = (index: number, ingredient: IngredientData) => {
+    console.log('🔄 handleIngredientSelect called:', { index, ingredientName: ingredient.name });
+    
     const newRows = [...rows];
     newRows[index].ingredient = ingredient.name;
     newRows[index].ingredientData = ingredient;
@@ -604,6 +610,85 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     
     setRows(newRows);
     setSearchOpen(null);
+    
+    // Visual feedback with highlight animation
+    setHighlightedRow(index);
+    setTimeout(() => setHighlightedRow(null), 2000);
+    
+    toast({
+      title: '✓ Ingredient Updated',
+      description: `${ingredient.name} selected for row ${index + 1}`,
+      duration: 2000,
+    });
+    
+    console.log('✅ Ingredient selected successfully:', ingredient.name);
+  };
+  
+  // Export recipe as PDF
+  const exportRecipePDF = () => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text(recipeName || 'Ice Cream Recipe', 20, 20);
+    
+    // Product type
+    doc.setFontSize(12);
+    doc.text(`Product Type: ${productType.replace('_', ' ')}`, 20, 30);
+    
+    // Batch info
+    if (targetBatchSize || totalBatch > 0) {
+      doc.text(`Batch Size: ${(targetBatchSize || totalBatch).toFixed(0)}g`, 20, 40);
+    }
+    if (totalCost > 0) {
+      doc.text(`Total Cost: $${totalCost.toFixed(2)}`, 20, 50);
+      doc.text(`Cost Per Serving: $${costPerServing.toFixed(2)}`, 20, 60);
+    }
+    
+    // Ingredients table
+    doc.setFontSize(14);
+    doc.text('Ingredients:', 20, 75);
+    doc.setFontSize(10);
+    
+    let yPos = 85;
+    rows.forEach((row, index) => {
+      if (row.ingredient && row.quantity_g > 0) {
+        doc.text(`${index + 1}. ${row.ingredient}: ${row.quantity_g.toFixed(1)}g`, 25, yPos);
+        yPos += 7;
+      }
+    });
+    
+    // Metrics
+    if (metrics) {
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.text('Core Metrics:', 20, yPos);
+      yPos += 10;
+      doc.setFontSize(10);
+      doc.text(`Fat: ${metrics.fat_pct.toFixed(1)}%`, 25, yPos);
+      yPos += 7;
+      doc.text(`MSNF: ${metrics.msnf_pct.toFixed(1)}%`, 25, yPos);
+      yPos += 7;
+      doc.text(`Sugar: ${metrics.totalSugars_pct.toFixed(1)}%`, 25, yPos);
+      yPos += 7;
+      doc.text(`Total Solids: ${metrics.ts_pct.toFixed(1)}%`, 25, yPos);
+      yPos += 7;
+      doc.text(`Water: ${(100 - metrics.ts_pct).toFixed(1)}%`, 25, yPos);
+      
+      // Advanced metrics
+      if (metrics.fpdt !== undefined) {
+        yPos += 7;
+        doc.text(`FPD: ${metrics.fpdt.toFixed(2)}°C`, 25, yPos);
+      }
+    }
+    
+    // Save
+    doc.save(`${recipeName || 'recipe'}.pdf`);
+    
+    toast({
+      title: '✓ PDF Exported',
+      description: 'Recipe has been downloaded as PDF',
+    });
   };
 
   const calculateMetrics = () => {
@@ -1756,6 +1841,17 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         onRestoreVersion={handleRestoreVersion}
       />
       
+      <RecipeCompareDialog
+        open={showCompareDialog}
+        onOpenChange={setShowCompareDialog}
+        currentRecipe={{
+          name: recipeName,
+          rows,
+          metrics,
+          productType
+        }}
+      />
+      
       {!isAuthenticated && (
         <Alert>
           <AlertDescription>
@@ -1948,19 +2044,69 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
             </div>
           )}
           <div className="space-y-4">
+            {/* Template and Export Actions - Always accessible */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplates(!showTemplates)}
+                className="gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                {showTemplates ? 'Hide Templates' : 'Browse Templates'}
+              </Button>
+              
+              {rows.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportRecipePDF}
+                    className="gap-2"
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCompareDialog(true)}
+                    className="gap-2"
+                  >
+                    <GitCompare className="h-4 w-4" />
+                    Compare Recipes
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setRows([]);
+                      setRecipeName('');
+                      setMetrics(null);
+                      toast({
+                        title: 'Recipe Cleared',
+                        description: 'Starting fresh - add ingredients or load a template',
+                      });
+                    }}
+                    className="gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Clear & Start Over
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            {/* Quick Start Message - Only show when no ingredients */}
             {rows.length === 0 && !showTemplates && (
               <div className="text-center py-8">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setShowTemplates(true)}
-                  className="gap-2"
-                >
-                  <BookOpen className="h-5 w-5" />
-                  Browse Recipe Templates
-                </Button>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Or add ingredients manually below
+                <p className="text-muted-foreground mb-2">
+                  Start with a recipe template or build from scratch
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Click "Browse Templates" above or add ingredients manually below
                 </p>
               </div>
             )}
@@ -2017,7 +2163,13 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
               </TableHeader>
               <TableBody>
                 {rows.map((row, index) => (
-                  <TableRow key={index}>
+                  <TableRow 
+                    key={index}
+                    className={cn(
+                      "transition-colors duration-500",
+                      highlightedRow === index && "bg-green-100 dark:bg-green-900/20"
+                    )}
+                  >
                     <TableCell className="min-w-[280px]">
                       <div className="flex items-center gap-2">
                         <Popover open={searchOpen === index} onOpenChange={(open) => setSearchOpen(open ? index : null)}>
