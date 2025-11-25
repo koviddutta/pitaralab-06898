@@ -20,6 +20,8 @@ export type IngredientData = {
   density_g_per_ml?: number;
   cost_per_kg?: number;
   notes?: string[];
+  hardening_factor?: number;  // texture hardening effect
+  characterization_pct?: number; // % needed to characterize flavor
   
   // Fruit-specific: sugar breakdown (glucose + fructose + sucrose ≈ 100%)
   sugar_split?: { glucose?: number; fructose?: number; sucrose?: number };
