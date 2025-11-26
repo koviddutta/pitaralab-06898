@@ -3,10 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Beaker, DollarSign, Sparkles, Candy, Info } from 'lucide-react';
+import { Beaker, Candy, Info } from 'lucide-react';
 import { ChemistryDashboard } from '@/components/ChemistryDashboard';
-import { CostAnalysisDashboard } from '@/components/CostAnalysisDashboard';
-import { OptimizationWorkbench } from '@/components/OptimizationWorkbench';
 import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
 import { RecipeIngredient } from '@/types/recipe';
 import { MetricsV2 } from '@/lib/calc.v2';
@@ -75,18 +73,10 @@ export default function AIFlavourEngine({
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="chemistry" className="flex items-center gap-2">
             <Beaker className="h-4 w-4" />
             <span className="hidden sm:inline">Chemistry</span>
-          </TabsTrigger>
-          <TabsTrigger value="costing" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Cost Analysis</span>
-          </TabsTrigger>
-          <TabsTrigger value="optimization" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">AI Optimize</span>
           </TabsTrigger>
           <TabsTrigger value="sugar" className="flex items-center gap-2">
             <Candy className="h-4 w-4" />
@@ -98,21 +88,6 @@ export default function AIFlavourEngine({
           <ChemistryDashboard 
             recipe={initialRecipe}
             metrics={initialMetrics}
-          />
-        </TabsContent>
-
-        <TabsContent value="costing" className="mt-6">
-          <CostAnalysisDashboard 
-            recipe={initialRecipe}
-            recipeName="Current Recipe"
-          />
-        </TabsContent>
-
-        <TabsContent value="optimization" className="mt-6">
-          <OptimizationWorkbench 
-            recipe={initialRecipe}
-            metrics={initialMetrics}
-            productType={initialProductType}
           />
         </TabsContent>
 

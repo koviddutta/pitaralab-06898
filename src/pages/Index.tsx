@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import RecipeCalculatorV2 from "@/components/RecipeCalculatorV2";
 import { AIInsightsPanel } from "@/components/AIInsightsPanel";
-import { BaseRecipeManager } from "@/components/BaseRecipeManager";
 import UnitConverter from "@/components/UnitConverter";
 import CostCalculator from "@/components/CostCalculator";
 import MobileRecipeInput from "@/components/MobileRecipeInput";
@@ -452,10 +451,7 @@ const Index = () => {
 
           {/* AI Engine tab removed - features consolidated into Calculator > Advanced Tools */}
 
-          {/* All tab content available on all devices */}
-          <TabsContent value="base-recipes" className="mt-4 md:mt-6">
-            <BaseRecipeManager />
-          </TabsContent>
+          {/* Base recipes feature removed - table dropped in Phase 1 cleanup */}
 
           <TabsContent value="converter" className="mt-4 md:mt-6">
             <UnitConverter />

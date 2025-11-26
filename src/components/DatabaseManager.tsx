@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { getAllIngredients } from '@/services/ingredientService';
-import { databaseService } from '@/services/databaseService';
 
 const DatabaseManager = () => {
   const { toast } = useToast();
@@ -19,46 +18,28 @@ const DatabaseManager = () => {
     queryFn: getAllIngredients
   });
 
-  const performanceMetrics = databaseService.getPerformanceMetrics();
-
   const exportData = () => {
-    const data = databaseService.exportData();
+    const data = { ingredients };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'meetha-pitara-database.json';
+    a.download = 'meetha-pitara-ingredients.json';
     a.click();
     URL.revokeObjectURL(url);
     
     toast({
       title: "Database Exported",
-      description: "Training data and recipe history exported",
+      description: "Ingredients database exported",
     });
   };
 
   const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-          databaseService.importData(data);
-          toast({
-            title: "Database Imported",
-            description: "Training data and recipe history imported",
-          });
-        } catch (error) {
-          toast({
-            title: "Import Error",
-            description: "Failed to import database file",
-            variant: "destructive"
-          });
-        }
-      };
-      reader.readAsText(file);
-    }
+    toast({
+      title: "Import Not Available",
+      description: "Use the Admin Panel to manage ingredients",
+      variant: "default"
+    });
   };
 
   const categories = ['all', 'dairy', 'sugar', 'fruit', 'stabilizer', 'flavor', 'fat', 'other'];
@@ -77,14 +58,6 @@ const DatabaseManager = () => {
               <div className="flex justify-between">
                 <span className="text-sm">Total Ingredients:</span>
                 <Badge variant="secondary">{ingredients.length}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Training Data:</span>
-                <Badge variant="secondary">{performanceMetrics?.trainingDataSize || 0}</Badge>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Recipe History:</span>
-                <Badge variant="secondary">{performanceMetrics?.totalRecipes || 0}</Badge>
               </div>
             </div>
           </CardContent>
@@ -105,21 +78,6 @@ const DatabaseManager = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm text-gray-600">Data Quality</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm">Avg Success Rate:</span>
-                <Badge variant="secondary">
-                  {((performanceMetrics?.avgSuccessScore || 0) * 100).toFixed(0)}%
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Database Management */}

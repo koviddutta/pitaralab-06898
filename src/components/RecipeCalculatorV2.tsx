@@ -40,14 +40,11 @@ import IngredientAnalyzer from '@/components/flavour-engine/IngredientAnalyzer';
 import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
 import AIOptimization from '@/components/flavour-engine/AIOptimization';
 import { advancedOptimize, OptimizerConfig } from '@/lib/optimize.advanced';
-import { RecipeHistoryDrawer } from '@/components/RecipeHistoryDrawer';
-import { saveRecipeVersion, RecipeVersion } from '@/services/recipeVersionService';
 import { Wrench } from 'lucide-react';
 import { RecipeCompareDialog } from '@/components/RecipeCompareDialog';
 import jsPDF from 'jspdf';
 import { DatabaseHealthIndicator } from '@/components/DatabaseHealthIndicator';
 import { BalancingDebugPanel } from '@/components/BalancingDebugPanel';
-import { useInventoryIntegration } from '@/hooks/useInventoryIntegration';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIInsightsPanel } from '@/components/AIInsightsPanel';
 
