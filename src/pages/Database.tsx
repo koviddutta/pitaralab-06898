@@ -16,9 +16,7 @@ import { mlService } from '@/services/mlService';
 import Papa from 'papaparse';
 import { z } from 'zod';
 import { IntelligentCSVImporter } from '@/components/IntelligentCSVImporter';
-import { BaseRecipeCSVImporter } from '@/components/BaseRecipeCSVImporter';
 import { RecipeImporter } from '@/components/RecipeImporter';
-import { BaseRecipeImporter } from '@/components/BaseRecipeImporter';
 
 // Flexible validation schema - all columns optional except ingredient and quantity
 const ImportRowSchema = z.object({
@@ -706,13 +704,6 @@ export default function Database() {
 
         <TabsContent value="recipe-import" className="space-y-4">
           <RecipeImporter />
-        </TabsContent>
-
-        <TabsContent value="base-import" className="space-y-4">
-          <BaseRecipeImporter />
-          <div className="mt-4">
-            <BaseRecipeCSVImporter />
-          </div>
         </TabsContent>
 
         <TabsContent value="import" className="space-y-4">
