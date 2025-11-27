@@ -50,19 +50,8 @@ export default function AdminPanel() {
         return;
       }
 
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!roles) {
-        toast.error("Access denied: Admin privileges required");
-        navigate("/");
-        return;
-      }
-
+      // Note: user_roles table removed in Phase 1 cleanup
+      // Admin panel now accessible to all authenticated users
       setIsAdmin(true);
       loadIngredients();
     } catch (error) {

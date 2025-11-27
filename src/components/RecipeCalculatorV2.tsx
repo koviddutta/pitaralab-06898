@@ -119,9 +119,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     return !localStorage.getItem('advanced-tools-tutorial-seen');
   });
   const isMobile = useIsMobile();
-  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [lastBalanceStrategy, setLastBalanceStrategy] = useState<'LP' | 'Heuristic' | 'Auto-Fix' | undefined>(undefined);
-  const [deductFromInventory, setDeductFromInventory] = useState(true); // Default to true
   const [showAddIngredientDialog, setShowAddIngredientDialog] = useState(false);
   const [balancingSuggestions, setBalancingSuggestions] = React.useState<BalancingSuggestion[]>([]);
   const [showSuggestionsDialog, setShowSuggestionsDialog] = React.useState(false);
@@ -249,9 +247,6 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
   
   // Use global ingredients context
   const { ingredients: availableIngredients, isLoading: loadingIngredients, refetch: refetchIngredients } = useIngredients();
-  
-  // Inventory integration
-  const { checkStockAvailability, deductFromInventory: performDeduction, getInventoryStatus } = useInventoryIntegration();
 
   // Helper to get constraints for current product type
   const getConstraints = () => {
@@ -586,16 +581,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     // Check inventory stock before adding
     const qty = newRows[index].quantity_g || 0;
     if (qty > 0) {
-      const quantityKg = qty / 1000;
-      const stockCheck = checkStockAvailability(ingredient.name, quantityKg);
-      
-      if (!stockCheck.available && stockCheck.message) {
-        toast({
-          title: 'Inventory Warning',
-          description: stockCheck.message,
-          variant: 'default'
-        });
-      }
+      // Inventory check removed in Phase 2 cleanup
     }
     
     // Auto-calculate based on current quantity
@@ -1616,50 +1602,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
       // Save version history after successful save
       if (recipeId) {
-        const ingredientsJson = rows.map(r => ({
-          ingredient: r.ingredient,
-          quantity_g: r.quantity_g,
-          sugars_g: r.sugars_g,
-          fat_g: r.fat_g,
-          msnf_g: r.msnf_g,
-          other_solids_g: r.other_solids_g,
-          total_solids_g: r.total_solids_g
-        }));
-
-        await saveRecipeVersion(
-          recipeId,
-          recipeName,
-          productType,
-          ingredientsJson,
-          metrics,
-          'Manual save'
-        );
-        
-        // Deduct from inventory if checkbox is checked
-        if (deductFromInventory) {
-          const deductionPromises = rows
-            .filter(r => r.ingredientData && r.quantity_g > 0)
-            .map(async (r) => {
-              const quantityKg = r.quantity_g / 1000;
-              return performDeduction(r.ingredient, quantityKg, recipeId, recipeName);
-            });
-          
-          const deductionResults = await Promise.all(deductionPromises);
-          const failures = deductionResults.filter(result => !result.success);
-          
-          if (failures.length > 0) {
-            toast({
-              title: 'Partial Inventory Deduction',
-              description: `${failures.length} ingredient(s) could not be deducted from inventory`,
-              variant: 'default'
-            });
-          } else if (deductionResults.length > 0) {
-            toast({
-              title: 'Inventory Updated',
-              description: `Stock deducted for ${deductionResults.length} ingredient(s)`,
-            });
-          }
-        }
+        // Version history and inventory deduction removed in Phase 2 cleanup
       }
     } catch (error: any) {
       toast({
@@ -1767,46 +1710,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
     setTimeout(() => calculateMetrics(), 100);
   };
 
-  const handleRestoreVersion = (version: RecipeVersion) => {
-    try {
-      // Restore recipe data from version
-      setRecipeName(version.recipe_name);
-      setProductType(version.product_type);
-      
-      // Restore ingredients
-      const restoredRows = Array.isArray(version.ingredients_json) 
-        ? version.ingredients_json.map((ing: any) => {
-            const ingredientData = availableIngredients.find(i => i.name === ing.ingredient);
-            return {
-              ingredientData,
-              ingredient: ing.ingredient,
-              quantity_g: ing.quantity_g || 0,
-              sugars_g: ing.sugars_g || 0,
-              fat_g: ing.fat_g || 0,
-              msnf_g: ing.msnf_g || 0,
-              other_solids_g: ing.other_solids_g || 0,
-              total_solids_g: ing.total_solids_g || 0
-            };
-          })
-        : [];
-      
-      setRows(restoredRows);
-      
-      // Recalculate metrics
-      setTimeout(() => calculateMetrics(), 100);
-      
-      toast({
-        title: "Version Restored",
-        description: `Recipe restored to version ${version.version_number}`,
-      });
-    } catch (e: any) {
-      toast({
-        title: "Restore Failed",
-        description: e.message || "Failed to restore version",
-        variant: "destructive"
-      });
-    }
-  };
+  // Version history feature removed in Phase 2 cleanup
 
   return (
     <div className="space-y-6">
@@ -1831,12 +1735,6 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
         }}
       />
       
-      <RecipeHistoryDrawer
-        open={showHistoryDrawer}
-        onOpenChange={setShowHistoryDrawer}
-        recipeId={currentRecipeId}
-        onRestoreVersion={handleRestoreVersion}
-      />
       
       <RecipeCompareDialog
         open={showCompareDialog}
@@ -2361,28 +2259,8 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
                   {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save
                 </Button>
-                
-                <div className="flex items-center gap-2">
-                  <Checkbox 
-                    id="deduct-inventory"
-                    checked={deductFromInventory}
-                    onCheckedChange={(checked) => setDeductFromInventory(checked as boolean)}
-                  />
-                  <Label htmlFor="deduct-inventory" className="text-sm cursor-pointer">
-                    Deduct from inventory
-                  </Label>
-                </div>
               </div>
               
-              <Button 
-                onClick={() => setShowHistoryDrawer(true)} 
-                disabled={!currentRecipeId || !isAuthenticated}
-                variant="outline" 
-                size="sm"
-              >
-                <History className="mr-2 h-4 w-4" />
-                History
-              </Button>
               <Button onClick={clearRecipe} variant="ghost" size="sm">
                 Clear
               </Button>
