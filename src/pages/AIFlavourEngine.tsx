@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Beaker, Candy, Info } from 'lucide-react';
+import { Beaker, Candy, Info, Sparkles } from 'lucide-react';
 import { ChemistryDashboard } from '@/components/ChemistryDashboard';
 import SugarBlendOptimizer from '@/components/flavour-engine/SugarBlendOptimizer';
 import { RecipeIngredient } from '@/types/recipe';
