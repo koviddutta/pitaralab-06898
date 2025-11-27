@@ -692,7 +692,6 @@ export default function Database() {
         <TabsList>
           <TabsTrigger value="ai-import">🤖 AI Import</TabsTrigger>
           <TabsTrigger value="recipe-import">📋 Recipe Import</TabsTrigger>
-          <TabsTrigger value="base-import">📦 Base Recipe Import</TabsTrigger>
           <TabsTrigger value="import">Manual Import</TabsTrigger>
           <TabsTrigger value="recipes">View Recipes</TabsTrigger>
           <TabsTrigger value="train">ML Training</TabsTrigger>

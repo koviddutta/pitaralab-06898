@@ -323,16 +323,7 @@ const Index = () => {
               💰 Costing
             </TabsTrigger>
             <TabsTrigger 
-              value="base-recipes" 
-              className={isMobile 
-                ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
-                : 'flex-1 min-w-[140px] font-medium'}
-              style={isMobile ? { scrollSnapAlign: 'start' } : undefined}
-            >
-              📚 Base Recipes
-            </TabsTrigger>
-            <TabsTrigger 
-              value="converter" 
+              value="converter"
               className={isMobile 
                 ? 'text-xs px-4 py-2.5 flex-shrink-0 whitespace-nowrap font-medium scroll-snap-align-start' 
                 : 'flex-1 min-w-[140px] font-medium'}
