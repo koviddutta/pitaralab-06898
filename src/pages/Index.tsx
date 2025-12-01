@@ -190,10 +190,6 @@ const Index = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate('/inventory')}>
-                  <Package className="h-4 w-4 mr-2" />
-                  Inventory Management
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={showTourAgain}>
                   <HelpCircle className="h-4 w-4 mr-2" />
                   Show Tour Again
