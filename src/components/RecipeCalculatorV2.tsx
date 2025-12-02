@@ -1546,7 +1546,7 @@ export default function RecipeCalculatorV2({ onRecipeChange }: RecipeCalculatorV
 
         if (updateError) throw updateError;
 
-        // Delete existing rows
+        // Delete existing rows (CASCADE will handle related data)
         await supabase.from('recipe_rows').delete().eq('recipe_id', recipeId);
         await supabase.from('calculated_metrics').delete().eq('recipe_id', recipeId);
       }
