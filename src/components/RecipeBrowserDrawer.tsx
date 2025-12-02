@@ -106,12 +106,7 @@ export function RecipeBrowserDrawer({
 
   const deleteRecipe = async (recipeId: string) => {
     try {
-      // Delete related data first
-      await supabase.from('recipe_rows').delete().eq('recipe_id', recipeId);
-      await supabase.from('calculated_metrics').delete().eq('recipe_id', recipeId);
-      await supabase.from('recipe_outcomes').delete().eq('recipe_id', recipeId);
-      
-      // Delete recipe
+      // CASCADE DELETE will automatically clean up related data (recipe_rows, calculated_metrics, recipe_outcomes)
       const { error } = await supabase.from('recipes').delete().eq('id', recipeId);
       
       if (error) throw error;
