@@ -19,35 +19,83 @@ const DbIngredientSchema = z.object({
   cost_per_kg: z.number().nullable().optional(),
 });
 
+// Validate ingredient composition (should sum to ~100%)
+function validateIngredientComposition(ing: z.infer<typeof DbIngredientSchema>): { valid: boolean; warnings: string[] } {
+  const warnings: string[] = [];
+  const water = ing.water_pct ?? 0;
+  const sugars = ing.sugars_pct ?? 0;
+  const fat = ing.fat_pct ?? 0;
+  const msnf = ing.msnf_pct ?? 0;
+  const other = ing.other_solids_pct ?? 0;
+  
+  // Check for negative values
+  if (water < 0 || sugars < 0 || fat < 0 || msnf < 0 || other < 0) {
+    warnings.push(`${ing.name}: Has negative percentage values`);
+  }
+  
+  // Check for values > 100%
+  if (water > 100 || sugars > 100 || fat > 100 || msnf > 100 || other > 100) {
+    warnings.push(`${ing.name}: Has percentage value > 100%`);
+  }
+  
+  // Check total (allow some tolerance for rounding)
+  const total = water + sugars + fat + other;
+  if (total < 0 || total > 110) {
+    warnings.push(`${ing.name}: Composition total ${total.toFixed(1)}% is out of range`);
+  }
+  
+  return { valid: warnings.length === 0, warnings };
+}
+
 function transformToIngredientData(dbRow: z.infer<typeof DbIngredientSchema>): IngredientData {
+  // Sanitize values to prevent NaN in calculations
+  const safeNumber = (val: number | null | undefined, fallback = 0): number => {
+    if (val === null || val === undefined || isNaN(val)) return fallback;
+    return Math.max(0, Math.min(val, 100)); // Clamp to 0-100
+  };
+
   return {
     id: dbRow.id,
     name: dbRow.name,
     category: dbRow.category,
     tags: dbRow.tags || undefined,
     notes: dbRow.notes ? [dbRow.notes] : undefined,
-    water_pct: dbRow.water_pct,
-    sugars_pct: dbRow.sugars_pct || undefined,
-    fat_pct: dbRow.fat_pct,
-    msnf_pct: dbRow.msnf_pct || undefined,
-    other_solids_pct: dbRow.other_solids_pct || undefined,
+    water_pct: safeNumber(dbRow.water_pct),
+    sugars_pct: safeNumber(dbRow.sugars_pct) || undefined,
+    fat_pct: safeNumber(dbRow.fat_pct),
+    msnf_pct: safeNumber(dbRow.msnf_pct) || undefined,
+    other_solids_pct: safeNumber(dbRow.other_solids_pct) || undefined,
     sugar_split: dbRow.sugar_split || undefined,
-    sp_coeff: dbRow.sp_coeff || undefined,
-    pac_coeff: dbRow.pac_coeff || undefined,
-    cost_per_kg: dbRow.cost_per_kg || undefined,
+    sp_coeff: dbRow.sp_coeff ?? undefined,
+    pac_coeff: dbRow.pac_coeff ?? undefined,
+    cost_per_kg: dbRow.cost_per_kg ?? undefined,
   };
 }
 
 export async function getAllIngredients(): Promise<IngredientData[]> {
-  console.log('🔍 Fetching all ingredients from database...');
   const supabase = await getSupabase();
   const { data, error } = await supabase.from("ingredients").select("*").order("category").order("name");
   if (error) {
     console.error('❌ Error fetching ingredients:', error);
     throw error;
   }
-  console.log(`✅ Fetched ${data?.length || 0} ingredients`);
+  
   const parsed = DbIngredientSchema.array().parse(data);
+  
+  // Validate and filter ingredients
+  const allWarnings: string[] = [];
+  const validIngredients = parsed.filter(ing => {
+    const { valid, warnings } = validateIngredientComposition(ing);
+    allWarnings.push(...warnings);
+    return valid;
+  });
+  
+  // Log warnings in development
+  if (allWarnings.length > 0 && import.meta.env.DEV) {
+    console.warn('⚠️ Ingredient data quality issues:', allWarnings);
+  }
+  
+  // Return all ingredients but with sanitized values
   return parsed.map(transformToIngredientData);
 }
 
