@@ -1,6 +1,6 @@
 import type { Row, OptimizeTarget } from './optimize';
 import type { IngredientData } from '@/types/ingredients';
-import { findCanonical } from './ingredientMap';
+import { findCanonical } from './ingredientMapper';
 import type { Mode } from '@/types/mode';
 
 /**

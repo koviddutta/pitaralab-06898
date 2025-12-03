@@ -14,7 +14,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { DE_EFFECTS } from '@/lib/calc.enhanced';
+import { DE_EFFECTS } from '@/lib/calc';
 import {
   Accordion,
   AccordionContent,

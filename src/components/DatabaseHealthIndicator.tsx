@@ -3,7 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, AlertTriangle, Database } from 'lucide-react';
-import { checkDbHealth } from '@/lib/ingredientMap';
+import { checkDbHealth } from '@/lib/ingredientMapper';
 import type { IngredientData } from '@/types/ingredients';
 import { useNavigate } from 'react-router-dom';
 
