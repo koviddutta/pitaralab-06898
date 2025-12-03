@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { IngredientService } from '@/services/ingredientService';
-import { matchIngredientName } from '@/lib/ingredientMapping';
+import { matchIngredientName } from '@/lib/ingredientMapper';
 import type { IngredientData } from '@/types/ingredients';
 import { supabase } from '@/integrations/supabase/client';
 

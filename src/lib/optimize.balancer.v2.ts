@@ -14,8 +14,7 @@ import {
   type SubstitutionRule,
   SUBSTITUTION_PATTERNS
 } from './optimize.engine.v2';
-import { diagnoseBalancingFailure } from './ingredientMapper';
-import { findCanonical, classifyIngredient } from './ingredientMap';
+import { diagnoseBalancingFailure, findCanonical, classifyIngredient } from './ingredientMapper';
 import type { Mode } from '@/types/mode';
 import { resolveMode } from './mode';
 // @ts-ignore - javascript-lp-solver doesn't have types

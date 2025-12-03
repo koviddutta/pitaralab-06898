@@ -7,8 +7,7 @@ import type { Row, OptimizeTarget } from './optimize';
 import type { IngredientData } from '@/types/ingredients';
 import type { MetricsV2 } from './calc.v2';
 import { calcMetricsV2 } from './calc.v2';
-import { findIngredientByGenericId } from './ingredientMapper';
-import { findCanonical } from './ingredientMap';
+import { findIngredientByGenericId, findCanonical } from './ingredientMapper';
 
 // ============================================================================
 // PHASE 1: ENHANCED INGREDIENT CLASSIFICATION
