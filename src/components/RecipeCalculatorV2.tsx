@@ -50,44 +50,15 @@ import { AIInsightsPanel } from '@/components/AIInsightsPanel';
 // Debounce utility for input stability
 // Debounce removed - using direct state updates for better input reliability
 
-/**
- * Map mode to product constraints key
- * PHASE 1: Fixed to detect fruit gelato vs white gelato
- */
+// Import types and use resolveProductKey from mode.ts
+import { resolveProductKey } from '@/lib/mode';
+import type { IngredientRow, BalancingSuggestion } from '@/types/calculator';
+import { BalancingSuggestionsDialog } from '@/components/recipe/BalancingSuggestionsDialog';
+
+// Local productKey helper that uses the centralized resolver
 function productKey(mode: Mode, rows: IngredientRow[]): string {
-  if (mode === 'sorbet') return 'sorbet';
-  if (mode === 'ice_cream') return 'ice_cream';
-  if (mode === 'kulfi') return 'kulfi';
-  
-  // Detect fruit gelato vs white gelato
-  if (mode === 'gelato') {
-    const hasFruit = rows.some(r => r.ingredientData?.category === 'fruit');
-    return hasFruit ? 'gelato_fruit' : 'gelato_white';
-  }
-  
-  return 'gelato_white';
-}
-
-interface IngredientRow {
-  id?: string;
-  ingredientData?: IngredientData; // Store full ingredient data
-  ingredient: string;
-  quantity_g: number;
-  sugars_g: number;
-  fat_g: number;
-  msnf_g: number;
-  other_solids_g: number;
-  total_solids_g: number;
-}
-
-interface BalancingSuggestion {
-  id: string;
-  action: 'add' | 'increase' | 'decrease' | 'remove';
-  ingredientName: string;
-  ingredientId: string;
-  quantityChange: number; // grams to add/remove
-  reason: string; // e.g., "to increase fat by 3.5%"
-  priority: number; // 1-3 (1 = critical, 3 = optional)
+  const hasFruit = rows.some(r => r.ingredientData?.category === 'fruit');
+  return resolveProductKey(mode, hasFruit);
 }
 
 interface RecipeCalculatorV2Props {
