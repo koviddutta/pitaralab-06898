@@ -480,57 +480,17 @@ export interface ScienceValidation {
   recommendation?: string;
 }
 
-export interface ProductConstraints {
-  totalSolids: { optimal: [number, number]; acceptable: [number, number] };
-  fat: { optimal: [number, number]; acceptable: [number, number] };
-  msnf: { optimal: [number, number]; acceptable: [number, number] };
-  fpdt: { optimal: [number, number]; acceptable: [number, number] };
-}
+// Import from centralized productConstraints
+import { 
+  PRODUCT_CONSTRAINTS, 
+  getConstraintsForMode,
+  type ProductConstraint,
+  type ConstraintRange 
+} from './productConstraints';
 
-export const PRODUCT_CONSTRAINTS: Record<string, ProductConstraints> = {
-  gelato_white: {
-    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
-    fat: { optimal: [6, 10], acceptable: [5, 12] },
-    msnf: { optimal: [9, 12], acceptable: [7, 13] },
-    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
-  },
-  gelato_finished: {
-    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
-    fat: { optimal: [6, 10], acceptable: [5, 12] },
-    msnf: { optimal: [8, 11], acceptable: [7, 12] },
-    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
-  },
-  gelato: {
-    totalSolids: { optimal: [37, 46], acceptable: [35, 47] },
-    fat: { optimal: [6, 10], acceptable: [5, 12] },
-    msnf: { optimal: [9, 12], acceptable: [7, 13] },
-    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
-  },
-  gelato_fruit: {
-    totalSolids: { optimal: [32, 42], acceptable: [30, 44] },
-    fat: { optimal: [3, 10], acceptable: [2, 12] },
-    msnf: { optimal: [3, 7], acceptable: [2, 8] },
-    fpdt: { optimal: [2.5, 3.5], acceptable: [2.2, 3.8] }
-  },
-  ice_cream: {
-    totalSolids: { optimal: [36, 42], acceptable: [33, 45] },
-    fat: { optimal: [10, 16], acceptable: [7, 20] },
-    msnf: { optimal: [9, 12], acceptable: [7, 16] },
-    fpdt: { optimal: [2.2, 3.2], acceptable: [2.0, 3.5] }
-  },
-  sorbet: {
-    totalSolids: { optimal: [32, 42], acceptable: [30, 44] },
-    fat: { optimal: [0, 1], acceptable: [0, 2] },
-    msnf: { optimal: [0, 1], acceptable: [0, 2] },
-    fpdt: { optimal: [-4.0, -2.0], acceptable: [-5.0, -1.0] } // NEGATIVE for sorbet
-  },
-  kulfi: {
-    totalSolids: { optimal: [38, 42], acceptable: [36, 44] },
-    fat: { optimal: [10, 12], acceptable: [9, 14] },
-    msnf: { optimal: [18, 25], acceptable: [16, 27] },
-    fpdt: { optimal: [2.0, 2.5], acceptable: [1.8, 2.8] }
-  }
-};
+// Re-export for backward compatibility
+export { PRODUCT_CONSTRAINTS, getConstraintsForMode };
+export type ProductConstraints = ProductConstraint;
 
 /**
  * Validate recipe metrics against ice cream science constraints
@@ -872,7 +832,7 @@ export function balanceRecipeV2(
 
   // Step 0.5: Try LP Solver first (if enabled and at least 2 ingredients)
   if (useLPSolver && initialRows.length >= 2) {
-    console.log('🔧 Attempting LP Solver...');
+    if (import.meta.env.DEV) console.log('🔧 Attempting LP Solver...');
     
     const lpResult = balanceRecipeLP(initialRows, targets, { 
       tolerance, 
@@ -884,7 +844,7 @@ export function balanceRecipeV2(
       const lpMetrics = calcMetricsV2(lpResult.rows);
       const lpScore = scoreMetrics(lpMetrics, targets);
       
-      console.log(`✅ LP Solver succeeded with score: ${(lpScore * 100).toFixed(2)}%`);
+      if (import.meta.env.DEV) console.log(`✅ LP Solver succeeded with score: ${(lpScore * 100).toFixed(2)}%`);
       
       if (lpScore < tolerance) {
         const scienceValidation = enableScienceValidation 
@@ -913,11 +873,11 @@ export function balanceRecipeV2(
           qualityScore
         };
       } else {
-        console.log(`⚠️ LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance ${(tolerance * 100).toFixed(2)}%. Trying heuristic approach.`);
+        if (import.meta.env.DEV) console.log(`⚠️ LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance ${(tolerance * 100).toFixed(2)}%. Trying heuristic approach.`);
         adjustmentsSummary.push(`LP solver completed but score ${(lpScore * 100).toFixed(2)}% exceeds tolerance. Trying heuristic approach.`);
       }
     } else {
-      console.log(`❌ LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
+      if (import.meta.env.DEV) console.log(`❌ LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
       adjustmentsSummary.push(`LP solver failed: ${lpResult.error || lpResult.message}. Falling back to heuristic approach.`);
     }
   }

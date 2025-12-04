@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { resolveMode, resolveProductKey } from '@/lib/mode';
-import { PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
+import { PRODUCT_CONSTRAINTS } from '@/lib/productConstraints';
 import type { IngredientRow } from '@/types/calculator';
 import type { Mode } from '@/types/mode';
 
