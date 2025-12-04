@@ -388,21 +388,27 @@ export class BalancingEngine {
     let bestMetrics = initialMetrics;
     let bestScore = this.scoreMetrics(initialMetrics, targets);
     let usedStrategy = 'none';
+    let totalIterations = 0;
     
     // Try each strategy
     for (const strategy of sortedStrategies) {
-      console.log(`🔧 Trying strategy: ${strategy.name}`);
+      if (import.meta.env.DEV) {
+        console.log(`🔧 Trying strategy: ${strategy.name}`);
+      }
       
       try {
         const result = strategy.execute(rows, targets, mode);
         const metrics = calcMetricsV2(result, { mode });
         const score = this.scoreMetrics(metrics, targets);
+        totalIterations++;
         
         // Verify weight is maintained
         const newTotal = result.reduce((sum, r) => sum + r.grams, 0);
         const weightError = Math.abs(newTotal - originalTotal);
         
-        console.log(`  Score: ${score.toFixed(2)}, Weight error: ${weightError.toFixed(2)}g`);
+        if (import.meta.env.DEV) {
+          console.log(`  Score: ${score.toFixed(2)}, Weight error: ${weightError.toFixed(2)}g`);
+        }
         
         // Accept if better and weight is maintained
         if (score < bestScore && weightError < 10) {
@@ -413,12 +419,16 @@ export class BalancingEngine {
           
           // If score is very good, we can stop early
           if (score < 2.0) {
-            console.log(`  ✅ Excellent result achieved, stopping early`);
+            if (import.meta.env.DEV) {
+              console.log(`  ✅ Excellent result achieved, stopping early`);
+            }
             break;
           }
         }
       } catch (error) {
-        console.warn(`  ⚠️ Strategy ${strategy.name} failed:`, error);
+        if (import.meta.env.DEV) {
+          console.warn(`  ⚠️ Strategy ${strategy.name} failed:`, error);
+        }
         continue;
       }
     }
@@ -461,7 +471,7 @@ export class BalancingEngine {
       rows: bestResult,
       metrics: bestMetrics,
       strategy: usedStrategy,
-      iterations: 1, // TODO: track actual iterations
+      iterations: totalIterations,
       diagnostics: {
         initialMetrics,
         targetsMet,

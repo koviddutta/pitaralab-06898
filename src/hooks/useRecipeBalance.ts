@@ -7,11 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
-import { RecipeBalancerV2, ScienceValidation, PRODUCT_CONSTRAINTS } from '@/lib/optimize.balancer.v2';
+import { RecipeBalancerV2, ScienceValidation } from '@/lib/optimize.balancer.v2';
+import { PRODUCT_CONSTRAINTS, getBalancingTargets } from '@/lib/productConstraints';
 import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
 import { diagnoseFeasibility, Feasibility, applyAutoFix } from '@/lib/diagnostics';
 import { resolveMode, resolveProductKey } from '@/lib/mode';
-import type { IngredientRow, BalancingSuggestion, BalancingDiagnostics, createIngredientRow } from '@/types/calculator';
+import type { IngredientRow, BalancingSuggestion, BalancingDiagnostics } from '@/types/calculator';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import type { Mode } from '@/types/mode';
 
@@ -62,43 +63,8 @@ const DEFAULT_COMPOSITIONS: Record<string, Partial<IngredientData>> = {
   'dextrose': { name: 'Dextrose', sugars_pct: 100, category: 'sugar', hardening_factor: 1.0 }
 };
 
-function getBalancingTargets(mode: Mode): OptimizeTarget {
-  switch (mode) {
-    case 'gelato':
-      return {
-        fat_pct: 7.5,
-        msnf_pct: 10.5,
-        totalSugars_pct: 19,
-        ts_pct: 40.5,
-        fpdt: 3.0
-      };
-    case 'ice_cream':
-      return {
-        fat_pct: 13,
-        msnf_pct: 11,
-        totalSugars_pct: 17,
-        ts_pct: 39,
-        fpdt: 2.7
-      };
-    case 'sorbet':
-      return {
-        fat_pct: 0.5,
-        msnf_pct: 0.5,
-        totalSugars_pct: 28.5,
-        ts_pct: 37,
-        fpdt: -3.0
-      };
-    case 'kulfi':
-    default:
-      return {
-        fat_pct: 11,
-        msnf_pct: 21.5,
-        totalSugars_pct: 18,
-        ts_pct: 40,
-        fpdt: 2.25
-      };
-  }
-}
+// Use centralized targets from productConstraints
+// (getBalancingTargets is now imported from @/lib/productConstraints)
 
 export function useRecipeBalance({
   rows,
