@@ -39,7 +39,7 @@ function validateIngredientComposition(ing: z.infer<typeof DbIngredientSchema>):
   }
   
   // Check total (allow some tolerance for rounding)
-  const total = water + sugars + fat + other;
+  const total = water + sugars + fat + msnf + other;
   if (total < 0 || total > 110) {
     warnings.push(`${ing.name}: Composition total ${total.toFixed(1)}% is out of range`);
   }
