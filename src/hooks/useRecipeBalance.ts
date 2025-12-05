@@ -9,9 +9,15 @@ import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
 import { RecipeBalancerV2, ScienceValidation } from '@/lib/optimize.balancer.v2';
 import { PRODUCT_CONSTRAINTS, getBalancingTargets } from '@/lib/productConstraints';
-import { diagnoseBalancingFailure } from '@/lib/ingredientMapper';
+import { diagnoseBalancingFailure as diagnoseFailure } from '@/lib/ingredientMapper';
 import { diagnoseFeasibility, Feasibility, applyAutoFix } from '@/lib/diagnostics';
 import { resolveMode, resolveProductKey } from '@/lib/mode';
+import { 
+  validateRecipeIngredients, 
+  diagnoseBalancingFailure as diagnoseBalancingError,
+  getBalancingErrorInfo,
+  type BalancingFailureReason 
+} from '@/lib/validation';
 import type { IngredientRow, BalancingSuggestion, BalancingDiagnostics } from '@/types/calculator';
 import type { IngredientData } from '@/lib/ingredientLibrary';
 import type { Mode } from '@/types/mode';
@@ -130,6 +136,19 @@ export function useRecipeBalance({
     setIsOptimizing(true);
 
     try {
+      // Validate ingredients before calculation
+      const ingredientValidation = validateRecipeIngredients(validRows);
+      if (!ingredientValidation.valid) {
+        toast({
+          title: '⚠️ Invalid Ingredient Data',
+          description: ingredientValidation.errors[0], // Show first error
+          variant: 'destructive',
+          duration: 6000
+        });
+        setIsOptimizing(false);
+        return;
+      }
+      
       const targets = getBalancingTargets(mode);
 
       // Convert rows to optimization format
@@ -141,7 +160,7 @@ export function useRecipeBalance({
       }));
 
       // Store diagnostics
-      const diagnosis = diagnoseBalancingFailure(optRows, availableIngredients, targets);
+      const diagnosis = diagnoseFailure(optRows, availableIngredients, targets);
       const hasFruit = rows.some(r => r.ingredientData?.category === 'fruit');
       
       setBalancingDiagnostics({
@@ -196,11 +215,20 @@ export function useRecipeBalance({
           });
           setLastBalanceStrategy('Auto-Fix');
         } else {
+          // Use improved error messages
+          const hasWater = rows.some(r => r.ingredientData && (r.ingredientData.water_pct ?? 0) > 50);
+          const hasFat = rows.some(r => r.ingredientData && (r.ingredientData.fat_pct ?? 0) > 5);
+          const hasMSNF = rows.some(r => r.ingredientData && (r.ingredientData.msnf_pct ?? 0) > 5);
+          const hasSugar = rows.some(r => r.ingredientData && (r.ingredientData.sugars_pct ?? 0) > 10);
+          
+          const failureReason = diagnoseBalancingError(hasWater, hasFat, hasMSNF, hasSugar, optRows.length, feasibility.reason);
+          const errorInfo = getBalancingErrorInfo(failureReason);
+          
           toast({
-            title: '⚠️ Cannot Balance Recipe',
-            description: feasibility.reason || 'Missing required ingredients',
+            title: `⚠️ ${errorInfo.title}`,
+            description: `${errorInfo.description} ${errorInfo.suggestion}`,
             variant: 'destructive',
-            duration: 6000
+            duration: 8000
           });
           setIsOptimizing(false);
           return;
@@ -302,11 +330,35 @@ export function useRecipeBalance({
       });
 
     } catch (error: any) {
-      console.error('Balancing error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Balancing error:', error);
+      }
+      
+      // Diagnose the failure and provide specific guidance
+      const hasWater = rows.some(r => r.ingredientData && (r.ingredientData.water_pct ?? 0) > 50);
+      const hasFat = rows.some(r => r.ingredientData && (r.ingredientData.fat_pct ?? 0) > 5);
+      const hasMSNF = rows.some(r => r.ingredientData && (r.ingredientData.msnf_pct ?? 0) > 5);
+      const hasSugar = rows.some(r => r.ingredientData && (r.ingredientData.sugars_pct ?? 0) > 10);
+      
+      const failureReason = diagnoseBalancingError(
+        hasWater,
+        hasFat,
+        hasMSNF,
+        hasSugar,
+        validRows.length,
+        error?.message
+      );
+      
+      const errorInfo = getBalancingErrorInfo(failureReason, {
+        currentFat: metrics?.fat_pct,
+        currentMSNF: metrics?.msnf_pct
+      });
+      
       toast({
-        title: 'Optimization failed',
-        description: error.message || 'An unknown error occurred.',
-        variant: 'destructive'
+        title: errorInfo.title,
+        description: `${errorInfo.description} ${errorInfo.suggestion}`,
+        variant: 'destructive',
+        duration: 8000
       });
     } finally {
       setIsOptimizing(false);

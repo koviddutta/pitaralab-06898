@@ -9,6 +9,7 @@ import { adjustPACforAcids, AcidityAdjustment, FruitAcidityInput } from './fruit
 import { predictOverrun, suggestServingTemp, OverrunPrediction, ServingTempRecommendation } from './serving.v1';
 import type { Mode } from '@/types/mode';
 import { resolveMode } from './mode';
+import { safeNumber, guardResult, validateIngredientComposition } from './validation';
 
 export type MetricsV2 = {
   // Basic composition (g)
@@ -112,19 +113,31 @@ export function calcMetricsV2(
 ): MetricsV2 {
   const warnings: string[] = [];
   
-  // 1. Calculate batch totals
-  const total_g = rows.reduce((a, r) => a + (r.grams || 0), 0);
+  // 0. Validate ingredients before calculation
+  for (const { ing, grams } of rows) {
+    if (grams <= 0) continue;
+    const validation = validateIngredientComposition(ing);
+    if (validation.nanValues?.length) {
+      warnings.push(`⚠️ "${ing.name}" has invalid data: ${validation.nanValues.join(', ')}`);
+    }
+    if (validation.totalComposition && !validation.nanValues?.length) {
+      warnings.push(`⚠️ "${ing.name}": ${validation.totalComposition}`);
+    }
+  }
+  
+  // 1. Calculate batch totals with NaN guards
+  const total_g = guardResult(rows.reduce((a, r) => a + safeNumber(r.grams), 0), 0, 'total_g');
 
   let water_g = 0, nonLactoseSugars_g = 0, fat_g = 0, msnf_g = 0, other_g = 0;
   for (const { ing, grams } of rows) {
-    const g = grams || 0;
+    const g = safeNumber(grams);
     
-    // Protect against NULL values in database
-    const water_pct = ing.water_pct ?? 0;
-    const sugars_pct = ing.sugars_pct ?? 0;
-    const fat_pct = ing.fat_pct ?? 0;
-    const msnf_pct = ing.msnf_pct ?? 0;
-    const other_pct = ing.other_solids_pct ?? 0;
+    // Protect against NULL and NaN values
+    const water_pct = safeNumber(ing.water_pct);
+    const sugars_pct = safeNumber(ing.sugars_pct);
+    const fat_pct = safeNumber(ing.fat_pct);
+    const msnf_pct = safeNumber(ing.msnf_pct);
+    const other_pct = safeNumber(ing.other_solids_pct);
     
     water_g += g * water_pct / 100;
     nonLactoseSugars_g += g * sugars_pct / 100;
@@ -132,6 +145,13 @@ export function calcMetricsV2(
     msnf_g += g * msnf_pct / 100;
     other_g += g * other_pct / 100;
   }
+  
+  // Guard accumulated values
+  water_g = guardResult(water_g, 0, 'water_g');
+  nonLactoseSugars_g = guardResult(nonLactoseSugars_g, 0, 'nonLactoseSugars_g');
+  fat_g = guardResult(fat_g, 0, 'fat_g');
+  msnf_g = guardResult(msnf_g, 0, 'msnf_g');
+  other_g = guardResult(other_g, 0, 'other_g');
 
   // 2. Apply evaporation
   const evap = Math.max(0, Math.min(100, opts.evaporation_pct ?? 0));
