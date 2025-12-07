@@ -1,17 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { calcMetrics } from '../src/lib/calc';
-import { DEFAULT_INGREDIENTS, getIngredientById } from '../src/lib/ingredientLibrary';
+import { TEST_INGREDIENTS, getTestIngredientById, getAllTestIngredients } from './fixtures/testIngredients';
 
 describe('Sanity Tests - Prevent Regressions', () => {
   
   describe('White Base (Gelato)', () => {
     it('should calculate correct metrics for a standard white base', () => {
       // Classic Italian white base: milk, cream, sugar, SMP, stabilizer
-      const milk = getIngredientById('milk_3')!;
-      const cream = getIngredientById('cream_25')!;
-      const sucrose = getIngredientById('sucrose')!;
-      const smp = getIngredientById('smp')!;
-      const stabilizer = getIngredientById('stabilizer')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const cream = getTestIngredientById('cream_25')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const smp = getTestIngredientById('smp')!;
+      const stabilizer = getTestIngredientById('stabilizer')!;
       
       const recipe = [
         { ing: milk, grams: 580 },
@@ -63,12 +63,12 @@ describe('Sanity Tests - Prevent Regressions', () => {
   
   describe('Mango Gelato (with Indian paste)', () => {
     it('should calculate correct metrics for a mango base with alphonso pulp', () => {
-      const milk = getIngredientById('milk_3')!;
-      const cream = getIngredientById('cream_25')!;
-      const sucrose = getIngredientById('sucrose')!;
-      const dextrose = getIngredientById('dextrose')!;
-      const mango = getIngredientById('mango_alphonso')!;
-      const stabilizer = getIngredientById('stabilizer')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const cream = getTestIngredientById('cream_25')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const dextrose = getTestIngredientById('dextrose')!;
+      const mango = getTestIngredientById('mango_alphonso')!;
+      const stabilizer = getTestIngredientById('stabilizer')!;
       
       const recipe = [
         { ing: milk, grams: 450 },
@@ -121,10 +121,10 @@ describe('Sanity Tests - Prevent Regressions', () => {
   
   describe('Sugar Coefficients Integrity', () => {
     it('should maintain correct SP and PAC coefficients (sucrose baseline)', () => {
-      const sucrose = getIngredientById('sucrose')!;
-      const dextrose = getIngredientById('dextrose')!;
-      const fructose = getIngredientById('fructose')!;
-      const lactose = getIngredientById('lactose')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const dextrose = getTestIngredientById('dextrose')!;
+      const fructose = getTestIngredientById('fructose')!;
+      const lactose = getTestIngredientById('lactose')!;
       
       // Sucrose baseline
       expect(sucrose.sp_coeff).toBe(1.00);
@@ -144,9 +144,9 @@ describe('Sanity Tests - Prevent Regressions', () => {
     });
     
     it('should correctly apply sugar coefficients in calculations', () => {
-      const sucrose = getIngredientById('sucrose')!;
-      const dextrose = getIngredientById('dextrose')!;
-      const milk = getIngredientById('milk_3')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const dextrose = getTestIngredientById('dextrose')!;
+      const milk = getTestIngredientById('milk_3')!;
       
       // 100% sucrose recipe
       const sucroseRecipe = [
@@ -180,9 +180,9 @@ describe('Sanity Tests - Prevent Regressions', () => {
   
   describe('Fruit Sugar Split Calculations', () => {
     it('should correctly calculate SP/PAC from fruit sugar splits', () => {
-      const milk = getIngredientById('milk_3')!;
-      const mango = getIngredientById('mango_alphonso')!;
-      const strawberry = getIngredientById('strawberry')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const mango = getTestIngredientById('mango_alphonso')!;
+      const strawberry = getTestIngredientById('strawberry')!;
       
       // Mango has more sucrose in split → lower PAC
       // Strawberry has more glucose/fructose → higher PAC
@@ -222,8 +222,8 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Zero Ingredient Amounts', () => {
     it('should handle recipes with zero amount ingredients', () => {
-      const milk = getIngredientById('milk_3')!;
-      const sucrose = getIngredientById('sucrose')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const sucrose = getTestIngredientById('sucrose')!;
       
       const recipe = [
         { ing: milk, grams: 1000 },
@@ -241,7 +241,7 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Single Ingredient Recipes', () => {
     it('should handle single ingredient recipe (milk only)', () => {
-      const milk = getIngredientById('milk_3')!;
+      const milk = getTestIngredientById('milk_3')!;
       const recipe = [{ ing: milk, grams: 1000 }];
       
       const metrics = calcMetrics(recipe);
@@ -254,7 +254,7 @@ describe('Edge Case Tests - Extreme Values', () => {
     });
     
     it('should handle single ingredient recipe (sugar only)', () => {
-      const sucrose = getIngredientById('sucrose')!;
+      const sucrose = getTestIngredientById('sucrose')!;
       const recipe = [{ ing: sucrose, grams: 100 }];
       
       const metrics = calcMetrics(recipe);
@@ -269,9 +269,9 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Very Large Batch Sizes', () => {
     it('should handle industrial-scale batches (10000g)', () => {
-      const milk = getIngredientById('milk_3')!;
-      const cream = getIngredientById('cream_25')!;
-      const sucrose = getIngredientById('sucrose')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const cream = getTestIngredientById('cream_25')!;
+      const sucrose = getTestIngredientById('sucrose')!;
       
       const recipe = [
         { ing: milk, grams: 6000 },
@@ -291,7 +291,7 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('High Evaporation Scenarios', () => {
     it('should handle 50% evaporation correctly', () => {
-      const milk = getIngredientById('milk_3')!;
+      const milk = getTestIngredientById('milk_3')!;
       const recipe = [{ ing: milk, grams: 1000 }];
       
       const metrics = calcMetrics(recipe, { evaporation_pct: 50 });
@@ -306,7 +306,7 @@ describe('Edge Case Tests - Extreme Values', () => {
     });
     
     it('should prevent negative water with 99% evaporation', () => {
-      const milk = getIngredientById('milk_3')!;
+      const milk = getTestIngredientById('milk_3')!;
       const recipe = [{ ing: milk, grams: 1000 }];
       
       const metrics = calcMetrics(recipe, { evaporation_pct: 99 });
@@ -318,10 +318,10 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Multiple Sugar Types', () => {
     it('should correctly calculate SP/PAC with mixed sugars', () => {
-      const milk = getIngredientById('milk_3')!;
-      const sucrose = getIngredientById('sucrose')!;
-      const dextrose = getIngredientById('dextrose')!;
-      const fructose = getIngredientById('fructose')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const dextrose = getTestIngredientById('dextrose')!;
+      const fructose = getTestIngredientById('fructose')!;
       
       const recipe = [
         { ing: milk, grams: 800 },
@@ -346,9 +346,9 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('High Fat Recipes', () => {
     it('should handle ice cream with 20%+ fat', () => {
-      const cream = getIngredientById('heavy_cream')!;
-      const milk = getIngredientById('milk_3')!;
-      const sucrose = getIngredientById('sucrose')!;
+      const cream = getTestIngredientById('heavy_cream')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const sucrose = getTestIngredientById('sucrose')!;
       
       const recipe = [
         { ing: cream, grams: 600 },
@@ -366,9 +366,9 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Sorbet (No Fat)', () => {
     it('should handle sorbet with zero fat', () => {
-      const mango = getIngredientById('mango_alphonso')!;
-      const sucrose = getIngredientById('sucrose')!;
-      const stabilizer = getIngredientById('stabilizer')!;
+      const mango = getTestIngredientById('mango_alphonso')!;
+      const sucrose = getTestIngredientById('sucrose')!;
+      const stabilizer = getTestIngredientById('stabilizer')!;
       
       const recipe = [
         { ing: mango, grams: 400 },
@@ -410,8 +410,8 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Precision and Rounding', () => {
     it('should maintain precision in calculations', () => {
-      const milk = getIngredientById('milk_3')!;
-      const sucrose = getIngredientById('sucrose')!;
+      const milk = getTestIngredientById('milk_3')!;
+      const sucrose = getTestIngredientById('sucrose')!;
       
       const recipe = [
         { ing: milk, grams: 857.3 },
@@ -428,8 +428,8 @@ describe('Edge Case Tests - Extreme Values', () => {
   
   describe('Fruit with Complex Sugar Splits', () => {
     it('should handle passion fruit with high fiber', () => {
-      const passion = getIngredientById('passion_fruit')!;
-      const milk = getIngredientById('milk_3')!;
+      const passion = getTestIngredientById('passion_fruit')!;
+      const milk = getTestIngredientById('milk_3')!;
       
       const recipe = [
         { ing: milk, grams: 700 },
@@ -448,7 +448,7 @@ describe('Edge Case Tests - Extreme Values', () => {
 
 describe('Performance Regression Tests', () => {
   it('should calculate metrics for large recipes quickly', () => {
-    const ingredients = getSeedIngredients();
+    const ingredients = getAllTestIngredients();
     const recipe = ingredients.slice(0, 10).map(ing => ({ ing, grams: 100 }));
     
     const start = performance.now();
@@ -460,7 +460,7 @@ describe('Performance Regression Tests', () => {
   });
   
   it('should handle repeated calculations without performance degradation', () => {
-    const milk = getIngredientById('milk_3')!;
+    const milk = getTestIngredientById('milk_3')!;
     const recipe = [{ ing: milk, grams: 1000 }];
     
     const times: number[] = [];
