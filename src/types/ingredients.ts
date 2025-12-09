@@ -33,6 +33,7 @@ export type IngredientData = {
   
   // PHASE 3: Analytical Compensation
   characterization_pct?: number; // Percentage of inclusion used for flavor characterization
+  hardening_factor?: number; // Texture hardening effect (0-1 scale)
 
   // Commerce/UX
   cost_per_kg?: number;

@@ -19,7 +19,7 @@ import { SmartIngredientSearch } from '@/components/SmartIngredientSearch';
 import { RecipeTemplates, resolveTemplateIngredients } from '@/components/RecipeTemplates';
 import { AddIngredientDialog } from '@/components/AddIngredientDialog';
 import { useIngredients } from '@/contexts/IngredientsContext';
-import type { IngredientData } from '@/lib/ingredientLibrary';
+import type { IngredientData } from '@/types/ingredients';
 import { calcMetricsV2, MetricsV2 } from '@/lib/calc.v2';
 import { OptimizeTarget, Row } from '@/lib/optimize';
 import { balancingEngine } from '@/lib/optimize.engine';

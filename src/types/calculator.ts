@@ -2,7 +2,7 @@
  * Calculator-related types - Single source of truth
  */
 
-import type { IngredientData } from '@/lib/ingredientLibrary';
+import type { IngredientData } from '@/types/ingredients';
 
 export interface IngredientRow {
   id?: string;

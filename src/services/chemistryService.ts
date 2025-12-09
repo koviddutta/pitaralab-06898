@@ -3,7 +3,7 @@
  * Provides deep ingredient composition analysis
  */
 
-import { IngredientData } from '@/lib/ingredientLibrary';
+import { IngredientData } from '@/types/ingredients';
 import { MetricsV2 } from '@/lib/calc.v2';
 
 export interface ChemistryAnalysis {

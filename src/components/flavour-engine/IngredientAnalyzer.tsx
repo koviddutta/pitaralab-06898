@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { useIngredients } from '@/contexts/IngredientsContext';
-import type { IngredientData } from '@/lib/ingredientLibrary';
+import type { IngredientData } from '@/types/ingredients';
 import { Separator } from '@/components/ui/separator';
 
 interface IngredientAnalyzerProps {
