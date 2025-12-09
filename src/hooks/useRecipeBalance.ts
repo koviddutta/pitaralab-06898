@@ -19,7 +19,7 @@ import {
   type BalancingFailureReason 
 } from '@/lib/validation';
 import type { IngredientRow, BalancingSuggestion, BalancingDiagnostics } from '@/types/calculator';
-import type { IngredientData } from '@/lib/ingredientLibrary';
+import type { IngredientData } from '@/types/ingredients';
 import type { Mode } from '@/types/mode';
 
 interface UseRecipeBalanceProps {
