@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trash2, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { IngredientData } from '@/types/ingredients';
@@ -33,6 +34,11 @@ export const MobileIngredientRow: React.FC<MobileIngredientRowProps> = ({
   const [swipeOffset, setSwipeOffset] = useState(0);
 
   const ing = ingredients[ingredientId];
+
+  // Calculate composition breakdown
+  const sugars_g = ing ? ((ing.sugars_pct ?? 0) / 100) * grams : 0;
+  const fat_g = ing ? ((ing.fat_pct ?? 0) / 100) * grams : 0;
+  const msnf_g = ing ? ((ing.msnf_pct ?? 0) / 100) * grams : 0;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart({ 
@@ -94,7 +100,7 @@ export const MobileIngredientRow: React.FC<MobileIngredientRowProps> = ({
       style={{ transform: `translateX(-${swipeOffset}px)`, transition: swipeOffset === 0 ? 'transform 0.2s ease-in-out' : 'none' }}
     >
       <div className="pb-4 border-b border-border last:border-0">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-3">
           <Label className="text-base font-medium">Ingredient {index + 1}</Label>
           <Button
             variant="ghost"
@@ -107,7 +113,7 @@ export const MobileIngredientRow: React.FC<MobileIngredientRowProps> = ({
         </div>
 
         <Select value={ingredientId} onValueChange={(value) => onUpdate(index, 'ingredientId', value)}>
-          <SelectTrigger className="mb-4 h-11">
+          <SelectTrigger className="mb-3 h-11">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -119,32 +125,71 @@ export const MobileIngredientRow: React.FC<MobileIngredientRowProps> = ({
           </SelectContent>
         </Select>
 
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => onAdjust(index, -10)}
-            className="h-11 w-11 p-0 flex-shrink-0 touch-target transition-all duration-200 ease-in-out"
-          >
-            <Minus className="h-5 w-5" />
-          </Button>
-          
-          <div className="flex-1 text-center">
-            <div className="text-2xl font-bold">{grams}g</div>
-            {percentage && (
-              <div className="text-sm text-muted-foreground mt-1">{percentage}%</div>
-            )}
-          </div>
+        {/* Enhanced quantity input with direct numeric entry */}
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Qty (g)</Label>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => onAdjust(index, -10)}
+              className="h-12 w-12 p-0 flex-shrink-0 touch-target"
+            >
+              <Minus className="h-5 w-5" />
+            </Button>
+            
+            {/* Direct numeric input */}
+            <Input
+              type="number"
+              inputMode="decimal"
+              value={grams}
+              onChange={(e) => {
+                const parsed = parseFloat(e.target.value);
+                if (!isNaN(parsed) && parsed >= 0) {
+                  onUpdate(index, 'grams', parsed);
+                } else if (e.target.value === '') {
+                  onUpdate(index, 'grams', 0);
+                }
+              }}
+              placeholder="Enter grams"
+              className="flex-1 text-center text-xl font-bold h-12"
+            />
 
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() => onAdjust(index, 10)}
-            className="h-11 w-11 p-0 flex-shrink-0 touch-target transition-all duration-200 ease-in-out"
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => onAdjust(index, 10)}
+              className="h-12 w-12 p-0 flex-shrink-0 touch-target"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {/* Percentage display */}
+          {percentage && (
+            <div className="text-xs text-muted-foreground text-center">
+              {percentage}% of batch
+            </div>
+          )}
         </div>
+
+        {/* Real-time gram breakdown */}
+        {ing && grams > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+            <div className="bg-muted/50 rounded p-2 text-center">
+              <div className="text-muted-foreground">Sugars</div>
+              <div className="font-medium">{sugars_g.toFixed(1)}g</div>
+            </div>
+            <div className="bg-muted/50 rounded p-2 text-center">
+              <div className="text-muted-foreground">Fat</div>
+              <div className="font-medium">{fat_g.toFixed(1)}g</div>
+            </div>
+            <div className="bg-muted/50 rounded p-2 text-center">
+              <div className="text-muted-foreground">MSNF</div>
+              <div className="font-medium">{msnf_g.toFixed(1)}g</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Swipe delete indicator */}
