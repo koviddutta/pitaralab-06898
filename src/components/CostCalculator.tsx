@@ -66,7 +66,7 @@ const CostCalculator = () => {
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50">
+      <CardHeader className="bg-gradient-to-r from-warning/10 to-warning/5 dark:from-warning/20 dark:to-warning/10">
         <CardTitle className="flex items-center gap-2">
           <IndianRupee className="h-5 w-5 text-yellow-600" />
           Cost Calculator
@@ -88,9 +88,9 @@ const CostCalculator = () => {
             
             <div className="space-y-3">
               {ingredients.map((ingredient, index) => (
-                <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="grid grid-cols-12 gap-2 items-end p-3 bg-muted rounded-lg">
                   <div className="col-span-4">
-                    <Label className="text-xs text-gray-600">Ingredient</Label>
+                    <Label className="text-xs text-muted-foreground">Ingredient</Label>
                     <Input
                       placeholder="Ingredient name"
                       value={ingredient.name}
@@ -99,7 +99,7 @@ const CostCalculator = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs text-gray-600">Amount</Label>
+                    <Label className="text-xs text-muted-foreground">Amount</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -109,7 +109,7 @@ const CostCalculator = () => {
                     />
                   </div>
                   <div className="col-span-1">
-                    <Label className="text-xs text-gray-600">Unit</Label>
+                    <Label className="text-xs text-muted-foreground">Unit</Label>
                     <Input
                       value={ingredient.unit}
                       onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
@@ -117,7 +117,7 @@ const CostCalculator = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs text-gray-600">Cost/Unit (₹)</Label>
+                    <Label className="text-xs text-muted-foreground">Cost/Unit (₹)</Label>
                     <Input
                       type="number"
                       step="0.01"
@@ -127,8 +127,8 @@ const CostCalculator = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs text-gray-600">Total Cost</Label>
-                    <div className="h-8 px-2 py-1 bg-white border rounded text-sm font-medium text-green-700 flex items-center">
+                    <Label className="text-xs text-muted-foreground">Total Cost</Label>
+                    <div className="h-8 px-2 py-1 bg-card border rounded text-sm font-medium text-success-foreground flex items-center">
                       {formatCurrency(ingredient.totalCost)}
                     </div>
                   </div>
@@ -190,12 +190,12 @@ const CostCalculator = () => {
 
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Recipe Cost:</span>
+                    <span className="text-sm text-muted-foreground">Total Recipe Cost:</span>
                     <span className="font-semibold">{formatCurrency(totalCost)}</span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Cost per Serving:</span>
+                    <span className="text-sm text-muted-foreground">Cost per Serving:</span>
                     <span className="font-semibold">{formatCurrency(costPerServing)}</span>
                   </div>
                   
@@ -208,13 +208,13 @@ const CostCalculator = () => {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Profit per Serving:</span>
+                    <span className="text-sm text-muted-foreground">Profit per Serving:</span>
                     <span className="font-semibold text-green-600">{formatCurrency(profit)}</span>
                   </div>
                 </div>
 
                 <div className="pt-3 border-t">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <TrendingUp className="h-4 w-4" />
                     <span>
                       {markupPercentage}% markup = {((profit / costPerServing) * 100).toFixed(0)}% profit margin

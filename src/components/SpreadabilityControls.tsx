@@ -22,7 +22,7 @@ export default function SpreadabilityControls({ paste, viscosityData }: Spreadab
       case 'pourable': return 'bg-blue-500';
       case 'spreadable': return 'bg-green-500';
       case 'thick': return 'bg-orange-500';
-      default: return 'bg-gray-500';
+      default: return 'bg-muted';
     }
   };
 

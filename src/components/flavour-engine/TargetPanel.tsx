@@ -96,7 +96,7 @@ const TargetPanel: React.FC<TargetPanelProps> = ({
       case 'optimal': return 'bg-green-100 text-green-800 border-green-200';
       case 'warning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -194,7 +194,7 @@ const TargetPanel: React.FC<TargetPanelProps> = ({
                   
                   {/* Range Indicator */}
                   <div className="relative">
-                    <div className="h-2 bg-gray-200 rounded-full">
+                    <div className="h-2 bg-muted rounded-full">
                       {/* Target Range */}
                       <div 
                         className="absolute h-2 bg-green-200 rounded-full"

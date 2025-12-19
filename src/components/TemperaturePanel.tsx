@@ -58,7 +58,7 @@ export default function TemperaturePanel({
       case 'ideal': return 'bg-emerald-100 text-emerald-800';
       case 'firm': return 'bg-amber-100 text-amber-800';
       case 'too_hard': return 'bg-rose-100 text-rose-800';
-      default: return 'bg-slate-100 text-slate-800';
+      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -86,11 +86,11 @@ export default function TemperaturePanel({
 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Snowflake className="h-4 w-4 text-slate-500" />
+            <Snowflake className="h-4 w-4 text-muted-foreground" />
             <span className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'}`}>Storage</span>
           </div>
           <div className={`font-bold ${isMobile ? 'text-xl' : 'text-2xl'}`}>{advice.storeTempC}°C</div>
-          <div className={`${isMobile ? 'text-xs' : 'text-xs'} text-slate-600`}>
+          <div className={`${isMobile ? 'text-xs' : 'text-xs'} text-muted-foreground`}>
             {advice.frozenWaterAtServe_pct.toFixed(1)}% frozen water at serve
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function TemperaturePanel({
         </h4>
         <div className="space-y-1">
           {guidance.map((tip, idx) => (
-            <div key={idx} className="text-sm text-slate-600 bg-slate-50 rounded p-2">
+            <div key={idx} className="text-sm text-muted-foreground bg-muted rounded p-2">
               {tip}
             </div>
           ))}
@@ -138,7 +138,7 @@ export default function TemperaturePanel({
         </div>
 
         {showPreview && tuningPreview && (
-          <div className="bg-blue-50 rounded-lg p-3 space-y-3">
+          <div className="bg-primary/10 dark:bg-primary/20 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
               <h5 className="text-sm font-medium">Auto-tune Preview</h5>
               <Badge variant="secondary">
@@ -148,7 +148,7 @@ export default function TemperaturePanel({
 
             {tuningPreview.changes.length > 0 ? (
               <div className="space-y-2">
-                <div className="text-xs text-slate-600">
+                <div className="text-xs text-muted-foreground">
                   Frozen water at {customTemp}°C: {tuningPreview.metrics.frozenWaterAtTarget.toFixed(1)}%
                 </div>
                 
@@ -182,7 +182,7 @@ export default function TemperaturePanel({
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-slate-600 flex items-center gap-2">
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
                 No changes needed - recipe is already optimized for this temperature
               </div>
@@ -191,8 +191,8 @@ export default function TemperaturePanel({
         )}
       </div>
 
-      <div className="text-xs text-slate-500 bg-slate-50 rounded p-2">
-        <strong>Pro tip:</strong> Lower PAC = firmer texture. Higher PAC = softer texture. 
+      <div className="text-xs text-muted-foreground bg-muted rounded p-2">
+        <strong>Pro tip:</strong> Lower PAC = firmer texture. Higher PAC = softer texture.
         Auto-tune adjusts sugar ratios while maintaining sweetness level.
       </div>
     </Card>

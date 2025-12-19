@@ -49,7 +49,7 @@ export const DEEffectsPanel: React.FC = () => {
       {isExpanded && (
         <CardContent className="space-y-4">
           {/* What is DE */}
-          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="p-3 bg-warning/10 dark:bg-warning/20 rounded-lg border border-warning/30">
             <p className="text-sm font-semibold mb-2">What is DE?</p>
             <p className="text-xs text-muted-foreground">
               Dextrose Equivalent (DE) measures the degree of starch hydrolysis. Higher DE = more simple sugars = more sweetness and anti-freeze power. Lower DE = more complex chains = more body and viscosity.
@@ -66,11 +66,11 @@ export const DEEffectsPanel: React.FC = () => {
               {DE_EFFECTS.increase.map((effect, idx) => (
                 <div
                   key={idx}
-                  className="p-3 bg-green-50 rounded-lg border border-green-200"
+                  className="p-3 bg-success/10 dark:bg-success/20 rounded-lg border border-success/30"
                 >
                   <div className="flex items-start justify-between mb-1">
                     <span className="font-semibold text-sm">{effect.property}</span>
-                    <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                    <Badge variant="outline" className="bg-success/20 text-success-foreground border-success/30">
                       {effect.effect}
                     </Badge>
                   </div>
@@ -90,11 +90,11 @@ export const DEEffectsPanel: React.FC = () => {
               {DE_EFFECTS.decrease.map((effect, idx) => (
                 <div
                   key={idx}
-                  className="p-3 bg-red-50 rounded-lg border border-red-200"
+                  className="p-3 bg-destructive/10 dark:bg-destructive/20 rounded-lg border border-destructive/30"
                 >
                   <div className="flex items-start justify-between mb-1">
                     <span className="font-semibold text-sm">{effect.property}</span>
-                    <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                    <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30">
                       {effect.effect}
                     </Badge>
                   </div>
@@ -115,7 +115,7 @@ export const DEEffectsPanel: React.FC = () => {
                   {Object.entries(DE_EFFECTS.reference).map(([range, description]) => (
                     <div
                       key={range}
-                      className="p-3 bg-gray-50 rounded border border-gray-200"
+                      className="p-3 bg-muted rounded border border-border"
                     >
                       <p className="font-semibold text-sm mb-1">{range}</p>
                       <p className="text-xs text-muted-foreground">{description}</p>
@@ -127,7 +127,7 @@ export const DEEffectsPanel: React.FC = () => {
           </Accordion>
 
           {/* Practical Tips */}
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="p-4 bg-primary/10 dark:bg-primary/20 rounded-lg border border-primary/30">
             <p className="font-semibold text-sm mb-2 flex items-center gap-2">
               <Info className="h-4 w-4" />
               Practical Tips:
@@ -142,7 +142,7 @@ export const DEEffectsPanel: React.FC = () => {
           </div>
 
           {/* Common Combinations */}
-          <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+          <div className="p-4 bg-secondary/50 dark:bg-secondary/30 rounded-lg border border-secondary">
             <p className="font-semibold text-sm mb-2">Common Sugar Combinations:</p>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center">
