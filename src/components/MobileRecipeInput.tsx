@@ -221,14 +221,14 @@ const MobileRecipeInput = ({ onRecipeCreated }: MobileRecipeInputProps) => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-sm">Ingredients ({ingredients.length})</h4>
-                <div className="text-xs text-gray-500">Total: {totalWeight.toFixed(0)}g</div>
+                <div className="text-xs text-muted-foreground">Total: {totalWeight.toFixed(0)}g</div>
               </div>
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {ingredients.map((ingredient, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
                     <div className="flex-1">
                       <div className="text-sm font-medium">{ingredient.name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-muted-foreground">
                         {ingredient.amount} {ingredient.unit}
                       </div>
                     </div>
@@ -314,7 +314,7 @@ const MobileRecipeInput = ({ onRecipeCreated }: MobileRecipeInputProps) => {
           </div>
 
           {/* Manual Ingredient Entry */}
-          <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
+          <div className="space-y-3 p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
             <h4 className="font-semibold text-sm">Add Custom Ingredient</h4>
             <div className="space-y-2">
               <div className="flex gap-2">

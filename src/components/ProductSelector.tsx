@@ -14,7 +14,7 @@ const ProductSelector = ({ selectedProduct, onProductChange }: ProductSelectorPr
   return (
     <div className="mb-6">
       <Tabs value={selectedProduct} onValueChange={(value) => onProductChange(value as ProductType)}>
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-blue-50 to-purple-50">
+        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/20 dark:to-secondary/20">
           <TabsTrigger 
             value="ice-cream" 
             className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white"
@@ -39,8 +39,8 @@ const ProductSelector = ({ selectedProduct, onProductChange }: ProductSelectorPr
         </TabsList>
       </Tabs>
       
-      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-        <div className="text-sm text-gray-600">
+      <div className="mt-3 p-3 bg-muted rounded-lg">
+        <div className="text-sm text-muted-foreground">
           {selectedProduct === 'ice-cream' && (
             <div>
               <strong>Ice Cream Parameters:</strong> Higher fat content (10-20%), churned at higher speeds, 

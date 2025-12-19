@@ -67,7 +67,7 @@ export default function MachineGuidance({
         <h4 className="text-sm font-medium">Recommended Settings</h4>
         
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-slate-50 rounded-lg p-3">
+          <div className="bg-muted rounded-lg p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <Clock className="h-3 w-3" />
               Aging Time
@@ -75,7 +75,7 @@ export default function MachineGuidance({
             <div className="font-semibold">{settings.agingTime}</div>
           </div>
           
-          <div className="bg-slate-50 rounded-lg p-3">
+          <div className="bg-muted rounded-lg p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <Thermometer className="h-3 w-3" />
               Draw Temp
@@ -83,7 +83,7 @@ export default function MachineGuidance({
             <div className="font-semibold">{settings.drawTemp}</div>
           </div>
           
-          <div className="bg-slate-50 rounded-lg p-3">
+          <div className="bg-muted rounded-lg p-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
               <Wind className="h-3 w-3" />
               Overrun Target
@@ -96,13 +96,13 @@ export default function MachineGuidance({
       {/* Validation Warnings */}
       {validation.warnings.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-amber-700 flex items-center gap-1">
+          <h4 className="text-sm font-medium text-warning-foreground flex items-center gap-1">
             <AlertCircle className="h-4 w-4" />
             Warnings
           </h4>
           <div className="space-y-1">
             {validation.warnings.map((warning, idx) => (
-              <div key={idx} className="text-sm bg-amber-50 text-amber-800 rounded p-2">
+              <div key={idx} className="text-sm bg-warning/10 dark:bg-warning/20 text-warning-foreground rounded p-2">
                 {warning}
               </div>
             ))}
@@ -113,10 +113,10 @@ export default function MachineGuidance({
       {/* Recommendations */}
       {validation.recommendations.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-blue-700">Recommendations</h4>
+          <h4 className="text-sm font-medium text-primary">Recommendations</h4>
           <div className="space-y-1">
             {validation.recommendations.map((rec, idx) => (
-              <div key={idx} className="text-sm bg-blue-50 text-blue-800 rounded p-2">
+              <div key={idx} className="text-sm bg-primary/10 dark:bg-primary/20 text-primary rounded p-2">
                 {rec}
               </div>
             ))}
@@ -130,7 +130,7 @@ export default function MachineGuidance({
           <h4 className="text-sm font-medium">Process Notes</h4>
           <div className="space-y-1">
             {settings.notes.map((note, idx) => (
-              <div key={idx} className="text-sm text-slate-600 bg-slate-50 rounded p-2">
+              <div key={idx} className="text-sm text-muted-foreground bg-muted rounded p-2">
                 • {note}
               </div>
             ))}

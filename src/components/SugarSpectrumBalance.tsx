@@ -81,9 +81,9 @@ export const SugarSpectrumBalance: React.FC<SugarSpectrumBalanceProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Total Sugar Input */}
-        <div className="p-3 bg-purple-50 rounded-lg">
+        <div className="p-3 bg-primary/10 dark:bg-primary/20 rounded-lg">
           <Label className="text-sm font-medium">Total Sugar Amount</Label>
-          <p className="text-2xl font-bold text-purple-900">{totalSugarGrams.toFixed(0)}g</p>
+          <p className="text-2xl font-bold text-primary">{totalSugarGrams.toFixed(0)}g</p>
         </div>
 
         {/* Presets */}
@@ -126,7 +126,7 @@ export const SugarSpectrumBalance: React.FC<SugarSpectrumBalanceProps> = ({
 
         {/* Custom Sliders */}
         {showCustom && (
-          <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+          <div className="space-y-4 p-4 bg-muted rounded-lg">
             <div className="space-y-2">
               <div className="flex justify-between">
                 <Label>Sucrose (Disaccharide)</Label>
@@ -175,7 +175,7 @@ export const SugarSpectrumBalance: React.FC<SugarSpectrumBalanceProps> = ({
         )}
 
         {/* Results */}
-        <div className="space-y-2 p-4 bg-green-50 rounded-lg border border-green-200">
+        <div className="space-y-2 p-4 bg-success/10 dark:bg-success/20 rounded-lg border border-success/30">
           <Label className="text-sm font-semibold">Calculated Blend:</Label>
           <div className="grid grid-cols-3 gap-2">
             <div>
@@ -192,7 +192,7 @@ export const SugarSpectrumBalance: React.FC<SugarSpectrumBalanceProps> = ({
             </div>
           </div>
 
-          <div className="pt-2 border-t border-green-300">
+          <div className="pt-2 border-t border-success/30">
             <div className="flex justify-between text-sm">
               <span>Expected SP:</span>
               <Badge>{result.expected_sp.toFixed(1)}</Badge>
@@ -214,7 +214,7 @@ export const SugarSpectrumBalance: React.FC<SugarSpectrumBalanceProps> = ({
         </Button>
 
         {/* Info */}
-        <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-200">
+        <div className="text-xs text-muted-foreground p-3 bg-primary/10 dark:bg-primary/20 rounded border border-primary/30">
           <p><strong>💡 Tip:</strong> Balanced blend (70/10/20) works for most recipes. Increase dextrose for softer texture at serving temp, or increase sucrose for firmer body.</p>
         </div>
       </CardContent>
