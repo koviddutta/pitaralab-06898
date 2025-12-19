@@ -1,10 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const OutcomeSchema = z.object({
+  recipeId: z.string().uuid(),
+  outcome: z.enum(['success', 'needs_improvement', 'failed']),
+  texture: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
+  metrics: z.record(z.unknown()).optional(),
+});
 
 /**
  * Log recipe outcomes for future ML training
@@ -26,28 +36,50 @@ serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { 
-      recipeId, 
-      outcome, // 'success' | 'needs_improvement' | 'failed'
-      texture, // actual texture achieved
-      notes,
-      metrics 
-    } = await req.json();
-
-    if (!recipeId || !outcome) {
+    // Parse and validate request body
+    const rawBody = await req.json();
+    const parseResult = OutcomeSchema.safeParse(rawBody);
+    
+    if (!parseResult.success) {
+      console.error('Validation error:', parseResult.error.errors);
       return new Response(
-        JSON.stringify({ error: 'recipeId and outcome are required' }),
+        JSON.stringify({ 
+          error: 'Invalid input', 
+          details: parseResult.error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const { recipeId, outcome, texture, notes } = parseResult.data;
+
     console.log(`Logging outcome for recipe ${recipeId}: ${outcome}`);
+
+    // Verify recipe exists and belongs to user
+    const { data: recipe, error: recipeError } = await supabase
+      .from('recipes')
+      .select('id')
+      .eq('id', recipeId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (recipeError || !recipe) {
+      console.error('Recipe not found or not owned by user:', recipeError);
+      return new Response(
+        JSON.stringify({ error: 'Recipe not found or access denied' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Store outcome in training data table
     const { data, error } = await supabase
@@ -58,7 +90,6 @@ serve(async (req) => {
         outcome,
         actual_texture: texture,
         notes,
-        metrics,
       })
       .select()
       .single();
@@ -68,7 +99,7 @@ serve(async (req) => {
       throw error;
     }
 
-    console.log('Outcome logged successfully:', data);
+    console.log('Outcome logged successfully:', data.id);
 
     return new Response(
       JSON.stringify({ 
