@@ -49,7 +49,7 @@ export const CompositionBar = ({ metrics }: CompositionBarProps) => {
       </CardHeader>
       <CardContent className="space-y-4">
         <TooltipProvider>
-          <div className="flex h-12 w-full rounded overflow-hidden border-2 border-gray-200">
+          <div className="flex h-12 w-full rounded overflow-hidden border-2 border-border">
             {segments.map((seg, i) => (
               seg.value > 0 && (
                 <Tooltip key={i}>
@@ -83,7 +83,7 @@ export const CompositionBar = ({ metrics }: CompositionBarProps) => {
         <div className="flex flex-wrap gap-3 text-xs">
           {segments.map((seg, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <div className={cn(seg.color, "w-4 h-4 rounded border border-gray-300")} />
+              <div className={cn(seg.color, "w-4 h-4 rounded border border-border")} />
               <span className="font-medium">{seg.label}</span>
               <span className="text-muted-foreground">({safePercent(seg.value, 1)})</span>
             </div>

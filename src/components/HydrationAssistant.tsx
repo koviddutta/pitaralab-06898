@@ -71,7 +71,7 @@ export default function HydrationAssistant({ recipe }: HydrationAssistantProps) 
           const dosagePct = (row.grams / recipe.reduce((sum, r) => sum + r.grams, 0)) * 100;
           
           return (
-            <div key={idx} className="bg-blue-50 rounded-lg p-3 space-y-2">
+            <div key={idx} className="bg-primary/10 dark:bg-primary/20 rounded-lg p-3 space-y-2">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="font-medium text-sm">{row.ing.name}</div>
@@ -89,13 +89,13 @@ export default function HydrationAssistant({ recipe }: HydrationAssistantProps) 
               
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <Thermometer className="h-4 w-4 text-slate-500" />
+                  <Thermometer className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs">
                     <strong>Temp:</strong> {guidance.temp}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-slate-500" />
+                  <Clock className="h-4 w-4 text-muted-foreground" />
                   <span className="text-xs">
                     <strong>Time:</strong> {guidance.time}
                   </span>
@@ -103,7 +103,7 @@ export default function HydrationAssistant({ recipe }: HydrationAssistantProps) 
               </div>
               
               {guidance.notes.length > 0 && (
-                <div className="text-xs text-slate-600 space-y-0.5">
+                <div className="text-xs text-muted-foreground space-y-0.5">
                   {guidance.notes.map((note, nidx) => (
                     <div key={nidx}>• {note}</div>
                   ))}
@@ -116,16 +116,16 @@ export default function HydrationAssistant({ recipe }: HydrationAssistantProps) 
 
       {/* Aging Confirmation */}
       <div className="pt-3 border-t space-y-3">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <div className="bg-warning/10 dark:bg-warning/20 border border-warning/30 rounded-lg p-3">
           <div className="flex items-start gap-2">
-            <Clock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <Clock className="h-5 w-5 text-warning-foreground mt-0.5 flex-shrink-0" />
             <div className="flex-1 text-sm">
-              <div className="font-medium text-amber-900 mb-1">Aging is Critical</div>
-              <p className="text-amber-800 text-xs mb-2">
+              <div className="font-medium text-warning-foreground mb-1">Aging is Critical</div>
+              <p className="text-warning-foreground/80 text-xs mb-2">
                 After pasteurization and cooling, age the mix for <strong>4-12 hours at ≤5°C</strong> 
                 (ideally overnight). This allows:
               </p>
-              <ul className="text-xs text-amber-800 space-y-0.5 ml-3 list-disc">
+              <ul className="text-xs text-warning-foreground/80 space-y-0.5 ml-3 list-disc">
                 <li>Complete fat crystallization</li>
                 <li>Protein hydration</li>
                 <li>Stabilizer full functionality</li>
@@ -150,13 +150,13 @@ export default function HydrationAssistant({ recipe }: HydrationAssistantProps) 
         </div>
         
         {ageConfirmed && (
-          <div className="text-xs text-green-700 bg-green-50 rounded p-2">
+          <div className="text-xs text-success-foreground bg-success/10 dark:bg-success/20 rounded p-2">
             ✓ Excellent! Proper aging will significantly improve texture and stability.
           </div>
         )}
       </div>
 
-      <div className="text-xs text-slate-500 italic">
+      <div className="text-xs text-muted-foreground italic">
         <strong>Pro tip:</strong> Longer aging (8-12h) generally improves results, especially for 
         high-fat or high-stabilizer formulas. Never skip aging for commercial production.
       </div>

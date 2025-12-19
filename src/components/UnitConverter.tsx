@@ -87,7 +87,7 @@ const UnitConverter = () => {
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
+      <CardHeader className="bg-gradient-to-r from-success/10 to-primary/10 dark:from-success/20 dark:to-primary/20">
         <CardTitle className="flex items-center gap-2">
           <ArrowRightLeft className="h-5 w-5 text-green-600" />
           Unit Converter
@@ -135,13 +135,13 @@ const UnitConverter = () => {
               </div>
               
               <div className="flex items-center justify-center">
-                <Scale className="h-6 w-6 text-gray-400" />
+                <Scale className="h-6 w-6 text-muted-foreground" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Result</Label>
-                  <div className="p-2 bg-green-50 rounded border text-lg font-semibold text-green-800">
+                  <div className="p-2 bg-success/10 dark:bg-success/20 rounded border text-lg font-semibold text-success-foreground">
                     {weightResult.toFixed(3)}
                   </div>
                 </div>
@@ -199,13 +199,13 @@ const UnitConverter = () => {
               </div>
               
               <div className="flex items-center justify-center">
-                <Scale className="h-6 w-6 text-gray-400" />
+                <Scale className="h-6 w-6 text-muted-foreground" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Result</Label>
-                  <div className="p-2 bg-blue-50 rounded border text-lg font-semibold text-blue-800">
+                  <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded border text-lg font-semibold text-primary">
                     {volumeResult.toFixed(3)}
                   </div>
                 </div>
@@ -262,13 +262,13 @@ const UnitConverter = () => {
               </div>
               
               <div className="flex items-center justify-center">
-                <Scale className="h-6 w-6 text-gray-400" />
+                <Scale className="h-6 w-6 text-muted-foreground" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Result</Label>
-                  <div className="p-2 bg-purple-50 rounded border text-lg font-semibold text-purple-800">
+                  <div className="p-2 bg-secondary/50 dark:bg-secondary/30 rounded border text-lg font-semibold text-secondary-foreground">
                     {tempResult.toFixed(1)}°
                   </div>
                 </div>

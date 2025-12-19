@@ -50,9 +50,9 @@ export const ProductClassifier: React.FC<ProductClassifierProps> = ({ metrics })
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Classification Result */}
-        <div className="text-center p-4 bg-indigo-50 rounded-lg border-2 border-indigo-300">
+        <div className="text-center p-4 bg-secondary/50 dark:bg-secondary/30 rounded-lg border-2 border-secondary">
           <p className="text-sm text-muted-foreground mb-2">Detected Product Type:</p>
-          <h3 className="text-3xl font-bold text-indigo-900">
+          <h3 className="text-3xl font-bold text-foreground">
             {productTypeLabels[classification.productType]}
           </h3>
           
@@ -79,9 +79,9 @@ export const ProductClassifier: React.FC<ProductClassifierProps> = ({ metrics })
                 <div
                   key={idx}
                   className={`flex items-start gap-2 p-2 rounded text-sm ${
-                    isMatch ? 'bg-green-50 text-green-900' :
-                    isLow || isHigh ? 'bg-yellow-50 text-yellow-900' :
-                    'bg-gray-50 text-gray-700'
+                    isMatch ? 'bg-success/10 dark:bg-success/20 text-success-foreground' :
+                    isLow || isHigh ? 'bg-warning/10 dark:bg-warning/20 text-warning-foreground' :
+                    'bg-muted text-muted-foreground'
                   }`}
                 >
                   {isMatch ? (
@@ -101,7 +101,7 @@ export const ProductClassifier: React.FC<ProductClassifierProps> = ({ metrics })
         </div>
 
         {/* Deltas Summary */}
-        <div className="p-3 bg-gray-50 rounded border border-gray-200">
+        <div className="p-3 bg-muted rounded border border-border">
           <Label className="text-xs font-semibold mb-2 block">Parameter Deltas:</Label>
           <div className="grid grid-cols-3 gap-2 text-xs">
             {Object.entries(classification.deltas).map(([key, delta]) => (
@@ -120,7 +120,7 @@ export const ProductClassifier: React.FC<ProductClassifierProps> = ({ metrics })
         </div>
 
         {/* Help Text */}
-        <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-200">
+        <div className="text-xs text-muted-foreground p-3 bg-primary/10 dark:bg-primary/20 rounded border border-primary/30">
           <p><strong>💡 How it works:</strong> The classifier compares your recipe metrics against standard target bands for each product type. Lower delta values = better match.</p>
         </div>
       </CardContent>
