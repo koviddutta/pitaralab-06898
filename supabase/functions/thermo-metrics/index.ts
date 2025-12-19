@@ -1,10 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const RowSchema = z.object({
+  ing_id: z.string().uuid().optional(),
+  grams: z.number().min(0).max(100000),
+});
+
+const RequestSchema = z.object({
+  rows: z.array(RowSchema).min(1).max(100),
+  mode: z.enum(['gelato', 'sorbetto', 'icecream', 'granita']).default('gelato'),
+  serveTempC: z.number().min(-30).max(0).default(-12),
+});
 
 // Leighton table data for freezing point depression lookup
 const leightonTable = [
@@ -86,19 +99,30 @@ serve(async (req) => {
       );
     }
 
-    const { rows, mode = 'gelato', serveTempC = -12 } = await req.json();
-
-    if (!rows || !Array.isArray(rows)) {
+    // Parse and validate request body
+    const rawBody = await req.json();
+    const parseResult = RequestSchema.safeParse(rawBody);
+    
+    if (!parseResult.success) {
+      console.error('Validation error:', parseResult.error.errors);
       return new Response(
-        JSON.stringify({ error: 'Invalid input: rows array required' }),
+        JSON.stringify({ 
+          error: 'Invalid input', 
+          details: parseResult.error.errors.map(e => ({
+            path: e.path.join('.'),
+            message: e.message
+          }))
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const { rows, mode, serveTempC } = parseResult.data;
+
     console.log(`Processing ${rows.length} ingredient rows for user ${user.id}`);
 
     // Fetch all ingredient data
-    const ingredientIds = rows.map((r: any) => r.ing_id).filter(Boolean);
+    const ingredientIds = rows.map((r) => r.ing_id).filter(Boolean);
     const { data: ingredients, error: ingError } = await supabase
       .from('ingredients')
       .select('*')
@@ -122,7 +146,7 @@ serve(async (req) => {
     let totalHardeningEffect = 0;
     let totalWeight = 0;
 
-    rows.forEach((row: any) => {
+    rows.forEach((row) => {
       const ing = ingMap.get(row.ing_id);
       if (!ing) return;
 
