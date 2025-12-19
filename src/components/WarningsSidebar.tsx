@@ -98,10 +98,10 @@ export const WarningsSidebar: React.FC<WarningsSidebarProps> = ({
                   key={idx}
                   variant={type === 'error' || type === 'warning' ? 'destructive' : 'default'}
                   className={
-                    type === 'error' ? 'border-red-300 bg-red-50' :
-                    type === 'warning' ? 'border-yellow-300 bg-yellow-50' :
-                    type === 'info' ? 'border-blue-300 bg-blue-50' :
-                    'border-green-300 bg-green-50'
+                    type === 'error' ? 'border-red-300 bg-red-50 dark:bg-red-950/20' :
+                    type === 'warning' ? 'border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20' :
+                    type === 'info' ? 'border-blue-300 bg-blue-50 dark:bg-blue-950/20' :
+                    'border-green-300 bg-green-50 dark:bg-green-950/20'
                   }
                 >
                   <div className="flex items-start gap-2">

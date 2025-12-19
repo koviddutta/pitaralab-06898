@@ -95,7 +95,7 @@ export default function BatchLogger({ recipe, productType }: BatchLoggerProps) {
         <Badge variant="secondary">{logs.length} logged batches</Badge>
       </div>
 
-      <div className="space-y-3 text-sm text-muted-foreground bg-blue-50 p-3 rounded">
+      <div className="space-y-3 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded">
         <p><strong>Why log batches?</strong> After 20-40 batches with real process & sensory data, you can fit a predictive model (PAC × water% × temp → scoopability) to replace heuristics with YOUR plant's actual behavior.</p>
       </div>
 
@@ -199,17 +199,17 @@ export default function BatchLogger({ recipe, productType }: BatchLoggerProps) {
           {showHistory && (
             <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
               {logs.slice().reverse().slice(0, 10).map((log) => (
-                <div key={log.id} className="text-xs bg-slate-50 p-2 rounded">
+                <div key={log.id} className="text-xs bg-muted p-2 rounded">
                   <div className="flex justify-between items-start">
-                    <span className="font-mono text-slate-600">{log.id}</span>
+                    <span className="font-mono text-muted-foreground">{log.id}</span>
                     <Badge variant="outline" className="text-xs">{log.machineType}</Badge>
                   </div>
-                  <div className="mt-1 text-slate-600">
+                  <div className="mt-1 text-muted-foreground">
                     {log.drawTempC && `Draw: ${log.drawTempC}°C · `}
                     {log.overrunPct && `OR: ${log.overrunPct}% · `}
                     {log.hardnessScore && `Hardness: ${log.hardnessScore}/10`}
                   </div>
-                  {log.notes && <div className="mt-1 text-slate-500 italic">{log.notes}</div>}
+                  {log.notes && <div className="mt-1 text-muted-foreground italic">{log.notes}</div>}
                 </div>
               ))}
             </div>
