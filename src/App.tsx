@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Suspense, lazy, useEffect, useState } from "react";
+import { ThemeProvider } from "next-themes";
 import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import ErrorBoundary from "./components/ui/error-boundary";
 import { IngredientsProvider } from "@/contexts/IngredientsContext";
@@ -68,30 +69,32 @@ const App = () => {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        <IngredientsProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Suspense fallback={<div style={{padding:'2rem'}}>Loading…</div>}>
-                <Routes>
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                  <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
-                  <Route path="/reverse-engineer" element={<ProtectedRoute><ReverseEngineer /></ProtectedRoute>} />
-                  <Route path="/help/glossary" element={<ProtectedRoute><Glossary /></ProtectedRoute>} />
-                  <Route path="/database" element={<ProtectedRoute><Database /></ProtectedRoute>} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </TooltipProvider>
-        </IngredientsProvider>
-      </ErrorBoundary>
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          <IngredientsProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <Suspense fallback={<div style={{padding:'2rem'}}>Loading…</div>}>
+                  <Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                    <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+                    <Route path="/reverse-engineer" element={<ProtectedRoute><ReverseEngineer /></ProtectedRoute>} />
+                    <Route path="/help/glossary" element={<ProtectedRoute><Glossary /></ProtectedRoute>} />
+                    <Route path="/database" element={<ProtectedRoute><Database /></ProtectedRoute>} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </IngredientsProvider>
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 };
 

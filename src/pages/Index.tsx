@@ -22,6 +22,7 @@ import { DiagnosticsPanel } from "@/components/DiagnosticsPanel";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Card, CardContent } from "@/components/ui/card";
 import { Smartphone, Monitor, LogOut, User as UserIcon, HelpCircle, Wrench, Package } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { migratePinProfiles } from "@/lib/migratePinProfiles";
 import { mlScheduler } from "@/lib/mlTrainingScheduler";
 import { useToast } from "@/hooks/use-toast";
@@ -165,10 +166,10 @@ const Index = () => {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -176,12 +177,13 @@ const Index = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <div className="min-h-screen bg-background">
         <CopyProtection />
         <WelcomeTour />
         <div className="container mx-auto px-2 md:px-4 py-4 md:py-8">
         {backendReady && user && (
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end items-center gap-2 mb-4">
+            <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
