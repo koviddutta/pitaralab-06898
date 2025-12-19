@@ -219,10 +219,10 @@ export function ChemistryDashboard({ recipe, metrics }: ChemistryDashboardProps)
             {recipe.map((ing, i) => {
               if (!ing.ingredientData) {
                 return (
-                  <div key={i} className="p-3 border border-yellow-200 rounded-lg bg-yellow-50">
+                  <div key={i} className="p-3 border border-yellow-200 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm text-yellow-700">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                      <span className="text-sm text-yellow-700 dark:text-yellow-300">
                         {ing.ingredient}: Missing ingredient data
                       </span>
                     </div>
