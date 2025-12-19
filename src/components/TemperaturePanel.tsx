@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ export default function TemperaturePanel({
   const [tuningPreview, setTuningPreview] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  const isMobile = window.innerWidth < 768;
+  const isMobile = useIsMobile();
   const advice = recommendTemps(metrics);
   const guidance = getTemperatureGuidance(metrics);
 

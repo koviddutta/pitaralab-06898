@@ -21,7 +21,7 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
         <Button
           variant="outline"
           className="h-auto py-3 flex flex-col items-center gap-2"
-          onClick={() => onNavigate('ai-flavour-engine')}
+          onClick={() => onNavigate('chemistry')}
           disabled={!hasRecipe}
         >
           <Beaker className="h-5 w-5" />
@@ -39,7 +39,7 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
         <Button
           variant="outline"
           className="h-auto py-3 flex flex-col items-center gap-2"
-          onClick={() => onNavigate('ai-flavour-engine')}
+          onClick={() => onNavigate('costing')}
           disabled={!hasRecipe}
         >
           <DollarSign className="h-5 w-5" />
@@ -75,7 +75,7 @@ export function QuickAccessPanel({ onNavigate, hasRecipe }: QuickAccessPanelProp
         <Button
           variant="outline"
           className="h-auto py-3 flex flex-col items-center gap-2"
-          onClick={() => onNavigate('ai-flavour-engine')}
+          onClick={() => onNavigate('sugar-blend')}
         >
           <Candy className="h-5 w-5" />
           <div className="text-center">

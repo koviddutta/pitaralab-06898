@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +20,7 @@ export default function MachineSelector({
 }: MachineSelectorProps) {
   const [machine, setMachine] = useState<'batch' | 'continuous'>(selectedMachine);
 
-  const isMobile = window.innerWidth < 768;
+  const isMobile = useIsMobile();
   const currentMachine = MACHINES[machine];
   const settings = getOptimalMachineSettings(metrics, machine);
   const validation = validateForMachine(metrics, machine);
