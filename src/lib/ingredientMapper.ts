@@ -557,12 +557,31 @@ export function getIngredientSuggestions(
 // ============================================================================
 
 export const CANONICALS = {
-  water: ['water', 'drinking water', 'aqua', 'purified water', 'h2o'],
+  water: ['water', 'drinking water', 'aqua', 'purified water', 'h2o', 'pani', 'jal'],
   cream_35: ['heavy cream', 'cream 35', 'cream 36', 'heavy cream 35%', 
-             'fresh cream 36', 'malai', 'cream 38', 'double cream'],
-  butter: ['butter', 'unsalted butter', 'salted butter', 'white butter'],
+             'fresh cream 36', 'malai', 'cream 38', 'double cream',
+             'whipping cream', 'thickened cream', 'full cream', 'balai'],
+  butter: ['butter', 'unsalted butter', 'salted butter', 'white butter',
+           'makkhan', 'makhan', 'loni', 'maslo'],
   smp: ['skim milk powder', 'smp', 'low fat milk powder', 
-        'non-fat dry milk', 'nfdm', 'skimmed milk powder']
+        'non-fat dry milk', 'nfdm', 'skimmed milk powder',
+        'fat free milk powder', 'dried skim milk'],
+  khoya: ['khoya', 'khoa', 'mawa', 'kova', 'milk solid', 'rabdi base'],
+  milk: ['milk', 'doodh', 'dudh', 'whole milk', 'full fat milk', 
+         'taza doodh', 'cow milk', 'gai ka doodh', 'buffalo milk', 'bhains ka doodh'],
+  condensed: ['condensed milk', 'milkmaid', 'sweetened condensed', 
+              'condensed whole milk', 'mithi cream'],
+  pistachio: ['pistachio', 'pista', 'pistache', 'pistachio paste', 
+              'pistacchio', 'bronte pistachio'],
+  hazelnut: ['hazelnut', 'nocciola', 'hazelnuts', 'hazelnut paste',
+             'gianduia', 'gianduja'],
+  almond: ['almond', 'badam', 'almonds', 'almond paste', 'badaam',
+           'mandorla', 'almendra'],
+  mango: ['mango', 'aam', 'alphonso', 'mango pulp', 'mango puree',
+          'kesar mango', 'hapus', 'ratnagiri'],
+  fruit_puree: ['puree', 'pulp', 'fruit puree', 'fruit pulp', 'juice'],
+  chocolate: ['chocolate', 'choco', 'cocoa', 'cacao', 'dark chocolate', 
+              'milk chocolate', 'white chocolate']
 };
 
 export type CanonicalIngredient = 'water' | 'cream_35' | 'butter' | 'smp';
@@ -663,22 +682,56 @@ export function matchIngredientName(
   availableIngredients: IngredientData[]
 ): IngredientData | null {
   const aliases: { [key: string]: string } = {
+    // Sugars
     'sugar': 'Sucrose',
     'table sugar': 'Sucrose',
     'white sugar': 'Sucrose',
+    'cheeni': 'Sucrose',
+    'shakkar': 'Sucrose',
     'dextrose monohydrate': 'Dextrose',
     'glucose': 'Glucose Syrup DE60',
     'corn syrup': 'Glucose Syrup DE60',
+    // Dairy
     'milk': 'Milk 3% fat',
     'whole milk': 'Milk 3% fat',
+    'doodh': 'Milk 3% fat',
     'cream': 'Cream 25% fat',
     'heavy cream': 'Heavy Cream',
+    'malai': 'Heavy Cream 35%',
     'whipping cream': 'Cream 25% fat',
     'skim milk powder': 'Skim Milk Powder',
     'nonfat dry milk': 'Skim Milk Powder',
+    'khoya': 'Mawa (Khoya)',
+    'khoa': 'Mawa (Khoya)',
+    'mawa': 'Mawa (Khoya)',
+    // Stabilizers
     'stabilizer': 'Stabilizer Blend',
+    'stabiliser': 'Stabilizer Blend',
+    // Eggs
     'egg yolk': 'Egg Yolks',
+    'egg yolks': 'Egg Yolks',
+    // Flavors
     'vanilla': 'Vanilla Extract',
+    'pista': 'Pistachio Paste',
+    'pistachio': 'Pistachio Paste',
+    'hazelnut': 'Hazelnut Paste',
+    'nocciola': 'Hazelnut Paste',
+    'badam': 'Almond Paste',
+    'almond': 'Almond Paste',
+    // Chocolates
+    'dark chocolate': 'Dark Chocolate 70%',
+    'milk chocolate': 'Milk Chocolate',
+    'white chocolate': 'White Chocolate',
+    'cocoa': 'Cocoa Powder (Dutch)',
+    'cocoa powder': 'Cocoa Powder (Dutch)',
+    // Fruits
+    'mango': 'Mango Alphonso Pulp',
+    'aam': 'Mango Alphonso Pulp',
+    'strawberry': 'Strawberry Puree',
+    'raspberry': 'Raspberry Puree',
+    'banana': 'Banana Puree',
+    'lemon': 'Lemon Juice',
+    'nimbu': 'Lemon Juice',
   };
   
   const searchLower = searchName.toLowerCase();
