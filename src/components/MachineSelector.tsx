@@ -56,13 +56,13 @@ export default function MachineSelector({
       {/* Machine specifications */}
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-1">
-          <span className="text-xs text-slate-600">Overrun Target</span>
+          <span className="text-xs text-muted-foreground">Overrun Target</span>
           <Badge variant="outline">
             {currentMachine.overrunTarget_pct[0]}-{currentMachine.overrunTarget_pct[1]}%
           </Badge>
         </div>
         <div className="space-y-1">
-          <span className="text-xs text-slate-600">Shear Level</span>
+          <span className="text-xs text-muted-foreground">Shear Level</span>
           <Badge variant="outline" className="capitalize">
             {currentMachine.shearLevel}
           </Badge>
@@ -85,7 +85,7 @@ export default function MachineSelector({
         {validation.warnings.length > 0 && (
           <div className="space-y-1">
             {validation.warnings.map((warning, idx) => (
-              <div key={idx} className="text-sm text-amber-700 bg-amber-50 rounded p-2 flex items-start gap-2">
+              <div key={idx} className="text-sm text-warning-foreground bg-warning/10 dark:bg-warning/20 rounded p-2 flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 {warning}
               </div>
@@ -96,7 +96,7 @@ export default function MachineSelector({
         {validation.recommendations.length > 0 && (
           <div className="space-y-1">
             {validation.recommendations.map((rec, idx) => (
-              <div key={idx} className="text-sm text-blue-700 bg-blue-50 rounded p-2 flex items-start gap-2">
+              <div key={idx} className="text-sm text-primary bg-primary/10 dark:bg-primary/20 rounded p-2 flex items-start gap-2">
                 <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 {rec}
               </div>
@@ -111,24 +111,24 @@ export default function MachineSelector({
         
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <span className="text-xs text-slate-600">Aging Time</span>
+            <span className="text-xs text-muted-foreground">Aging Time</span>
             <div className="text-sm font-medium">{settings.agingTime}</div>
           </div>
           <div>
-            <span className="text-xs text-slate-600">Draw Temperature</span>
+            <span className="text-xs text-muted-foreground">Draw Temperature</span>
             <div className="text-sm font-medium">{settings.drawTemp}</div>
           </div>
           <div>
-            <span className="text-xs text-slate-600">Overrun Target</span>
+            <span className="text-xs text-muted-foreground">Overrun Target</span>
             <div className="text-sm font-medium">{settings.overrunTarget}</div>
           </div>
         </div>
 
         {settings.notes.length > 0 && (
           <div className="space-y-1">
-            <span className="text-xs text-slate-600">Process Notes</span>
+            <span className="text-xs text-muted-foreground">Process Notes</span>
             {settings.notes.map((note, idx) => (
-              <div key={idx} className="text-xs text-slate-600 bg-slate-50 rounded p-2">
+              <div key={idx} className="text-xs text-muted-foreground bg-muted rounded p-2">
                 • {note}
               </div>
             ))}
@@ -136,7 +136,7 @@ export default function MachineSelector({
         )}
       </div>
 
-      <div className="text-xs text-slate-500 bg-slate-50 rounded p-2">
+      <div className="text-xs text-muted-foreground bg-muted rounded p-2">
         <strong>Tip:</strong> Batch freezers excel at dense, artisanal textures. 
         Continuous freezers provide consistent overrun and faster production.
       </div>

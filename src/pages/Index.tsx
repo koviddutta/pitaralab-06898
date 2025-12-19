@@ -217,13 +217,13 @@ const Index = () => {
 
         {!backendReady && (
           <div className="mb-4">
-            <Card className="bg-yellow-50 border-yellow-200">
+            <Card className="bg-warning/10 border-warning/30 dark:bg-warning/20">
               <CardContent className="p-4">
-                <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Backend Connection Issue</h3>
-                <p className="text-sm text-yellow-700 mb-3">
+                <h3 className="font-semibold text-warning-foreground mb-2">⚠️ Backend Connection Issue</h3>
+                <p className="text-sm text-warning-foreground/80 mb-3">
                   The app is running in offline mode. Backend features (save, auth, AI) are temporarily unavailable.
                 </p>
-                <details className="text-xs text-yellow-600">
+                <details className="text-xs text-warning-foreground/70">
                   <summary className="cursor-pointer font-medium mb-2">Troubleshooting Steps</summary>
                   <ol className="list-decimal ml-4 space-y-1 mt-2">
                     <li>Open browser console (F12) to check for connection errors</li>
@@ -251,15 +251,15 @@ const Index = () => {
         <div className="text-center mb-4 md:mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
             {isMobile ? (
-              <Smartphone className="h-6 w-6 text-gray-600" />
+              <Smartphone className="h-6 w-6 text-muted-foreground" />
             ) : (
-              <Monitor className="h-6 w-6 text-gray-600" />
+              <Monitor className="h-6 w-6 text-muted-foreground" />
             )}
-            <h1 className="text-2xl md:text-4xl font-bold text-gray-800">
+            <h1 className="text-2xl md:text-4xl font-bold text-foreground">
               MeethaPitara Recipe Calculator
             </h1>
           </div>
-          <p className="text-gray-600 text-sm md:text-lg px-4">
+          <p className="text-muted-foreground text-sm md:text-lg px-4">
             🤖 AI-Powered · 🧠 Self-Learning · 📊 Real-time Predictions
           </p>
           {isMobile && (

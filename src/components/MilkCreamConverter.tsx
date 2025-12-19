@@ -81,9 +81,9 @@ export const MilkCreamConverter: React.FC = () => {
         </div>
 
         {/* Evaporation Section */}
-        <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+        <div className="p-3 bg-warning/10 dark:bg-warning/20 rounded-lg border border-warning/30">
           <div className="flex items-center gap-2 mb-2">
-            <Flame className="h-4 w-4 text-orange-600" />
+            <Flame className="h-4 w-4 text-warning-foreground" />
             <Label htmlFor="evaporation" className="font-semibold">Water Evaporation %</Label>
           </div>
           <Input
@@ -100,19 +100,19 @@ export const MilkCreamConverter: React.FC = () => {
         </div>
 
         {/* Results Section */}
-        <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
+        <div className="space-y-3 p-4 bg-success/10 dark:bg-success/20 rounded-lg border border-success/30">
           <Label className="text-sm font-semibold">Required Volumes:</Label>
           
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-white rounded">
+            <div className="text-center p-3 bg-card rounded">
               <p className="text-xs text-muted-foreground">Milk</p>
-              <p className="text-2xl font-bold text-blue-900">{result.milk_g.toFixed(0)}g</p>
+              <p className="text-2xl font-bold text-primary">{result.milk_g.toFixed(0)}g</p>
               <p className="text-xs text-muted-foreground">≈ {(result.milk_g / 1.03).toFixed(0)} ml</p>
             </div>
 
-            <div className="text-center p-3 bg-white rounded">
+            <div className="text-center p-3 bg-card rounded">
               <p className="text-xs text-muted-foreground">Cream</p>
-              <p className="text-2xl font-bold text-blue-900">{result.cream_g.toFixed(0)}g</p>
+              <p className="text-2xl font-bold text-primary">{result.cream_g.toFixed(0)}g</p>
               <p className="text-xs text-muted-foreground">≈ {(result.cream_g / 1.01).toFixed(0)} ml</p>
             </div>
           </div>
@@ -150,7 +150,7 @@ export const MilkCreamConverter: React.FC = () => {
         )}
 
         {/* MSNF Info */}
-        <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-200">
+        <div className="text-xs text-muted-foreground p-3 bg-primary/10 dark:bg-primary/20 rounded border border-primary/30">
           <p><strong>💡 MSNF Handling:</strong> Milk solids non-fat (lactose + protein) will concentrate as water evaporates. For precise MSNF control, add SMP (Skim Milk Powder) separately after calculating base dairy.</p>
         </div>
       </CardContent>
