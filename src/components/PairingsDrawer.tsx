@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ export default function PairingsDrawer({
     classic: []
   });
 
-  const isMobile = window.innerWidth < 768;
+  const isMobile = useIsMobile();
 
   const analyzePairings = async () => {
     if (!selectedIngredient) return;

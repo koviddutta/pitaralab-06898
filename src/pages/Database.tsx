@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Upload, Database as DatabaseIcon, Brain, Download, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -646,7 +647,7 @@ export default function Database() {
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            You must be logged in. Please <a href="/auth" className="font-medium underline">sign in</a>.
+            You must be logged in. Please <Link to="/auth" className="font-medium underline">sign in</Link>.
           </AlertDescription>
         </Alert>
       )}
