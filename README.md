@@ -144,19 +144,13 @@ Built-in AI endpoints using **Google Gemini 2.5 Flash**:
 
 **Status**: Production-ready (9/10 quality score)
 
-## Lovable Project Info
-
-**URL**: https://lovable.dev/projects/bb17a160-6168-458c-8e73-bd021475485e
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
 
-**Use Lovable**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/bb17a160-6168-458c-8e73-bd021475485e) and start prompting.
 
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
